@@ -3,10 +3,12 @@ import sys
 from gamestate import ChessBoard, WHITE, BLACK, PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING
 from graphics import *
 
-pygame.init()
+
+
 WINDOW_WIDTH = 640
 WINDOW_HEIGHT = 640
 TILE_SIZE = WINDOW_WIDTH // 8
+pygame.init()
 screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
 pygame.display.set_caption("Python Variant Chess")
 
@@ -45,40 +47,19 @@ def draw_pieces(screen_surface, game_grid):
             outline_color = WHITE_PIECE_OUTLINE if piece.color == WHITE else BLACK_PIECE_OUTLINE
 
             if piece.type == PAWN:
-                pygame.draw.circle(screen_surface, fill_color, (center_x, center_y + 10), radius - 5)
-                pygame.draw.circle(screen_surface, outline_color, (center_x, center_y + 10), radius - 5, 3)
-                pygame.draw.circle(screen_surface, fill_color, (center_x, center_y - 10), radius - 12)
-                pygame.draw.circle(screen_surface, outline_color, (center_x, center_y - 10), radius - 12, 3)
-
+                pawn(screen_surface, fill_color, outline_color, center_x, center_y, radius)
             elif piece.type == ROOK:
-                rect_left = (column * TILE_SIZE) + 20
-                rect_top = (row * TILE_SIZE) + 20
-                pygame.draw.rect(screen_surface, fill_color, (rect_left, rect_top, 40, 40))
-                pygame.draw.rect(screen_surface, outline_color, (rect_left, rect_top, 40, 40), 3)
-
+                rook(screen_surface, fill_color, outline_color, center_x, center_y, radius)
             elif piece.type == KNIGHT:
-                point_top = (center_x, center_y - 20)
-                point_bottom_left = (center_x - 15, center_y + 20)
-                point_bottom_right = (center_x + 15, center_y + 20)
-                pygame.draw.polygon(screen_surface, fill_color, [point_top, point_bottom_left, point_bottom_right])
-                pygame.draw.polygon(screen_surface, outline_color, [point_top, point_bottom_left, point_bottom_right], 3)
-
+                knight(screen_surface, fill_color, outline_color, center_x, center_y, radius)
             elif piece.type == BISHOP:
-                pygame.draw.circle(screen_surface, fill_color, (center_x, center_y), radius - 3)
-                pygame.draw.circle(screen_surface, outline_color, (center_x, center_y), radius - 3, 3)
-                pygame.draw.line(screen_surface, outline_color, (center_x, center_y - 15), (center_x, center_y + 15), 3)
-
+                bishop(screen_surface, fill_color, outline_color, center_x, center_y, radius)
             elif piece.type == QUEEN:
-                pygame.draw.circle(screen_surface, fill_color, (center_x, center_y), radius)
-                pygame.draw.circle(screen_surface, outline_color, (center_x, center_y), radius, 3)
-                pygame.draw.circle(screen_surface, outline_color, (center_x, center_y), radius - 8, 2)
-
+                queen(screen_surface, fill_color, outline_color, center_x, center_y, radius)
             elif piece.type == KING:
-                pygame.draw.circle(screen_surface, fill_color, (center_x, center_y), radius)
-                pygame.draw.circle(screen_surface, outline_color, (center_x, center_y), radius, 3)
-                pygame.draw.line(screen_surface, outline_color, (center_x - 10, center_y), (center_x + 10, center_y), 4)
-                pygame.draw.line(screen_surface, outline_color, (center_x, center_y - 10), (center_x, center_y + 10), 4)
-
+                king(screen_surface, fill_color, outline_color, center_x, center_y, radius)
+            else:
+                error(screen_surface, center_x, center_y)
 def main():
     game_board = ChessBoard()
     selected_square = None
