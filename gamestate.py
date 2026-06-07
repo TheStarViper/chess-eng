@@ -13,6 +13,7 @@ class ChessPiece:
     def __init__(self, piece_type, color):
         self.type = piece_type
         self.color = color
+        self.has_moved = False #track for castling
 
 class ChessBoard:
     def __init__(self):
@@ -31,7 +32,7 @@ class ChessBoard:
             self.grid[6][column] = ChessPiece(PAWN, WHITE)
             self.grid[7][column] = ChessPiece(back_rank_setup[column], WHITE)
 
-    def get_legal_moves(self, start_row, start_column):
+    def get_legal_moves(self, start_row, start_column, ignore_castling=False):
         legal_moves = []
         piece = self.grid[start_row][start_column]
         if not piece: 
@@ -75,7 +76,7 @@ class ChessBoard:
                 directions.extend([(-1, -1), (-1, 1), (1, -1), (1, 1)])
             if piece.type == ROOK or piece.type == QUEEN:
                 directions.extend([(-1, 0), (1, 0), (0, -1), (0, 1)])
-                
+            
             for row_offset, col_offset in directions:
                 current_row = start_row + row_offset
                 current_column = start_column + col_offset
@@ -107,6 +108,24 @@ class ChessBoard:
                     target_square = self.grid[target_row][target_column]
                     if target_square is None or target_square.color != piece.color:
                         legal_moves.append((target_row, target_column))
+
+
+            if not ignore_castling:
+                if not piece.has_moved and not self.is_in_check(piece.color):
+                    # short castle
+                    kingside_rook = self.grid[start_row][7]
+                    if kingside_rook and kingside_rook.type == ROOK and not kingside_rook.has_moved:
+                        if self.grid[start_row][5] is None and self.grid[start_row][6] is None:
+                            if not self.is_square_attacked(start_row, 5, piece.color):
+                                legal_moves.append((start_row, 6))
+
+                    # long castle
+                    queenside_rook = self.grid[start_row][0]
+                    if queenside_rook and queenside_rook.type == ROOK and not queenside_rook.has_moved:
+                        if self.grid[start_row][1] is None and self.grid[start_row][2] is None and self.grid[start_row][3] is None:
+                            if not self.is_square_attacked(start_row, 3, piece.color):
+                                legal_moves.append((start_row, 2))
+                                
                     
         return legal_moves
 
@@ -148,9 +167,28 @@ class ChessBoard:
                 self.captured_white.append(target_piece)
             else:
                 self.captured_black.append(target_piece)
-        
+
+        moving_piece = self.grid[start_row][start_column]
         self.grid[end_row][end_column] = self.grid[start_row][start_column]
         self.grid[start_row][start_column] = None
+
+        if moving_piece and moving_piece.type == KING:
+            # short castle
+            if end_column - start_column == 2:
+                rook = self.grid[end_row][7]
+                self.grid[end_row][5] = rook
+                self.grid[end_row][7] = None
+                if rook: rook.has_moved = True
+            # long castle
+            elif start_column - end_column == 2:
+                rook = self.grid[end_row][0]
+                self.grid[end_row][3] = rook
+                self.grid[end_row][0] = None
+                if rook: rook.has_moved = True
+
+        if moving_piece:
+            moving_piece.has_moved = True
+
         self.turn = BLACK if self.turn == WHITE else WHITE
 
         self.last_move = (start_position, end_position)
@@ -181,5 +219,15 @@ class ChessBoard:
         return False
 
     def get_raw_moves(self, row, column):
-        
-        return self.get_legal_moves(row, column)
+        return self.get_legal_moves(row, column, ignore_castling=True)
+    
+    def is_square_attacked(self, row, column, friendly_color):
+        enemy_color = BLACK if friendly_color == WHITE else WHITE
+        for board_row in range(8):
+            for board_column in range(8):
+                enemy_piece = self.grid[board_row][board_column]
+                if enemy_piece and enemy_piece.color == enemy_color:
+                    # Check raw structural attacks bypassing safety filters
+                    if (row, column) in self.get_raw_moves(board_row, board_column):
+                        return True
+        return False

@@ -98,7 +98,7 @@ def draw_pieces(screen_surface, game_grid):
             draw_piece(piece.type, screen_surface, fill_color, outline_color, center_x, center_y, radius)
 
 def draw_legal_moves(screen_surface, legal_moves, game_grid):
-    for row, column in legal_moves:
+    for row, column in legal_moves: 
         center_x = BOARD_OFFSET_X + (column * TILE_SIZE) + (TILE_SIZE // 2)
         center_y = BOARD_OFFSET_Y + (row * TILE_SIZE) + (TILE_SIZE // 2)
         
