@@ -23,6 +23,7 @@ class ChessBoard:
         self.captured_black = []
         self.last_move = None 
         self.promotion_required = False
+        self.en_passant_target = None # Will store a tuple (row, column) of the square that can be captured en passant, or None if not applicable
         self.promotion_square = (None, None) # Will store a tuple (row, column)
         
         self.initialize_standard_board()
@@ -58,6 +59,11 @@ class ChessBoard:
                     target_square = self.grid[next_row][target_column]
                     if target_square and target_square.color != piece.color:
                         legal_moves.append((next_row, target_column))
+
+            if self.en_passant_target is not None:
+                target_row, target_column = self.en_passant_target
+                if next_row == target_row and abs(start_column - target_column) == 1:
+                    legal_moves.append((target_row, target_column))
 
         elif piece.type == KNIGHT:
             knight_offsets = [
@@ -187,7 +193,15 @@ class ChessBoard:
                 self.grid[end_row][3] = rook
                 self.grid[end_row][0] = None
                 if rook: rook.has_moved = True
+        
 
+        self.en_passant_target = None
+        if moving_piece and moving_piece.type == PAWN:
+            if abs(start_row - end_row) == 2:
+                skipped_row = (start_row + end_row) // 2
+                self.en_passant_target = (skipped_row, start_column)
+
+        
         if moving_piece:
             moving_piece.has_moved = True
 
