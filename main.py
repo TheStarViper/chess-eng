@@ -98,21 +98,33 @@ def draw_chessboard(screen_surface, selected_square, last_move, game_board):
             square_y = BOARD_OFFSET_Y + (row * TILE_SIZE)
             pygame.draw.rect(screen_surface, square_color, (square_x, square_y, TILE_SIZE, TILE_SIZE))
 
-def draw_pieces(screen_surface, game_grid):
+def draw_pieces(screen_surface, grid):
+    mouse_x, mouse_y = pygame.mouse.get_pos()
+    
     for row in range(8):
-        for column in range(8):
-            piece = game_grid[row][column]
-            if piece is None:
-                continue
-
-            center_x = BOARD_OFFSET_X + (column * TILE_SIZE) + (TILE_SIZE // 2)
-            center_y = BOARD_OFFSET_Y + (row * TILE_SIZE) + (TILE_SIZE // 2)
-            radius = TILE_SIZE // 3
-
-            fill_color = WHITE_PIECE_COLOR if piece.color == WHITE else BLACK_PIECE_COLOR
-            outline_color = WHITE_PIECE_OUTLINE if piece.color == WHITE else BLACK_PIECE_OUTLINE
-
-            draw_piece(piece.type, screen_surface, fill_color, outline_color, center_x, center_y, radius)
+        for col in range(8):
+            piece_object = grid[row][col]
+            
+            if piece_object is not None:
+                tile_left = BOARD_OFFSET_X + (col * TILE_SIZE)
+                tile_top = BOARD_OFFSET_Y + (row * TILE_SIZE)
+                
+                center_x = tile_left + (TILE_SIZE // 2)
+                center_y = tile_top + (TILE_SIZE // 2)
+                radius = int(TILE_SIZE * 0.45)
+                
+                if tile_left <= mouse_x < tile_left + TILE_SIZE and tile_top <= mouse_y < tile_top + TILE_SIZE:
+                    tilt_angle = -8  
+                else:
+                    tilt_angle = 0   
+                if "white" in str(piece_object.color).lower() or piece_object.color == WHITE:
+                    fill = (248, 248, 248)
+                    outline = (45, 45, 45)
+                else:
+                    fill = (86, 83, 82)
+                    outline = (25, 25, 25)
+                
+                draw_piece(piece_object.type, screen_surface, fill, outline, center_x, center_y, radius, angle=tilt_angle)
 
 def draw_legal_moves(screen_surface, legal_moves, game_grid):
     for row, column in legal_moves: 
