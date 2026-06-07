@@ -28,6 +28,8 @@ class ChessBoard:
         self.game_over_reason = None  
         self.halfmove_clock = 0 
         self.game_over_reason = None
+        self.position_history = {}  # Tracks Fen-like string states for 3-fold
+        self.record_current_position() # Log the starting layout
 
         self.initialize_standard_board()
     def initialize_standard_board(self):
@@ -171,7 +173,8 @@ class ChessBoard:
         start_row, start_column = start_position
         end_row, end_column = end_position
         reset_clock = False
-        
+        self.record_current_position()
+        self.check_game_status()
         target_piece = self.grid[end_row][end_column]
         if target_piece is not None:
             if target_piece.color == WHITE:
@@ -182,7 +185,7 @@ class ChessBoard:
         moving_piece = self.grid[start_row][start_column]
         self.grid[end_row][end_column] = self.grid[start_row][start_column]
         self.grid[start_row][start_column] = None
-
+        
         if moving_piece and moving_piece.type == KING:
             # short castle
             if end_column - start_column == 2:
@@ -280,23 +283,6 @@ class ChessBoard:
         self.promotion_square = None
         self.turn = BLACK if self.turn == WHITE else WHITE
 
-    def is_checkmate(self, color):
-
-        if not self.is_in_check(color):
-            return False
-
-
-        for row in range(8):
-            for column in range(8):
-                piece = self.grid[row][column]
-
-                if piece and piece.color == color:
-                    
-                    safe_moves = self.get_safe_legal_moves(row, column)
-                    if len(safe_moves) > 0:
-                        return False 
-        self.game_over_reason = "WHITE_MATE" if color == WHITE else "BLACK_MATE"
-        return True 
 
     def resign(self, losing_color):
         self.game_over_reason = "WHITE_RESIGN" if losing_color == WHITE else "BLACK_RESIGN"
@@ -306,3 +292,57 @@ class ChessBoard:
 
     def game_over(self):
         return True if self.game_over_reason is not None else False
+    
+    def generate_position_string(self):
+        state_parts = []
+        for row in range(8):
+            for col in range(8):
+                piece = self.grid[row][col]
+                if piece is None:
+                    state_parts.append(".")
+                else:
+                    state_parts.append(f"{piece.color}_{piece.type}")
+        
+        state_parts.append(self.turn)
+        return "|".join(state_parts)
+
+    def record_current_position(self):
+        pos_str = self.generate_position_string()
+        if pos_str in self.position_history:
+            self.position_history[pos_str] += 1
+        else:
+            self.position_history[pos_str] = 1
+
+    def check_game_status(self):
+        """Evaluates the board state and updates self.game_over_reason if ended."""
+        # 1. First, check for Threefold Repetition
+        for count in self.position_history.values():
+            if count >= 3:
+                self.game_over_reason = "Repetition"
+                return
+
+        # 2. Safely scan the board to see if the current active player has ANY moves left
+        has_any_legal_moves = False
+        
+        # Break out of both loops the split second we find even ONE legal move
+        for r in range(8):
+            for c in range(8):
+                piece = self.grid[r][c]
+                if piece and piece.color == self.turn:
+                    # Get moves for this piece
+                    moves = self.get_safe_legal_moves(r, c)
+                    if len(moves) > 0:
+                        has_any_legal_moves = True
+                        break
+            if has_any_legal_moves:
+                break
+
+        # 3. If they have absolutely no moves left, evaluate the check state
+        if not has_any_legal_moves:
+            # Is the current player's king under direct attack?
+            if self.is_in_check(self.turn):
+                self.game_over_reason = "Checkmate"
+                print(f"--- ENGINE LOG: Checkmate detected! Loser is {self.turn} ---")
+            else:
+                self.game_over_reason = "Stalemate"
+                print("--- ENGINE LOG: Stalemate detected! ---")
