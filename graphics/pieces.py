@@ -1,6 +1,20 @@
 import pygame
 import math
 
+def draw_piece(piece, surface, fill_color, outline_color, center_x, center_y, radius):
+    if piece == 1:
+        pawn(surface, fill_color, outline_color, center_x, center_y, radius)
+    elif piece == 2:
+        knight(surface, fill_color, outline_color, center_x, center_y, radius)
+    elif piece == 3:
+        bishop(surface, fill_color, outline_color, center_x, center_y, radius)
+    elif piece == 4:
+        rook(surface, fill_color, outline_color, center_x, center_y, radius)
+    elif piece == 5:
+        queen(surface, fill_color, outline_color, center_x, center_y, radius)
+    elif piece == 6:
+        king(surface, fill_color, outline_color, center_x, center_y, radius)
+
 def error(screen_surface, center_x, center_y, size=40): #ERROR MARKER
     top = (center_x, center_y - size // 2)
     bottom_left = (center_x - size // 2, center_y + size // 2)

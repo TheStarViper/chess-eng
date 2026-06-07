@@ -18,6 +18,8 @@ class ChessBoard:
     def __init__(self):
         self.grid = [[None for _ in range(8)] for _ in range(8)]
         self.turn = WHITE
+        self.captured_white = []
+        self.captured_black = []
         self.initialize_standard_board()
 
     def initialize_standard_board(self):
@@ -110,6 +112,14 @@ class ChessBoard:
     def make_move(self, start_position, end_position):
         start_row, start_column = start_position
         end_row, end_column = end_position
+        
+        # Check if there is a piece being captured
+        target_piece = self.grid[end_row][end_column]
+        if target_piece is not None:
+            if target_piece.color == WHITE:
+                self.captured_white.append(target_piece)
+            else:
+                self.captured_black.append(target_piece)
         
         self.grid[end_row][end_column] = self.grid[start_row][start_column]
         self.grid[start_row][start_column] = None
