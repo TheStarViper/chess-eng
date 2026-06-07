@@ -260,10 +260,28 @@ class ChessBoard:
             return
             
         row, column = self.promotion_square
-        # Swap the plain pawn out for their chosen elite variant
+
         self.grid[row][column] = ChessPiece(choice_type, self.turn)
         
-        # Clean up flags and cleanly advance the turn state
+
         self.promotion_required = False
         self.promotion_square = None
         self.turn = BLACK if self.turn == WHITE else WHITE
+
+    def is_checkmate(self, color):
+
+        if not self.is_in_check(color):
+            return False
+
+
+        for row in range(8):
+            for column in range(8):
+                piece = self.grid[row][column]
+
+                if piece and piece.color == color:
+                    
+                    safe_moves = self.get_safe_legal_moves(row, column)
+                    if len(safe_moves) > 0:
+                        return False 
+
+        return True 

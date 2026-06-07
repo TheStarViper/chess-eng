@@ -2,7 +2,7 @@ import pygame
 import sys
 from gamestate import ChessBoard, WHITE, BLACK, PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING
 from graphics.pieces import *
-
+from graphics.button import Button
 
 pygame.init()
 
@@ -36,6 +36,10 @@ PROMOTION_MENU_HEIGHT = 100
 PROMOTION_MENU_X = (WINDOW_WIDTH - PROMOTION_MENU_WIDTH) // 2
 PROMOTION_MENU_Y = (WINDOW_HEIGHT - PROMOTION_MENU_HEIGHT) // 2
 
+GAME_OVER_WIDTH = 500
+GAME_OVER_HEIGHT = 150
+GAME_OVER_X = (WINDOW_WIDTH - GAME_OVER_WIDTH) // 2
+GAME_OVER_Y = (WINDOW_HEIGHT - GAME_OVER_HEIGHT) // 2
 
 LIGHT_SQUARE_COLOR = (234, 235, 239) #yk
 DARK_SQUARE_COLOR = (134, 142, 151) #yk
@@ -116,10 +120,34 @@ def draw_legal_moves(screen_surface, legal_moves, game_grid):
             
             pygame.draw.circle(screen_surface, PREMOVE_HIGHLIGHT_COLOR, (center_x, center_y), TILE_SIZE // 7)
 
+def draw_game_over_screen(screen_surface, losing_color, game_over_buttons):
+    
+    overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA)
+    overlay.fill((0, 0, 0, 180))
+    screen_surface.blit(overlay, (0, 0))
+
+    
+    pygame.draw.rect(screen_surface, (40, 40, 40), (GAME_OVER_X, GAME_OVER_Y, GAME_OVER_WIDTH, GAME_OVER_HEIGHT),0,0,15,15,15,15)
+    pygame.draw.rect(screen_surface, (230, 50, 50), (GAME_OVER_X, GAME_OVER_Y, GAME_OVER_WIDTH, GAME_OVER_HEIGHT),4,15)
+
+    
+    winner_text = "BLACK WINS!" if losing_color == WHITE else "WHITE WINS!"
+    
+    font_title = pygame.font.SysFont("arial", 40, bold=True)
+    font_sub = pygame.font.SysFont("arial", 20)
+
+    title_surface = font_title.render(winner_text, True, (255, 255, 255))
+
+    
+    screen_surface.blit(title_surface, (GAME_OVER_X + (GAME_OVER_WIDTH - title_surface.get_width()) // 2, GAME_OVER_Y + 30))
+
+    for button in game_over_buttons:
+        button.draw(screen_surface)
+        
 def draw_captured_bars(screen_surface, captured_white, captured_black):
     PANEL_COLOR = (30, 30, 30)
-    pygame.draw.rect(screen_surface, PANEL_COLOR, (CAPTURE_BAR_X, WHITE_CAPTURE_BAR_Y, CAPTURE_BAR_WIDTH, CAPTURE_BAR_HEIGHT))
-    pygame.draw.rect(screen_surface, PANEL_COLOR, (CAPTURE_BAR_X, BLACK_CAPTURE_BAR_Y, CAPTURE_BAR_WIDTH, CAPTURE_BAR_HEIGHT))
+    pygame.draw.rect(screen_surface, PANEL_COLOR, (CAPTURE_BAR_X, WHITE_CAPTURE_BAR_Y, CAPTURE_BAR_WIDTH, CAPTURE_BAR_HEIGHT),0,0,0,0,5,5)
+    pygame.draw.rect(screen_surface, PANEL_COLOR, (CAPTURE_BAR_X, BLACK_CAPTURE_BAR_Y, CAPTURE_BAR_WIDTH, CAPTURE_BAR_HEIGHT),0,0,5,5)
 
     
     def draw_mini_piece(piece, x, y): 
@@ -141,17 +169,17 @@ def draw_captured_bars(screen_surface, captured_white, captured_black):
 
 
 def draw_promotion_menu(screen_surface, turn_color):
-    # Translucent darkening box over everything
+    
     overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA)
     overlay.fill((0, 0, 0, 150))
     screen_surface.blit(overlay, (0, 0))
 
-    # Menu Panel Background Box
+    
     pygame.draw.rect(screen_surface, (50, 50, 50), (PROMOTION_MENU_X, PROMOTION_MENU_Y, PROMOTION_MENU_WIDTH, PROMOTION_MENU_HEIGHT))
     pygame.draw.rect(screen_surface, (200, 200, 200), (PROMOTION_MENU_X, PROMOTION_MENU_Y, PROMOTION_MENU_WIDTH, PROMOTION_MENU_HEIGHT), 3)
 
 
-    # Define 4 click target boxes for Queen, Rook, Bishop, Knight
+    
     button_width = PROMOTION_MENU_WIDTH // 4
     piece_types = [QUEEN, ROOK, BISHOP, KNIGHT]
     
@@ -169,16 +197,35 @@ def main():
     selected_square = None
     is_game_running = True
 
+    center_panel_y = (WINDOW_HEIGHT - 220) // 2
+    btn_w, btn_h = 160, 50
+    btn_left_x = (WINDOW_WIDTH // 2) - btn_w - 20
+    btn_right_x = (WINDOW_WIDTH // 2) + 20
+    btn_y = center_panel_y + 120
+
+    rematch_btn = Button(btn_left_x, btn_y, btn_w, btn_h, "Rematch", (50, 150, 50), (70, 190, 70))
+    new_game_btn = Button(btn_right_x, btn_y, btn_w, btn_h, "New Game", (70, 70, 180), (100, 100, 230))
+    game_buttons = [rematch_btn, new_game_btn]
+
     while is_game_running:
+        mouse_pos = pygame.mouse.get_pos()
+        game_is_over = game_board.is_checkmate(game_board.turn)
+        if game_is_over:
+            rematch_btn.is_hover(mouse_pos)
+            new_game_btn.is_hover(mouse_pos)
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 is_game_running = False
                 
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    is_game_running = False
+            
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_x, mouse_y = pygame.mouse.get_pos()
-                
                 if game_board.promotion_required:
-                    # Check if click lands within menu vertical bounds
+                    
                     if PROMOTION_MENU_Y <= mouse_y <= PROMOTION_MENU_Y + PROMOTION_MENU_HEIGHT:
                         if PROMOTION_MENU_X <= mouse_x <= PROMOTION_MENU_X + PROMOTION_MENU_WIDTH:
                             relative_x = mouse_x - PROMOTION_MENU_X
@@ -189,8 +236,16 @@ def main():
                             chosen_upgrade = piece_options[clicked_button_index]
                             
                             game_board.promote_pawn(chosen_upgrade)
-                    continue # Bypass normal board evaluation processing
-
+                    continue 
+                if game_is_over:
+                    if rematch_btn.is_clicked(mouse_pos, event.type):
+                        game_board = ChessBoard() 
+                        selected_square = None
+                    elif new_game_btn.is_clicked(mouse_pos, event.type):
+                        game_board = ChessBoard() 
+                        selected_square = None
+                    continue
+            
                 clicked_column = (mouse_x - BOARD_OFFSET_X) // TILE_SIZE
                 clicked_row = (mouse_y - BOARD_OFFSET_Y) // TILE_SIZE
 
@@ -231,8 +286,12 @@ def main():
         
         if game_board.promotion_required:
             draw_promotion_menu(screen, game_board.turn)
+
+        if game_is_over:
+            draw_game_over_screen(screen, game_board.turn, game_buttons)
         pygame.display.flip()
 
+        
     pygame.quit()
     sys.exit()
 
