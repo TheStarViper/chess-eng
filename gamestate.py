@@ -25,7 +25,10 @@ class ChessBoard:
         self.promotion_required = False
         self.en_passant_target = None # Will store a tuple (row, column) of the square that can be captured en passant, or None if not applicable
         self.promotion_square = (None, None) # Will store a tuple (row, column)
-        
+        self.game_over_reason = None  
+        self.halfmove_clock = 0 
+        self.game_over_reason = None
+
         self.initialize_standard_board()
     def initialize_standard_board(self):
         back_rank_setup = [ROOK, KNIGHT, BISHOP, QUEEN, KING, BISHOP, KNIGHT, ROOK]
@@ -167,7 +170,7 @@ class ChessBoard:
     def make_move(self, start_position, end_position):
         start_row, start_column = start_position
         end_row, end_column = end_position
-        
+        reset_clock = False
         
         target_piece = self.grid[end_row][end_column]
         if target_piece is not None:
@@ -206,12 +209,21 @@ class ChessBoard:
             moving_piece.has_moved = True
 
         if moving_piece and moving_piece.type == PAWN:
+            reset_clock = True
             if end_row == 0 or end_row == 7:
                 self.promotion_required = True
                 self.promotion_square = (end_row, end_column)
                 self.last_move = (start_position, end_position)
                 # Return early and DO NOT swap turns yet! 
                 return
+            
+        if reset_clock:
+            self.halfmove_clock = 0
+        else:
+            self.halfmove_clock += 1
+        
+        if self.halfmove_clock >= 100:
+            self.game_over_reason = "FIFTY_MOVE_RULE"
         self.turn = BLACK if self.turn == WHITE else WHITE
 
         self.last_move = (start_position, end_position)
@@ -283,5 +295,14 @@ class ChessBoard:
                     safe_moves = self.get_safe_legal_moves(row, column)
                     if len(safe_moves) > 0:
                         return False 
-
+        self.game_over_reason = "WHITE_MATE" if color == WHITE else "BLACK_MATE"
         return True 
+
+    def resign(self, losing_color):
+        self.game_over_reason = "WHITE_RESIGN" if losing_color == WHITE else "BLACK_RESIGN"
+
+    def declare_draw(self):
+        self.game_over_reason = "DRAW"
+
+    def game_over(self):
+        return True if self.game_over_reason is not None else False

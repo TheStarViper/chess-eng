@@ -41,6 +41,16 @@ GAME_OVER_HEIGHT = 150
 GAME_OVER_X = (WINDOW_WIDTH - GAME_OVER_WIDTH) // 2
 GAME_OVER_Y = (WINDOW_HEIGHT - GAME_OVER_HEIGHT) // 2
 
+
+ACTION_BTN_W = TILE_SIZE/1.2
+ACTION_BTN_H = TILE_SIZE/1.8
+
+
+RESIGN_BTN_X = CAPTURE_BAR_X + CAPTURE_BAR_WIDTH + (TILE_SIZE-ACTION_BTN_W)/2
+DRAW_BTN_X = CAPTURE_BAR_X + CAPTURE_BAR_WIDTH + TILE_SIZE +(TILE_SIZE-ACTION_BTN_W)/2
+ACTION_BTN_Y_WHITE = WHITE_CAPTURE_BAR_Y + (CAPTURE_BAR_HEIGHT - ACTION_BTN_H) / 2
+ACTION_BTN_Y_BLACK = BLACK_CAPTURE_BAR_Y + (CAPTURE_BAR_HEIGHT - ACTION_BTN_H) / 2
+
 LIGHT_SQUARE_COLOR = (234, 235, 239) #yk
 DARK_SQUARE_COLOR = (134, 142, 151) #yk
 SELECTED_HIGHLIGHT_COLOR = (159, 204, 239) #highlight for the square u selected
@@ -120,7 +130,7 @@ def draw_legal_moves(screen_surface, legal_moves, game_grid):
             
             pygame.draw.circle(screen_surface, PREMOVE_HIGHLIGHT_COLOR, (center_x, center_y), TILE_SIZE // 7)
 
-def draw_game_over_screen(screen_surface, losing_color, game_over_buttons):
+def draw_game_over_screen(screen_surface, losing_color, game_over_buttons, game_board):
     
     overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA)
     overlay.fill((0, 0, 0, 180))
@@ -131,12 +141,20 @@ def draw_game_over_screen(screen_surface, losing_color, game_over_buttons):
     pygame.draw.rect(screen_surface, (230, 50, 50), (GAME_OVER_X, GAME_OVER_Y, GAME_OVER_WIDTH, GAME_OVER_HEIGHT),4,15)
 
     
-    winner_text = "BLACK WINS!" if losing_color == WHITE else "WHITE WINS!"
+    if game_board.game_over_reason == "WHITE_RESIGN":
+        end_text = "BLACK WINS! (White Resigned)"
+    elif game_board.game_over_reason == "BLACK_RESIGN":
+        end_text = "WHITE WINS! (Black Resigned)"
+    elif game_board.game_over_reason == "DRAW":
+        end_text = "GAME DRAWN BY AGREEMENT"
+    elif game_board.game_over_reason == "FIFTY_MOVE_RULE":
+        end_text = "DRAW! (50-Move Rule Reached)"
+    else:
+        end_text = "BLACK WINS BY MATE!" if losing_color == WHITE else "WHITE WINS BY MATE!"
     
     font_title = pygame.font.SysFont("arial", 40, bold=True)
-    font_sub = pygame.font.SysFont("arial", 20)
 
-    title_surface = font_title.render(winner_text, True, (255, 255, 255))
+    title_surface = font_title.render(end_text, True, (255, 255, 255))
 
     
     screen_surface.blit(title_surface, (GAME_OVER_X + (GAME_OVER_WIDTH - title_surface.get_width()) // 2, GAME_OVER_Y + 30))
@@ -206,13 +224,19 @@ def main():
     rematch_btn = Button(btn_left_x, btn_y, btn_w, btn_h, "Rematch", (50, 150, 50), (70, 190, 70))
     new_game_btn = Button(btn_right_x, btn_y, btn_w, btn_h, "New Game", (70, 70, 180), (100, 100, 230))
     game_buttons = [rematch_btn, new_game_btn]
-
+    resign_btn = Button(RESIGN_BTN_X, ACTION_BTN_Y_WHITE, ACTION_BTN_W, ACTION_BTN_H, "Resign", (180, 60, 60), (120, 40, 40), font_size=16)
+    draw_btn = Button(DRAW_BTN_X, ACTION_BTN_Y_WHITE, ACTION_BTN_W, ACTION_BTN_H, "Draw", (140, 140, 140), (95, 95, 95), font_size=16)
+        
     while is_game_running:
         mouse_pos = pygame.mouse.get_pos()
-        game_is_over = game_board.is_checkmate(game_board.turn)
+        game_is_over = game_board.game_over()
+        game_board.is_checkmate(game_board.turn)
         if game_is_over:
             rematch_btn.is_hover(mouse_pos)
             new_game_btn.is_hover(mouse_pos)
+        else:
+            resign_btn.is_hover(mouse_pos)
+            draw_btn.is_hover(mouse_pos)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -237,15 +261,28 @@ def main():
                             
                             game_board.promote_pawn(chosen_upgrade)
                     continue 
+                
                 if game_is_over:
                     if rematch_btn.is_clicked(mouse_pos, event.type):
-                        game_board = ChessBoard() 
+                        game_board = ChessBoard()
                         selected_square = None
+                        continue
                     elif new_game_btn.is_clicked(mouse_pos, event.type):
-                        game_board = ChessBoard() 
+                        game_board = ChessBoard()
                         selected_square = None
-                    continue
-            
+                        continue
+
+                
+                if not game_is_over:
+                    if resign_btn.is_clicked(mouse_pos, event.type):
+                        game_board.resign(game_board.turn)
+                        selected_square = None
+                        continue
+                    elif draw_btn.is_clicked(mouse_pos, event.type):
+                        game_board.declare_draw()
+                        selected_square = None
+                        continue
+
                 clicked_column = (mouse_x - BOARD_OFFSET_X) // TILE_SIZE
                 clicked_row = (mouse_y - BOARD_OFFSET_Y) // TILE_SIZE
 
@@ -273,12 +310,21 @@ def main():
                 else:
                     
                     selected_square = None
+                if game_board.turn == WHITE:
+                    resign_btn = Button(RESIGN_BTN_X, ACTION_BTN_Y_WHITE, ACTION_BTN_W, ACTION_BTN_H, "Resign", (180, 60, 60), (120, 40, 40), font_size=16)
+                    draw_btn = Button(DRAW_BTN_X, ACTION_BTN_Y_WHITE, ACTION_BTN_W, ACTION_BTN_H, "Draw", (140, 140, 140), (95, 95, 95), font_size=16)
+                else:
+                    resign_btn = Button(RESIGN_BTN_X, ACTION_BTN_Y_BLACK, ACTION_BTN_W, ACTION_BTN_H, "Resign", (180, 60, 60), (120, 40, 40), font_size=16)
+                    draw_btn = Button(DRAW_BTN_X, ACTION_BTN_Y_BLACK, ACTION_BTN_W, ACTION_BTN_H, "Draw", (140, 140, 140), (95, 95, 95), font_size=16)
 
         
         draw_chessboard(screen, selected_square, game_board.last_move, game_board)
         draw_pieces(screen, game_board.grid)
         draw_captured_bars(screen, game_board.captured_white, game_board.captured_black)
-        
+        if not game_is_over:
+            resign_btn.draw(screen)
+            draw_btn.draw(screen)
+
         if selected_square is not None:
             start_row, start_column = selected_square
             active_legal_moves = game_board.get_safe_legal_moves(start_row, start_column)
@@ -288,7 +334,7 @@ def main():
             draw_promotion_menu(screen, game_board.turn)
 
         if game_is_over:
-            draw_game_over_screen(screen, game_board.turn, game_buttons)
+            draw_game_over_screen(screen, game_board.turn, game_buttons, game_board)
         pygame.display.flip()
 
         

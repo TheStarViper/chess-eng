@@ -32,3 +32,6 @@ class Button:
     def is_clicked(self, mouse_pos, event_type):
         return event_type == pygame.MOUSEBUTTONDOWN and self.rect.collidepoint(mouse_pos)
     
+    def reposition(self, new_x, new_y):
+        self.rect.x = new_x
+        self.rect.y = new_y

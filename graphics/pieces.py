@@ -1,5 +1,7 @@
 import pygame
 import math
+import pygame.gfxdraw
+#everything in this file is used to draw the pieces on the board and these graphics are made by AI
 
 def draw_piece(piece, surface, fill_color, outline_color, center_x, center_y, radius):
     if piece == 1:
@@ -43,126 +45,160 @@ def error(screen_surface, center_x, center_y, size=40): #ERROR MARKER
     pygame.draw.circle(screen_surface, mark_color, (center_x, dot_y), dot_radius)
 
 
-def draw_piece_base(surface, fill_color, outline_color, center_x, center_y, radius):
-    """Draws a consistent bottom pedestal for all major pieces."""
-    # Base rectangle width and height proportional to the piece radius
-    base_w = radius * 1.5
-    base_h = radius * 0.4
-    base_x = center_x - base_w // 2
-    base_y = center_y + radius * 0.6
-    
-    pygame.draw.rect(surface, fill_color, (base_x, base_y, base_w, base_h), border_radius=3)
-    pygame.draw.rect(surface, outline_color, (base_x, base_y, base_w, base_h), 3, border_radius=3)
+def draw_aa_polygon(surface, points, fill_color, outline_color):
+    """Draws a perfectly anti-aliased and filled polygon to eliminate jagged edges."""
+    # Convert points to integers for gfxdraw
+    int_points = [(int(x), int(y)) for x, y in points]
+    pygame.gfxdraw.filled_polygon(surface, int_points, fill_color)
+    pygame.gfxdraw.aapolygon(surface, int_points, outline_color)
 
+def draw_modern_base(surface, fill_color, outline_color, center_x, center_y, radius):
+    """Draws a sleek, slender, flat foundation block."""
+    # Narrower width (1.20) to keep it from looking fat
+    w = radius * 1.20
+    h = radius * 0.20
+    x = center_x - w / 2
+    y = center_y + radius * 0.65
+    
+    # Base Rim
+    pygame.draw.rect(surface, fill_color, (x, y, w, h), border_radius=2)
+    pygame.draw.rect(surface, outline_color, (x, y, w, h), 2, border_radius=2)
+    
+    # High-contrast accent divider line
+    pygame.draw.line(surface, outline_color, (center_x - w/2.2, y - 2), (center_x + w/2.2, y - 2), 3)
 
 def pawn(surface, fill_color, outline_color, center_x, center_y, radius):
-    # Standard droplet/pawn shape: A tear-shaped body with a round head
-    body_points = [
-        (center_x, center_y - radius * 0.2),
-        (center_x - radius * 0.6, center_y + radius * 0.8),
-        (center_x + radius * 0.6, center_y + radius * 0.8)
-    ]
-    pygame.draw.polygon(surface, fill_color, body_points)
-    pygame.draw.polygon(surface, outline_color, body_points, 3)
+    draw_modern_base(surface, fill_color, outline_color, center_x, center_y, radius)
     
-    # Head
-    pygame.draw.circle(surface, fill_color, (center_x, center_y - radius * 0.3), radius * 0.4)
-    pygame.draw.circle(surface, outline_color, (center_x, center_y - radius * 0.3), radius * 0.4, 3)
-
+    # Slender, tall elegant neck pillar
+    body_points = [
+        (center_x - radius * 0.15, center_y - radius * 0.25),
+        (center_x + radius * 0.15, center_y - radius * 0.25),
+        (center_x + radius * 0.38, center_y + radius * 0.65),
+        (center_x - radius * 0.38, center_y + radius * 0.65)
+    ]
+    draw_aa_polygon(surface, body_points, fill_color, outline_color)
+    
+    # Perfectly anti-aliased head sphere sitting high up
+    hx, hy, hr = int(center_x), int(center_y - radius * 0.45), int(radius * 0.28)
+    pygame.gfxdraw.filled_circle(surface, hx, hy, hr, fill_color)
+    pygame.gfxdraw.aacircle(surface, hx, hy, hr, outline_color)
 
 def rook(surface, fill_color, outline_color, center_x, center_y, radius):
-    draw_piece_base(surface, fill_color, outline_color, center_x, center_y, radius)
+    draw_modern_base(surface, fill_color, outline_color, center_x, center_y, radius)
     
-    # Castle tower body
-    body_w = radius * 1.1
-    body_h = radius * 1.1
-    body_x = center_x - body_w // 2
-    body_y = center_y - radius * 0.5
+    # Tall, strictly straight modern tower lines
+    body_points = [
+        (center_x - radius * 0.35, center_y - radius * 0.75), # Top Left
+        (center_x + radius * 0.35, center_y - radius * 0.75), # Top Right
+        (center_x + radius * 0.40, center_y + radius * 0.65), # Bottom Right
+        (center_x - radius * 0.40, center_y + radius * 0.65)  # Bottom Left
+    ]
+    draw_aa_polygon(surface, body_points, fill_color, outline_color)
     
-    pygame.draw.rect(surface, fill_color, (body_x, body_y, body_w, body_h))
-    pygame.draw.rect(surface, outline_color, (body_x, body_y, body_w, body_h), 3)
-    
-    # Crenellations (the battlements on top)
-    # Left, middle, and right cutouts
-    top_y = body_y - 4
-    pygame.draw.line(surface, outline_color, (body_x + 3, body_y), (body_x + 3, top_y), 4)
-    pygame.draw.line(surface, outline_color, (center_x, body_y), (center_x, top_y), 4)
-    pygame.draw.line(surface, outline_color, (body_x + body_w - 3, body_y), (body_x + body_w - 3, top_y), 4)
-
+    # Minimalist clean vertical cutouts mapping the modern crenellations
+    gap_w, gap_h = int(radius * 0.12), int(radius * 0.22)
+    pygame.draw.rect(surface, outline_color, (int(center_x - radius * 0.22), int(center_y - radius * 0.76), gap_w, gap_h))
+    pygame.draw.rect(surface, outline_color, (int(center_x + radius * 0.10), int(center_y - radius * 0.76), gap_w, gap_h))
 
 def knight(surface, fill_color, outline_color, center_x, center_y, radius):
-    draw_piece_base(surface, fill_color, outline_color, center_x, center_y, radius)
+    # Base slab
+    w = radius * 1.20
+    pygame.draw.rect(surface, fill_color, (center_x - w/2, center_y + radius * 0.65, w, radius * 0.20), border_radius=2)
+    pygame.draw.rect(surface, outline_color, (center_x - w/2, center_y + radius * 0.65, w, radius * 0.20), 2, border_radius=2)
     
-    # A stylized geometric horse profile pointing left
+    # Sharp, clean vector silhouette layout for the horse (Slender/Tall)
     points = [
-        (center_x + radius * 0.5, center_y + radius * 0.6),  # Back bottom
-        (center_x + radius * 0.5, center_y - radius * 0.2),  # Mane top
-        (center_x, center_y - radius * 0.7),                 # Ears
-        (center_x - radius * 0.6, center_y - radius * 0.4),  # Snout top
-        (center_x - radius * 0.6, center_y - radius * 0.1),  # Snout bottom
-        (center_x - radius * 0.1, center_y + radius * 0.1),  # Jaw
-        (center_x - radius * 0.4, center_y + radius * 0.6),  # Chest bottom
+        (center_x + radius * 0.35, center_y + radius * 0.65), 
+        (center_x + radius * 0.35, center_y - radius * 0.2),  
+        (center_x + radius * 0.12, center_y - radius * 0.85), # Max height
+        (center_x - radius * 0.10, center_y - radius * 0.9),  # Pointy clean ear
+        (center_x - radius * 0.45, center_y - radius * 0.5),  # Sleek nose top
+        (center_x - radius * 0.48, center_y - radius * 0.2),  
+        (center_x - radius * 0.18, center_y - radius * 0.05), # Sculpted jaw
+        (center_x - radius * 0.02, center_y + radius * 0.18), # Inward chest curve
+        (center_x - radius * 0.30, center_y + radius * 0.65), 
     ]
-    pygame.draw.polygon(surface, fill_color, points)
-    pygame.draw.polygon(surface, outline_color, points, 3)
-
+    draw_aa_polygon(surface, points, fill_color, outline_color)
+    
+    # Modern minimalist flat accent split down the mane
+    shadow = [
+        (center_x + radius * 0.35, center_y + radius * 0.65),
+        (center_x + radius * 0.35, center_y - radius * 0.2),
+        (center_x + radius * 0.12, center_y - radius * 0.85),
+        (center_x + radius * 0.22, center_y - radius * 0.2),
+        (center_x + radius * 0.22, center_y + radius * 0.65)
+    ]
+    draw_aa_polygon(surface, shadow, outline_color, outline_color)
 
 def bishop(surface, fill_color, outline_color, center_x, center_y, radius):
-    draw_piece_base(surface, fill_color, outline_color, center_x, center_y, radius)
+    draw_modern_base(surface, fill_color, outline_color, center_x, center_y, radius)
     
-    # Oval Mitre body
-    body_rect = (center_x - radius * 0.55, center_y - radius * 0.6, radius * 1.1, radius * 1.2)
-    pygame.draw.ellipse(surface, fill_color, body_rect)
-    pygame.draw.ellipse(surface, outline_color, body_rect, 3)
+    # Slender architectural column base
+    body_points = [
+        (center_x - radius * 0.14, center_y - radius * 0.2),
+        (center_x + radius * 0.14, center_y - radius * 0.2),
+        (center_x + radius * 0.35, center_y + radius * 0.65),
+        (center_x - radius * 0.35, center_y + radius * 0.65)
+    ]
+    draw_aa_polygon(surface, body_points, fill_color, outline_color)
     
-    # Small cross on top
-    cross_y = center_y - radius * 0.75
-    pygame.draw.line(surface, outline_color, (center_x, cross_y - 6), (center_x, cross_y + 4), 2)
-    pygame.draw.line(surface, outline_color, (center_x - 5, cross_y - 2), (center_x + 5, cross_y - 2), 2)
+    # Clean, elongated modern oval cap
+    hx, hy, rx, ry = int(center_x), int(center_y - radius * 0.48), int(radius * 0.28), int(radius * 0.38)
+    pygame.gfxdraw.filled_ellipse(surface, hx, hy, rx, ry, fill_color)
+    pygame.gfxdraw.aaellipse(surface, hx, hy, rx, ry, outline_color)
     
-    # The traditional Bishop's slice/slit
-    pygame.draw.line(surface, outline_color, (center_x - radius * 0.2, center_y - radius * 0.2), (center_x + radius * 0.3, center_y - radius * 0.5), 2)
-
+    # Sharp negative-space diagonal geometric slit
+    slice_points = [
+        (center_x - radius * 0.05, center_y - radius * 0.6),
+        (center_x + radius * 0.18, center_y - radius * 0.45),
+        (center_x + radius * 0.10, center_y - radius * 0.42)
+    ]
+    draw_aa_polygon(surface, slice_points, outline_color, outline_color)
 
 def queen(surface, fill_color, outline_color, center_x, center_y, radius):
-    draw_piece_base(surface, fill_color, outline_color, center_x, center_y, radius)
+    draw_modern_base(surface, fill_color, outline_color, center_x, center_y, radius)
     
-    # Spiked crown using a polygon
-    crown_points = [
-        (center_x - radius * 0.7, center_y + radius * 0.6), # bottom left
-        (center_x - radius * 0.8, center_y - radius * 0.4), # left spike
-        (center_x - radius * 0.3, center_y),                # valley
-        (center_x, center_y - radius * 0.6),                # center tall spike
-        (center_x + radius * 0.3, center_y),                # valley
-        (center_x + radius * 0.8, center_y - radius * 0.4), # right spike
-        (center_x + radius * 0.7, center_y + radius * 0.6), # bottom right
+    # Sweeping, elegant slender torso lines
+    body_points = [
+        (center_x - radius * 0.15, center_y - radius * 0.2),
+        (center_x + radius * 0.15, center_y - radius * 0.2),
+        (center_x + radius * 0.38, center_y + radius * 0.65),
+        (center_x - radius * 0.38, center_y + radius * 0.65)
     ]
-    pygame.draw.polygon(surface, fill_color, crown_points)
-    pygame.draw.polygon(surface, outline_color, crown_points, 3)
+    draw_aa_polygon(surface, body_points, fill_color, outline_color)
     
-    # Tiny jewels on top of the spikes
-    for cx, cy in [(center_x - radius * 0.8, center_y - radius * 0.4), 
-                   (center_x, center_y - radius * 0.6), 
-                   (center_x + radius * 0.8, center_y - radius * 0.4)]:
-        pygame.draw.circle(surface, outline_color, (cx, cy), 3)
-
+    # Sharp, clean structural vector crown stretching high up
+    crown_points = [
+        (center_x - radius * 0.35, center_y - radius * 0.75), # Left peak
+        (center_x - radius * 0.15, center_y - radius * 0.35), # Valley
+        (center_x,                 center_y - radius * 0.88), # High central apex
+        (center_x + radius * 0.15, center_y - radius * 0.35), # Valley
+        (center_x + radius * 0.35, center_y - radius * 0.75), # Right peak
+        (center_x + radius * 0.22, center_y - radius * 0.2),
+        (center_x - radius * 0.22, center_y - radius * 0.2)
+    ]
+    draw_aa_polygon(surface, crown_points, fill_color, outline_color)
 
 def king(surface, fill_color, outline_color, center_x, center_y, radius):
-    draw_piece_base(surface, fill_color, outline_color, center_x, center_y, radius)
+    draw_modern_base(surface, fill_color, outline_color, center_x, center_y, radius)
     
-    # Majestic robed / blocky crown body
-    points = [
-        (center_x - radius * 0.6, center_y + radius * 0.6),
-        (center_x - radius * 0.7, center_y - radius * 0.4),
-        (center_x - radius * 0.3, center_y - radius * 0.3),
-        (center_x + radius * 0.3, center_y - radius * 0.3),
-        (center_x + radius * 0.7, center_y - radius * 0.4),
-        (center_x + radius * 0.6, center_y + radius * 0.6),
+    # Solid, stately regal core
+    body_points = [
+        (center_x - radius * 0.18, center_y - radius * 0.2),
+        (center_x + radius * 0.18, center_y - radius * 0.2),
+        (center_x + radius * 0.38, center_y + radius * 0.65),
+        (center_x - radius * 0.38, center_y + radius * 0.65)
     ]
-    pygame.draw.polygon(surface, fill_color, points)
-    pygame.draw.polygon(surface, outline_color, points, 3)
+    draw_aa_polygon(surface, body_points, fill_color, outline_color)
     
-    # Large Royal Cross on top
-    cross_y = center_y - radius * 0.65
-    pygame.draw.line(surface, outline_color, (center_x, cross_y - 10), (center_x, cross_y + 4), 4)
-    pygame.draw.line(surface, outline_color, (center_x - 7, cross_y - 3), (center_x + 7, cross_y - 3), 4)
+    # Flat-top block crown cap with rounded styling
+    cx, cy, cw, ch = int(center_x - radius * 0.32), int(center_y - radius * 0.68), int(radius * 0.64), int(radius * 0.48)
+    pygame.draw.rect(surface, fill_color, (cx, cy, cw, ch), border_radius=4)
+    pygame.draw.rect(surface, outline_color, (cx, cy, cw, ch), 2, border_radius=4)
+    
+    # Sharp, minimalist geometric cross finial piercing the top boundary line
+    pygame.draw.rect(surface, fill_color, (int(center_x - radius * 0.06), int(center_y - radius * 0.92), int(radius * 0.12), int(radius * 0.26))) 
+    pygame.draw.rect(surface, fill_color, (int(center_x - radius * 0.18), int(center_y - radius * 0.82), int(radius * 0.36), int(radius * 0.08))) 
+    pygame.draw.rect(surface, outline_color, (int(center_x - radius * 0.06), int(center_y - radius * 0.92), int(radius * 0.12), int(radius * 0.26)), 1)
+    pygame.draw.rect(surface, outline_color, (int(center_x - radius * 0.18), int(center_y - radius * 0.82), int(radius * 0.36), int(radius * 0.08)), 1)
