@@ -31,7 +31,10 @@ CAPTURE_BAR_X = BOARD_OFFSET_X #+ (TILE_SIZE*8-CAPTURE_BAR_WIDTH)/2
 WHITE_CAPTURE_BAR_Y = WINDOW_HEIGHT - CAPTURE_BAR_HEIGHT/2 - BOARD_OFFSET_Y/2 
 BLACK_CAPTURE_BAR_Y = -CAPTURE_BAR_HEIGHT/2 + BOARD_OFFSET_Y/2
 
-
+PROMOTION_MENU_WIDTH = 400
+PROMOTION_MENU_HEIGHT = 100
+PROMOTION_MENU_X = (WINDOW_WIDTH - PROMOTION_MENU_WIDTH) // 2
+PROMOTION_MENU_Y = (WINDOW_HEIGHT - PROMOTION_MENU_HEIGHT) // 2
 
 
 LIGHT_SQUARE_COLOR = (234, 235, 239) #yk
@@ -136,6 +139,31 @@ def draw_captured_bars(screen_surface, captured_white, captured_black):
         column_offset = (index % 8) * (TILE_SIZE // 2)
         draw_mini_piece(piece, CAPTURE_BAR_X + 30 + column_offset, WHITE_CAPTURE_BAR_Y+CAPTURE_BAR_HEIGHT/2-CAPTURE_BAR_HEIGHT/15)
 
+
+def draw_promotion_menu(screen_surface, turn_color):
+    # Translucent darkening box over everything
+    overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA)
+    overlay.fill((0, 0, 0, 150))
+    screen_surface.blit(overlay, (0, 0))
+
+    # Menu Panel Background Box
+    pygame.draw.rect(screen_surface, (50, 50, 50), (PROMOTION_MENU_X, PROMOTION_MENU_Y, PROMOTION_MENU_WIDTH, PROMOTION_MENU_HEIGHT))
+    pygame.draw.rect(screen_surface, (200, 200, 200), (PROMOTION_MENU_X, PROMOTION_MENU_Y, PROMOTION_MENU_WIDTH, PROMOTION_MENU_HEIGHT), 3)
+
+
+    # Define 4 click target boxes for Queen, Rook, Bishop, Knight
+    button_width = PROMOTION_MENU_WIDTH // 4
+    piece_types = [QUEEN, ROOK, BISHOP, KNIGHT]
+    
+    fill_color = WHITE_PIECE_COLOR if turn_color == WHITE else BLACK_PIECE_COLOR
+    outline_color = WHITE_PIECE_OUTLINE if turn_color == WHITE else BLACK_PIECE_OUTLINE
+
+    for index, piece_type in enumerate(piece_types):
+        btn_x = PROMOTION_MENU_X + (index * button_width) + (button_width // 2)
+        btn_y = PROMOTION_MENU_Y + (PROMOTION_MENU_HEIGHT // 2)
+        
+        draw_piece(piece_type, screen_surface, fill_color, outline_color, btn_x, btn_y, TILE_SIZE // 3)
+
 def main():
     game_board = ChessBoard()
     selected_square = None
@@ -149,6 +177,20 @@ def main():
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_x, mouse_y = pygame.mouse.get_pos()
                 
+                if game_board.promotion_required:
+                    # Check if click lands within menu vertical bounds
+                    if PROMOTION_MENU_Y <= mouse_y <= PROMOTION_MENU_Y + PROMOTION_MENU_HEIGHT:
+                        if PROMOTION_MENU_X <= mouse_x <= PROMOTION_MENU_X + PROMOTION_MENU_WIDTH:
+                            relative_x = mouse_x - PROMOTION_MENU_X
+                            button_width = PROMOTION_MENU_WIDTH // 4
+                            clicked_button_index = relative_x // button_width
+                            
+                            piece_options = [QUEEN, ROOK, BISHOP, KNIGHT]
+                            chosen_upgrade = piece_options[clicked_button_index]
+                            
+                            game_board.promote_pawn(chosen_upgrade)
+                    continue # Bypass normal board evaluation processing
+
                 clicked_column = (mouse_x - BOARD_OFFSET_X) // TILE_SIZE
                 clicked_row = (mouse_y - BOARD_OFFSET_Y) // TILE_SIZE
 
@@ -186,7 +228,9 @@ def main():
             start_row, start_column = selected_square
             active_legal_moves = game_board.get_safe_legal_moves(start_row, start_column)
             draw_legal_moves(screen, active_legal_moves, game_board.grid)
-            
+        
+        if game_board.promotion_required:
+            draw_promotion_menu(screen, game_board.turn)
         pygame.display.flip()
 
     pygame.quit()

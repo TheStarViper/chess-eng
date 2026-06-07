@@ -17,13 +17,15 @@ class ChessPiece:
 
 class ChessBoard:
     def __init__(self):
-        self.grid = [[None for _ in range(8)] for _ in range(8)]
+        self.grid = [[None for _ in range(8)] for _ in range(8)] 
         self.turn = WHITE
         self.captured_white = []
         self.captured_black = []
         self.last_move = None 
+        self.promotion_required = False
+        self.promotion_square = (None, None) # Will store a tuple (row, column)
+        
         self.initialize_standard_board()
-
     def initialize_standard_board(self):
         back_rank_setup = [ROOK, KNIGHT, BISHOP, QUEEN, KING, BISHOP, KNIGHT, ROOK]
         for column in range(8):
@@ -189,6 +191,13 @@ class ChessBoard:
         if moving_piece:
             moving_piece.has_moved = True
 
+        if moving_piece and moving_piece.type == PAWN:
+            if end_row == 0 or end_row == 7:
+                self.promotion_required = True
+                self.promotion_square = (end_row, end_column)
+                self.last_move = (start_position, end_position)
+                # Return early and DO NOT swap turns yet! 
+                return
         self.turn = BLACK if self.turn == WHITE else WHITE
 
         self.last_move = (start_position, end_position)
@@ -231,3 +240,16 @@ class ChessBoard:
                     if (row, column) in self.get_raw_moves(board_row, board_column):
                         return True
         return False
+
+    def promote_pawn(self, choice_type):
+        if not self.promotion_required or not self.promotion_square:
+            return
+            
+        row, column = self.promotion_square
+        # Swap the plain pawn out for their chosen elite variant
+        self.grid[row][column] = ChessPiece(choice_type, self.turn)
+        
+        # Clean up flags and cleanly advance the turn state
+        self.promotion_required = False
+        self.promotion_square = None
+        self.turn = BLACK if self.turn == WHITE else WHITE
