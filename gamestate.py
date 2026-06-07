@@ -20,6 +20,7 @@ class ChessBoard:
         self.turn = WHITE
         self.captured_white = []
         self.captured_black = []
+        self.last_move = None 
         self.initialize_standard_board()
 
     def initialize_standard_board(self):
@@ -109,11 +110,38 @@ class ChessBoard:
                     
         return legal_moves
 
+    def get_safe_legal_moves(self, start_row, start_column):
+        piece = self.grid[start_row][start_column]
+        if not piece or piece.color != self.turn:
+            return []
+
+        raw_moves = self.get_legal_moves(start_row, start_column)
+        safe_moves = []
+
+        
+        for target_row, target_column in raw_moves:
+            
+            original_destination_piece = self.grid[target_row][target_column]
+            
+            
+            self.grid[target_row][target_column] = piece
+            self.grid[start_row][start_column] = None
+            
+            
+            if not self.is_in_check(piece.color):
+                safe_moves.append((target_row, target_column))
+                
+            
+            self.grid[start_row][start_column] = piece
+            self.grid[target_row][target_column] = original_destination_piece
+
+        return safe_moves
+    
     def make_move(self, start_position, end_position):
         start_row, start_column = start_position
         end_row, end_column = end_position
         
-        # Check if there is a piece being captured
+        
         target_piece = self.grid[end_row][end_column]
         if target_piece is not None:
             if target_piece.color == WHITE:
@@ -124,3 +152,34 @@ class ChessBoard:
         self.grid[end_row][end_column] = self.grid[start_row][start_column]
         self.grid[start_row][start_column] = None
         self.turn = BLACK if self.turn == WHITE else WHITE
+
+        self.last_move = (start_position, end_position)
+
+    def find_king_position(self, king_color):
+        for row in range(8):
+            for column in range(8):
+                piece = self.grid[row][column]
+                if piece and piece.type == KING and piece.color == king_color:
+                    return (row, column)
+        return None
+
+    def is_in_check(self, king_color):
+        king_position = self.find_king_position(king_color)
+        if not king_position:
+            return False
+
+        enemy_color = BLACK if king_color == WHITE else WHITE
+
+        for row in range(8):
+            for column in range(8):
+                piece = self.grid[row][column]
+                if piece and piece.color == enemy_color:
+                    
+                    enemy_moves = self.get_raw_moves(row, column)
+                    if king_position in enemy_moves:
+                        return True
+        return False
+
+    def get_raw_moves(self, row, column):
+        
+        return self.get_legal_moves(row, column)
