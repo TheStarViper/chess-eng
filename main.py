@@ -14,13 +14,14 @@ screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.NOFRAME)
 pygame.display.set_caption("PyChess")
 
 TILE_SIZE = min(WINDOW_WIDTH, WINDOW_HEIGHT) // 10
-
+pygame.font.init()
+log_font = pygame.font.SysFont("Calibri", 18, bold=True)
 
 LEFT_SIDE_BUFFER = 50 # board buffer from left side of screen
 
 BOARD_OFFSET_X = LEFT_SIDE_BUFFER
 BOARD_OFFSET_Y = (WINDOW_HEIGHT - (TILE_SIZE * 8)) // 2
- 
+
 CAPTURE_BAR_WIDTH = TILE_SIZE * 6
 CAPTURE_BAR_HEIGHT = TILE_SIZE/1.5
 CAPTURE_BAR_X = BOARD_OFFSET_X #+ (TILE_SIZE*8-CAPTURE_BAR_WIDTH)/2
@@ -39,6 +40,13 @@ GAME_OVER_HEIGHT = 150
 GAME_OVER_X = (WINDOW_WIDTH - GAME_OVER_WIDTH) // 2
 GAME_OVER_Y = (WINDOW_HEIGHT - GAME_OVER_HEIGHT) // 2
 
+PANEL_X = BOARD_OFFSET_X*2 + TILE_SIZE*8
+PANEL_Y = BOARD_OFFSET_Y
+ROW_HEIGHT = 28
+COL_WIDTH = 75
+
+hover_cooldown_start = None
+hover_cooldown_duration = 150
 
 ACTION_BTN_W = TILE_SIZE/1.2
 ACTION_BTN_H = TILE_SIZE/1.8
@@ -170,23 +178,24 @@ def draw_game_over_screen(screen_surface, losing_color, game_over_buttons, game_
     pygame.draw.rect(screen_surface, (40, 40, 40), (GAME_OVER_X, GAME_OVER_Y, GAME_OVER_WIDTH, GAME_OVER_HEIGHT),0,0,15,15,15,15)
     pygame.draw.rect(screen_surface, (230, 50, 50), (GAME_OVER_X, GAME_OVER_Y, GAME_OVER_WIDTH, GAME_OVER_HEIGHT),4,15)
 
-    
-    if game_board.game_over_reason == "WHITE_RESIGN":
-        end_text = "BLACK WINS! (White Resigned)"
-    elif game_board.game_over_reason == "BLACK_RESIGN":
-        end_text = "WHITE WINS! (Black Resigned)"
-    elif game_board.game_over_reason == "DRAW":
-        end_text = "GAME DRAWN BY AGREEMENT"
-    elif game_board.game_over_reason == "FIFTY_MOVE_RULE":
-        end_text = "DRAW! (50-Move Rule Reached)"
-    elif game_board.game_over_reason == "STALEMATE":
-        end_text = "DRAW! (Stalemate)"
-    elif game_board.game_over_reason == "REPETITION":
-        end_text = "DRAW! (Threefold Repetition)"
-    elif game_board.game_over_reason == "CHECKMATE":
-        end_text = "BLACK WINS BY MATE!" if losing_color == WHITE else "WHITE WINS BY MATE!"
-    else:
-        end_text = "GAME OVER (ERROR)"
+    match game_board.game_over_reason:
+        case "WHITE_RESIGN":
+            end_text = "BLACK WINS BY RESIGNATION!"
+        case "BLACK_RESIGN":
+            end_text = "WHITE WINS BY RESIGNATION!"
+        case "DRAW":
+            end_text = "GAME DRAWN BY AGREEMENT"
+        case "FIFTY_MOVE_RULE":
+            end_text = "DRAW! (50-Move Rule Reached)"
+        case "STALEMATE":
+            end_text = "DRAW! (Stalemate)"
+        case "REPETITION":
+            end_text = "DRAW! (Threefold Repetition)"
+        case "CHECKMATE":
+            end_text = "BLACK WINS BY MATE!" if losing_color == WHITE else "WHITE WINS BY MATE!"
+        case _:
+            end_text = "GAME OVER (ERROR)"
+
     font_title = pygame.font.SysFont("arial", 40, bold=True)
 
     title_surface = font_title.render(end_text, True, (255, 255, 255))
@@ -245,8 +254,78 @@ def draw_promotion_menu(screen_surface, turn_color):
         
         draw_piece(piece_type, screen_surface, fill_color, outline_color, btn_x, btn_y, TILE_SIZE // 3)
 
+def draw_move_log_table(screen, move_history, mouse_pos, font):
+    
+    container_rect = pygame.Rect(PANEL_X - 10, PANEL_Y - 10, 220, TILE_SIZE*8)
+    pygame.draw.rect(screen, (38, 37, 34), container_rect, border_radius=5)
+    
+    actual_moves = move_history[1:] 
+    hovered_index = None
+
+    total_pairs = (len(actual_moves) + 1) // 2
+
+    for i in range(total_pairs):
+        y_pos = PANEL_Y + (i * ROW_HEIGHT)
+        
+        num_text = font.render(f"{i + 1}.", True, (118, 115, 111))
+        screen.blit(num_text, (PANEL_X, y_pos))
+
+
+        white_idx = i * 2
+        w_move_rect = pygame.Rect(PANEL_X + 30, y_pos, COL_WIDTH, ROW_HEIGHT - 4)
+        w_bg_color = (38, 37, 34)
+
+        if w_move_rect.collidepoint(mouse_pos):
+            w_bg_color = (26, 25, 23) 
+            hovered_index = white_idx + 1 
+
+        pygame.draw.rect(screen, w_bg_color, w_move_rect, border_radius=3)
+        w_text = font.render(actual_moves[white_idx]["notation"].upper(), True, (248, 248, 248))
+        screen.blit(w_text, (PANEL_X + 35, y_pos + 2))
+
+        black_idx = i * 2 + 1
+        if black_idx < len(actual_moves):
+            b_move_rect = pygame.Rect(PANEL_X + 30 + COL_WIDTH + 5, y_pos, COL_WIDTH, ROW_HEIGHT - 4)
+            b_bg_color = (38, 37, 34)
+
+            if b_move_rect.collidepoint(mouse_pos):
+                b_bg_color = (26, 25, 23)
+                hovered_index = black_idx + 1
+
+            pygame.draw.rect(screen, b_bg_color, b_move_rect, border_radius=3)
+            b_text = font.render(actual_moves[black_idx]["notation"].upper(), True, (248, 248, 248))
+            screen.blit(b_text, (PANEL_X + 35 + COL_WIDTH + 5, y_pos + 2))
+    return hovered_index
+
+def draw_historical_pieces(screen, history_grid):
+    for row in range(8):
+        for col in range(8):
+            data = history_grid[row][col]
+            if data is not None:
+                pixel_x = BOARD_OFFSET_X + (col * TILE_SIZE)
+                pixel_y = BOARD_OFFSET_Y + (row * TILE_SIZE)
+                
+                if data["color"] == WHITE or data["color"] == "w":
+                    fill, outline = (248, 248, 248), (45, 45, 45)
+                else:
+                    fill, outline = (86, 83, 82), (25, 25, 25)
+                    
+                radius = int(TILE_SIZE * 0.45)
+                
+                draw_piece(
+                    data["type"],
+                    screen,
+                    fill,
+                    outline,
+                    int(pixel_x + TILE_SIZE // 2),
+                    int(pixel_y + TILE_SIZE // 2),
+                    radius,
+                    angle=0
+                )
+
 def main():
     game_board = ChessBoard()
+    view_index = None
     selected_square = None
     is_game_running = True
     board_offset = (BOARD_OFFSET_X, BOARD_OFFSET_Y)
@@ -288,6 +367,10 @@ def main():
                     is_game_running = False
             
             elif event.type == pygame.MOUSEBUTTONDOWN:
+                if hovered_history_index is not None:
+                    continue
+                if active_animation and active_animation.is_active:
+                    continue
                 if active_animation and active_animation.is_active:
                     continue
             
@@ -391,41 +474,81 @@ def main():
                     draw_btn = Button(DRAW_BTN_X, ACTION_BTN_Y_BLACK, ACTION_BTN_W, ACTION_BTN_H, "Draw", (140, 140, 140), (95, 95, 95), font_size=16)
 
         in_animation = active_animation is not None and active_animation.is_active
-        draw_chessboard(screen, selected_square, game_board.last_move, game_board, in_animation)
+        
+        hovered_history_index = draw_move_log_table(screen, game_board.move_history, mouse_pos, log_font)
+        current_time = pygame.time.get_ticks()
+    
+        raw_hover_index = draw_move_log_table(screen, game_board.move_history, mouse_pos, log_font)
 
-        if selected_square is not None:
+        if raw_hover_index is not None:
+            hovered_history_index = raw_hover_index
+            hover_cooldown_start = None 
+        else:
+            if hovered_history_index is not None:
+                if hover_cooldown_start is None:
+                    hover_cooldown_start = current_time
+            
+                if current_time - hover_cooldown_start > hover_cooldown_duration:
+                    hovered_history_index = None
+                    hover_cooldown_start = None
+
+        actual_moves_count = len(game_board.move_history) - 1
+
+        if hovered_history_index is not None:
+            if hovered_history_index < actual_moves_count:
+                target_idx = hovered_history_index + 1
+                if target_idx >= actual_moves_count or hovered_history_index == (actual_moves_count - 1):
+                    target_idx = -1
+                
+                display_state = game_board.move_history[target_idx]
+                viewing_last_move = display_state["last_move"]
+                use_live = False
+            else:
+                viewing_last_move = game_board.last_move
+                use_live = True
+        else:
+            viewing_last_move = game_board.last_move
+            use_live = True
+
+        draw_chessboard(screen, selected_square, viewing_last_move, game_board, in_animation)
+
+        if not use_live:
+            display_state = game_board.move_history[target_idx]
+            draw_historical_pieces(screen, display_state["grid"])
+        else:
+            draw_pieces(screen, game_board.grid)
+            if active_animation and active_animation.is_active:
+                active_animation.update()
+                
+                if active_animation.color == WHITE:
+                    fill, outline = (248, 248, 248), (45, 45, 45)
+                else:
+                    fill, outline = (86, 83, 82), (25, 25, 25)
+                    
+                radius = int(TILE_SIZE * 0.45)
+                
+                draw_piece(
+                    active_animation.piece_type,
+                    screen,
+                    fill,
+                    outline,
+                    int(active_animation.current_x),
+                    int(active_animation.current_y),
+                    radius,
+                    angle=0 
+                )
+            elif hidden_piece_data:
+                game_board.grid[hidden_piece_data["row"]][hidden_piece_data["col"]] = hidden_piece_data["piece"]
+                hidden_piece_data = None
+                active_animation = None
+
+        if selected_square is not None and hovered_history_index is None:
             start_row, start_column = selected_square
             active_legal_moves = game_board.get_safe_legal_moves(start_row, start_column)
-            draw_legal_moves(screen, active_legal_moves, game_board.grid, TILE_SIZE, (BOARD_OFFSET_X,BOARD_OFFSET_Y))
-
-        draw_pieces(screen, game_board.grid)
-        
-        if active_animation and active_animation.is_active:
-            active_animation.update()
-            
-            if active_animation.color == WHITE:
-                fill, outline = (248, 248, 248), (45, 45, 45)
-            else:
-                fill, outline = (86, 83, 82), (25, 25, 25)
-                
-            radius = int(TILE_SIZE * 0.45)
-            
-            draw_piece(
-                active_animation.piece_type,
-                screen,
-                fill,
-                outline,
-                int(active_animation.current_x),
-                int(active_animation.current_y),
-                radius,
-                angle=0 
-            )
-        elif hidden_piece_data:
-            game_board.grid[hidden_piece_data["row"]][hidden_piece_data["col"]] = hidden_piece_data["piece"]
-            hidden_piece_data = None
-            active_animation = None
+            draw_legal_moves(screen, active_legal_moves, game_board.grid, TILE_SIZE, (BOARD_OFFSET_X, BOARD_OFFSET_Y))
             
         draw_captured_bars(screen, game_board.captured_white, game_board.captured_black)
+        draw_move_log_table(screen, game_board.move_history, mouse_pos, log_font)
         if not game_is_over:
             resign_btn.draw(screen)
             draw_btn.draw(screen)
@@ -435,9 +558,8 @@ def main():
 
         if game_is_over:
             draw_game_over_screen(screen, game_board.turn, game_buttons, game_board)
-            
+        
         pygame.display.flip()
-
         
     pygame.quit()
     sys.exit()

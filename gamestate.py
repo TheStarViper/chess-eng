@@ -1,3 +1,5 @@
+import copy
+
 EMPTY_PIECE = 0
 PAWN = 1
 KNIGHT = 2
@@ -30,6 +32,8 @@ class ChessBoard:
         self.game_over_reason = None
         self.position_history = {}  # Tracks Fen-like string states for 3-fold
         self.record_current_position() # Log the starting layout
+        self.move_history = []  # List of dictionaries holding snapshots
+        self.record_history_state("Start") # Record initial state
 
         self.initialize_standard_board()
     def initialize_standard_board(self):
@@ -175,6 +179,11 @@ class ChessBoard:
         reset_clock = False
         self.record_current_position()
         self.check_three_fold()
+        
+        moving_piece = self.grid[start_row][start_column]
+        was_capture = self.grid[end_position[0]][end_position[1]] is not None
+        self.record_history_state(start_position, end_position, moving_piece , was_capture)
+        
         target_piece = self.grid[end_row][end_column]
         if target_piece is not None:
             if target_piece.color == WHITE:
@@ -216,7 +225,6 @@ class ChessBoard:
                 self.promotion_required = True
                 self.promotion_square = (end_row, end_column)
                 self.last_move = (start_position, end_position)
-                # Return early and DO NOT swap turns yet! 
                 return
             
         if reset_clock:
@@ -337,3 +345,44 @@ class ChessBoard:
             if count >= 3:
                 self.game_over_reason = "REPETITION"
                 return
+    
+
+    def get_square_notation(self, row, col):
+        files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
+        ranks = ['8', '7', '6', '5', '4', '3', '2', '1']
+        return f"{files[col]}{ranks[row]}"
+
+    def record_history_state(self, start_pos=None, end_pos=None, moving_piece=None, is_capture=False):
+        grid_snapshot = []
+        for row in range(8):
+            row_data = []
+            for col in range(8):
+                piece = self.grid[row][col]
+                if piece is None:
+                    row_data.append(None)
+                else:
+                    row_data.append({"type": piece.type, "color": piece.color})
+            grid_snapshot.append(row_data)
+
+        notation = "Start"
+        if start_pos and end_pos and moving_piece:
+            dest_square = self.get_square_notation(end_pos[0], end_pos[1])
+            if moving_piece.type == 6 and abs(start_pos[1] - end_pos[1]) == 2:
+                notation = "O-O" if end_pos[1] == 6 else "O-O-O"
+            else:
+                mapping = {2: "N", 3: "B", 4: "R", 5: "Q", 6: "K"}
+                prefix = mapping.get(moving_piece.type, "")
+                if is_capture:
+                    if moving_piece.type == 1:
+                        files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
+                        prefix = files[start_pos[1]]
+                    prefix += "x"
+                notation = f"{prefix}{dest_square}"
+
+        snapshot = {
+            "grid": grid_snapshot,
+            "turn": self.turn,
+            "last_move": self.last_move,
+            "notation": notation
+        }
+        self.move_history.append(snapshot)
