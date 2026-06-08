@@ -20,9 +20,7 @@ LEFT_SIDE_BUFFER = 50 # board buffer from left side of screen
 
 BOARD_OFFSET_X = LEFT_SIDE_BUFFER
 BOARD_OFFSET_Y = (WINDOW_HEIGHT - (TILE_SIZE * 8)) // 2
-
-# --- CAPTURE BARS CONFIGURATION ---
-# Placing the sidebar right after the board ends
+ 
 CAPTURE_BAR_WIDTH = TILE_SIZE * 6
 CAPTURE_BAR_HEIGHT = TILE_SIZE/1.5
 CAPTURE_BAR_X = BOARD_OFFSET_X #+ (TILE_SIZE*8-CAPTURE_BAR_WIDTH)/2
@@ -126,21 +124,41 @@ def draw_pieces(screen_surface, grid):
                 
                 draw_piece(piece_object.type, screen_surface, fill, outline, center_x, center_y, radius, angle=tilt_angle)
 
-def draw_legal_moves(screen_surface, legal_moves, game_grid):
-    for row, column in legal_moves: 
-        center_x = BOARD_OFFSET_X + (column * TILE_SIZE) + (TILE_SIZE // 2)
-        center_y = BOARD_OFFSET_Y + (row * TILE_SIZE) + (TILE_SIZE // 2)
+def draw_legal_moves(surface, legal_moves, grid,tile_size, board_offset):
+
+    mouse_x, mouse_y = pygame.mouse.get_pos()
+    
+    offset_x, offset_y = board_offset
+    
+    standard_radius = int(tile_size * 0.15)  
+    hover_radius = int(tile_size * 0.18)     
+    capture_radius = int(tile_size * 0.45)   
+    
+    alpha_surface = pygame.Surface((surface.get_width(), surface.get_height()), pygame.SRCALPHA)
+
+    for move in legal_moves:
+        row, column = move
         
+        tile_left = offset_x + (column * tile_size)
+        tile_top = offset_y + (row * tile_size)
         
-        target_piece = game_grid[row][column]
+        center_x = tile_left + (tile_size // 2)
+        center_y = tile_top + (tile_size // 2)
         
-        if target_piece is not None:
-        
-            ring_radius = TILE_SIZE // 3 + 5
-            pygame.draw.circle(screen_surface, PREMOVE_HIGHLIGHT_COLOR, (center_x, center_y), ring_radius, 8)
+        if tile_left <= mouse_x < tile_left + tile_size and tile_top <= mouse_y < tile_top + tile_size:
+            current_radius = hover_radius
         else:
-            
-            pygame.draw.circle(screen_surface, PREMOVE_HIGHLIGHT_COLOR, (center_x, center_y), TILE_SIZE // 7)
+            current_radius = standard_radius
+        is_capture = grid[row][column] is not None
+        
+        if is_capture:
+            thickness = max(2, int(tile_size * 0.06))
+            pygame.draw.circle(alpha_surface, PREMOVE_HIGHLIGHT_COLOR, (center_x, center_y), capture_radius, thickness)
+        else:
+            pygame.draw.circle(alpha_surface, PREMOVE_HIGHLIGHT_COLOR, (center_x, center_y), current_radius)
+
+    surface.blit(alpha_surface, (0, 0))
+
 
 def draw_game_over_screen(screen_surface, losing_color, game_over_buttons, game_board):
     
@@ -378,7 +396,7 @@ def main():
         if selected_square is not None:
             start_row, start_column = selected_square
             active_legal_moves = game_board.get_safe_legal_moves(start_row, start_column)
-            draw_legal_moves(screen, active_legal_moves, game_board.grid)
+            draw_legal_moves(screen, active_legal_moves, game_board.grid, TILE_SIZE, (BOARD_OFFSET_X,BOARD_OFFSET_Y))
 
         draw_pieces(screen, game_board.grid)
         
