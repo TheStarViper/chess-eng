@@ -161,11 +161,11 @@ def draw_game_over_screen(screen_surface, losing_color, game_over_buttons, game_
         end_text = "GAME DRAWN BY AGREEMENT"
     elif game_board.game_over_reason == "FIFTY_MOVE_RULE":
         end_text = "DRAW! (50-Move Rule Reached)"
-    elif game_board.game_over_reason == "Stalemate":
+    elif game_board.game_over_reason == "STALEMATE":
         end_text = "DRAW! (Stalemate)"
-    elif game_board.game_over_reason == "Repetition":
+    elif game_board.game_over_reason == "REPETITION":
         end_text = "DRAW! (Threefold Repetition)"
-    elif game_board.game_over_reason == "Checkmate":
+    elif game_board.game_over_reason == "CHECKMATE":
         end_text = "BLACK WINS BY MATE!" if losing_color == WHITE else "WHITE WINS BY MATE!"
     else:
         end_text = "GAME OVER (ERROR)"
@@ -252,6 +252,7 @@ def main():
         if active_animation and active_animation.is_active:
             game_is_over = False
         else:
+            game_board.is_checkmate(game_board.turn)
             game_is_over = game_board.game_over()
         if game_is_over:
             rematch_btn.is_hover(mouse_pos)

@@ -174,14 +174,13 @@ class ChessBoard:
         end_row, end_column = end_position
         reset_clock = False
         self.record_current_position()
-        self.check_game_status()
+        self.check_three_fold()
         target_piece = self.grid[end_row][end_column]
         if target_piece is not None:
             if target_piece.color == WHITE:
                 self.captured_white.append(target_piece)
             else:
                 self.captured_black.append(target_piece)
-
         moving_piece = self.grid[start_row][start_column]
         self.grid[end_row][end_column] = self.grid[start_row][start_column]
         self.grid[start_row][start_column] = None
@@ -254,7 +253,8 @@ class ChessBoard:
                     enemy_moves = self.get_raw_moves(row, column)
                     if king_position in enemy_moves:
                         return True
-        return False
+        return False 
+    
 
     def get_raw_moves(self, row, column):
         return self.get_legal_moves(row, column, ignore_castling=True)
@@ -283,6 +283,24 @@ class ChessBoard:
         self.promotion_square = None
         self.turn = BLACK if self.turn == WHITE else WHITE
 
+    def is_checkmate(self, color):
+        total_legal_moves = 0
+        
+        for row in range(8):
+            for column in range(8):
+                piece = self.grid[row][column]
+                if piece and piece.color == color:
+                    safe_moves = self.get_safe_legal_moves(row, column)
+                    total_legal_moves += len(safe_moves)
+        if total_legal_moves > 0:
+            return False
+
+        if self.is_in_check(color):
+            self.game_over_reason = "CHECKMATE"
+            return True
+        else:
+            self.game_over_reason = "STALEMATE"
+            return False
 
     def resign(self, losing_color):
         self.game_over_reason = "WHITE_RESIGN" if losing_color == WHITE else "BLACK_RESIGN"
@@ -313,36 +331,9 @@ class ChessBoard:
         else:
             self.position_history[pos_str] = 1
 
-    def check_game_status(self):
-        """Evaluates the board state and updates self.game_over_reason if ended."""
-        # 1. First, check for Threefold Repetition
+    def check_three_fold(self):
+
         for count in self.position_history.values():
             if count >= 3:
-                self.game_over_reason = "Repetition"
+                self.game_over_reason = "REPETITION"
                 return
-
-        # 2. Safely scan the board to see if the current active player has ANY moves left
-        has_any_legal_moves = False
-        
-        # Break out of both loops the split second we find even ONE legal move
-        for r in range(8):
-            for c in range(8):
-                piece = self.grid[r][c]
-                if piece and piece.color == self.turn:
-                    # Get moves for this piece
-                    moves = self.get_safe_legal_moves(r, c)
-                    if len(moves) > 0:
-                        has_any_legal_moves = True
-                        break
-            if has_any_legal_moves:
-                break
-
-        # 3. If they have absolutely no moves left, evaluate the check state
-        if not has_any_legal_moves:
-            # Is the current player's king under direct attack?
-            if self.is_in_check(self.turn):
-                self.game_over_reason = "Checkmate"
-                print(f"--- ENGINE LOG: Checkmate detected! Loser is {self.turn} ---")
-            else:
-                self.game_over_reason = "Stalemate"
-                print("--- ENGINE LOG: Stalemate detected! ---")
