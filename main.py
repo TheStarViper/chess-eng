@@ -4,6 +4,7 @@ from gamestate import ChessBoard, WHITE, BLACK, PAWN, KNIGHT, BISHOP, ROOK, QUEE
 from graphics.pieces import *
 from graphics.button import Button
 from graphics.animator import PieceAnimation
+import asyncio
 
 pygame.init()
 
@@ -269,8 +270,6 @@ def draw_move_log_table(screen, move_history, mouse_pos, font):
         
         num_text = font.render(f"{i + 1}.", True, (118, 115, 111))
         screen.blit(num_text, (PANEL_X, y_pos))
-
-
         white_idx = i * 2
         w_move_rect = pygame.Rect(PANEL_X + 30, y_pos, COL_WIDTH, ROW_HEIGHT - 4)
         w_bg_color = (38, 37, 34)
@@ -323,7 +322,7 @@ def draw_historical_pieces(screen, history_grid):
                     angle=0
                 )
 
-def main():
+async def main():
     game_board = ChessBoard()
     view_index = None
     selected_square = None
@@ -559,13 +558,14 @@ def main():
         if game_is_over:
             draw_game_over_screen(screen, game_board.turn, game_buttons, game_board)
         
-        pygame.display.flip()
         
+        pygame.display.flip()
+        await asyncio.sleep(0)
     pygame.quit()
     sys.exit()
 
 def mainMenu():
-    main()
+    asyncio.run(main())
 
 if __name__ == "__main__":
     mainMenu()
