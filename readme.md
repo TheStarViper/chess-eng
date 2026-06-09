@@ -1,1 +1,37 @@
-HI
+![Itch.io](https://img.shields.io/badge/Itch-%23FF0B34.svg?style=for-the-badge&logo=Itch.io&logoColor=white)
+![Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54)
+
+# Omni-Chess
+
+Omni-Chess is my chess engine that i've made and developed in PYgame. Omni-Chess has an itch.io page that can be accessed [here](https://thestarviper.itch.io/chess-engine) and it is played locally in a 1v1 but in the future i plan to add bots by pinging a chess api because I'm not skilled enough to create a chess bot. I call this engine "Omni-Chess" because i also plan in the future to add variants to play with like duckchess and others from chess.com or originals.
+
+# Features
+- [x] basic movement / castling / en passent
+- [x] stalemate / 3 fold repetition / 50 move rule
+- [x] show captured pieces
+- [x] move log
+- [x] pawn promotion
+- [ ] sound effects
+- [ ] time control
+- [ ] bots (i plan to just ping chess.com api to implement)
+- [ ] board markings (a,b,c/1,2,3)
+- [ ] drag to move
+- [ ] main menu
+- [ ] settings menu
+- [ ] variants
+
+
+# Implementation
+
+I used a 2d array to host the board state since idk how to do bitboards which are best practice for making chess engines. YADADADADADADADAD write more here
+
+
+# Resources
+
+Chess engines are not a new thing so there is a ton of documentation online on how to go about it, so here are some of the resources i used to help program this chess engine and also some AI use disclaimers
+
+- https://www.chessprogramming.org/Main_Page this is a wiki dedicated solely to chess programming and very useful
+
+
+
+**AI DISCLAIMER: I used AI to make the graphics cuz I'm bad at that**
