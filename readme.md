@@ -31,7 +31,7 @@ I used a 2d array to host the board state since idk how to do bitboards which ar
 Chess engines are not a new thing so there is a ton of documentation online on how to go about it, so here are some of the resources i used to help program this chess engine and also some AI use disclaimers
 
 - https://www.chessprogramming.org/Main_Page this is a wiki dedicated solely to chess programming and very useful
-
+- [image](https://www.reddit.com/media?url=https%3A%2F%2Fpreview.redd.it%2Fen-croissant-a-free-open-source-chess-gui-v0-qk1g6utue8rb1.jpg%3Fwidth%3D1080%26crop%3Dsmart%26auto%3Dwebp%26s%3Dd63ba476d1365238a7f4824daf54bbb67144058b) a refrence image i used to inspire the GUI used
 
 
 **AI DISCLAIMER: I used AI to make the graphics cuz I'm bad at that**

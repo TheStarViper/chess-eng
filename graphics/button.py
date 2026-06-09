@@ -4,7 +4,19 @@ from gamestate import ChessBoard
 
 
 class Button:
-    def __init__(self, x, y, width, height, text, base_color, hover_color, text_color=(255, 255, 255), font_size=20):
+    def __init__(self, 
+                x, 
+                y, 
+                width, 
+                height, 
+                text, 
+                base_color, 
+                hover_color, 
+                text_color=(255, 255, 255), 
+                font_size=20, 
+                border = True, 
+                border_color = (255,255,255),
+                border_width = 3):
         self.rect = pygame.Rect(x, y, width, height)
         self.text = text
         self.base_color = base_color
@@ -12,6 +24,9 @@ class Button:
         self.text_color = text_color
         self.font = pygame.font.SysFont("arial", font_size, bold=True)
         self.is_hovered = False
+        self.border = border
+        self.border_color = border_color
+        self.border_width = border_width
 
     def is_hover(self, mouse_pos):
         if self.rect.collidepoint(mouse_pos):
@@ -22,7 +37,8 @@ class Button:
     def draw(self, screen_surface):
         current_color = self.hover_color if self.is_hovered else self.base_color
         pygame.draw.rect(screen_surface, current_color, self.rect, border_radius=3)
-        pygame.draw.rect(screen_surface, (255, 255, 255), self.rect, width=2, border_radius=3)
+        if self.border == True:
+            pygame.draw.rect(screen_surface, self.border_color, self.rect, self.border_width, border_radius=3)
         
         text_surface = self.font.render(self.text, True, self.text_color)
         text_x = self.rect.x + (self.rect.width - text_surface.get_width()) // 2

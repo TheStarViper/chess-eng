@@ -1,97 +1,55 @@
 import pygame
 import sys
+import asyncio
 from gamestate import ChessBoard, WHITE, BLACK, PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING
 from graphics.pieces import *
 from graphics.button import Button
 from graphics.animator import PieceAnimation
-import asyncio
+from graphics.sidebar import draw_sidebar
+from graphics.rightside_screen import draw_rightside
+from variables import *
 
-pygame.init()
 
-MONITOR_INFO = pygame.display.Info()
-WINDOW_WIDTH = MONITOR_INFO.current_w
-WINDOW_HEIGHT = MONITOR_INFO.current_h
+
 screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.NOFRAME)
 pygame.display.set_caption("PyChess")
 
-TILE_SIZE = min(WINDOW_WIDTH, WINDOW_HEIGHT) // 10
+clock = pygame.time.Clock()
+
+
 pygame.font.init()
 log_font = pygame.font.SysFont("Calibri", 18, bold=True)
 
-LEFT_SIDE_BUFFER = 50 # board buffer from left side of screen
+ogbackground = pygame.image.load('graphics/images/bg.jpg').convert_alpha()
+background = pygame.transform.scale(ogbackground, (WINDOW_WIDTH, WINDOW_HEIGHT))
+background.set_alpha(25)
 
-BOARD_OFFSET_X = LEFT_SIDE_BUFFER
-BOARD_OFFSET_Y = (WINDOW_HEIGHT - (TILE_SIZE * 8)) // 2
+board_mask = pygame.Surface((TILE_SIZE*8, TILE_SIZE*8), pygame.SRCALPHA)
+board_mask.fill((0, 0, 0, 0))
+pygame.draw.rect(board_mask, (255, 255, 255, 255), (0, 0, TILE_SIZE*8, TILE_SIZE*8), border_radius=10)
 
-CAPTURE_BAR_WIDTH = TILE_SIZE * 6
-CAPTURE_BAR_HEIGHT = TILE_SIZE/1.5
-CAPTURE_BAR_X = BOARD_OFFSET_X #+ (TILE_SIZE*8-CAPTURE_BAR_WIDTH)/2
+def draw_chessboard(screen_surface, selected_square, last_move, game_board, in_animation, board_mask):
+    board_size = TILE_SIZE * 8
+    board_surface = pygame.Surface((board_size, board_size), pygame.SRCALPHA)
 
-# White captures go near the bottom, Black captures go near the top
-WHITE_CAPTURE_BAR_Y = WINDOW_HEIGHT - CAPTURE_BAR_HEIGHT/2 - BOARD_OFFSET_Y/2 
-BLACK_CAPTURE_BAR_Y = -CAPTURE_BAR_HEIGHT/2 + BOARD_OFFSET_Y/2
+    W_COLOR = 0  
+    B_COLOR = 1  
 
-PROMOTION_MENU_WIDTH = 400
-PROMOTION_MENU_HEIGHT = 100
-PROMOTION_MENU_X = (WINDOW_WIDTH - PROMOTION_MENU_WIDTH) // 2
-PROMOTION_MENU_Y = (WINDOW_HEIGHT - PROMOTION_MENU_HEIGHT) // 2
-
-GAME_OVER_WIDTH = 500
-GAME_OVER_HEIGHT = 150
-GAME_OVER_X = (WINDOW_WIDTH - GAME_OVER_WIDTH) // 2
-GAME_OVER_Y = (WINDOW_HEIGHT - GAME_OVER_HEIGHT) // 2
-
-PANEL_X = BOARD_OFFSET_X*2 + TILE_SIZE*8
-PANEL_Y = BOARD_OFFSET_Y
-ROW_HEIGHT = 28
-COL_WIDTH = 75
-
-hover_cooldown_start = None
-hover_cooldown_duration = 150
-
-ACTION_BTN_W = TILE_SIZE/1.2
-ACTION_BTN_H = TILE_SIZE/1.8
-
-
-RESIGN_BTN_X = CAPTURE_BAR_X + CAPTURE_BAR_WIDTH + (TILE_SIZE-ACTION_BTN_W)/2
-DRAW_BTN_X = CAPTURE_BAR_X + CAPTURE_BAR_WIDTH + TILE_SIZE +(TILE_SIZE-ACTION_BTN_W)/2
-ACTION_BTN_Y_WHITE = WHITE_CAPTURE_BAR_Y + (CAPTURE_BAR_HEIGHT - ACTION_BTN_H) / 2
-ACTION_BTN_Y_BLACK = BLACK_CAPTURE_BAR_Y + (CAPTURE_BAR_HEIGHT - ACTION_BTN_H) / 2
-
-LIGHT_SQUARE_COLOR = (234, 235, 239) #yk
-DARK_SQUARE_COLOR = (134, 142, 151) #yk
-SELECTED_HIGHLIGHT_COLOR = (159, 204, 239) #highlight for the square u selected
-LAST_MOVE_HIGHLIGHT_COLOR = (159, 204, 239)
-PREMOVE_HIGHLIGHT_COLOR = (176, 198, 232) #dot color for legal moves
-CHECK_INDICATOR_COLOR = (240, 90, 90)
-
-
-WHITE_PIECE_COLOR = (255, 255, 255)
-WHITE_PIECE_OUTLINE = (0, 0, 0)
-BLACK_PIECE_COLOR = (50, 50, 50)
-BLACK_PIECE_OUTLINE = (200, 200, 200)
-
-
-def draw_chessboard(screen_surface, selected_square, last_move, game_board, in_animation):
-
-
-    white_in_check = game_board.is_in_check(WHITE)
-    black_in_check = game_board.is_in_check(BLACK)
+    white_in_check = game_board.is_in_check(W_COLOR) if hasattr(game_board, 'is_in_check') else False
+    black_in_check = game_board.is_in_check(B_COLOR) if hasattr(game_board, 'is_in_check') else False
     
-    white_king_pos = game_board.find_king_position(WHITE)
-    black_king_pos = game_board.find_king_position(BLACK)
+    white_king_pos = game_board.find_king_position(W_COLOR) if hasattr(game_board, 'find_king_position') else None
+    black_king_pos = game_board.find_king_position(B_COLOR) if hasattr(game_board, 'find_king_position') else None
 
-
-    screen_surface.fill((0, 0, 0)) 
-    
     for row in range(8):
         for column in range(8):
             square_color = LIGHT_SQUARE_COLOR if (row + column) % 2 == 0 else DARK_SQUARE_COLOR
-
+            
             if last_move is not None:
                 start_pos, end_pos = last_move
                 if (row, column) == start_pos or (row, column) == end_pos:
                     square_color = LAST_MOVE_HIGHLIGHT_COLOR
+
             if not in_animation and hasattr(game_board, 'king_in_check') and game_board.king_in_check:
                 if white_in_check and (row, column) == white_king_pos:
                     square_color = CHECK_INDICATOR_COLOR
@@ -101,9 +59,12 @@ def draw_chessboard(screen_surface, selected_square, last_move, game_board, in_a
             if selected_square == (row, column):
                 square_color = SELECTED_HIGHLIGHT_COLOR
                 
-            square_x = BOARD_OFFSET_X + (column * TILE_SIZE)
-            square_y = BOARD_OFFSET_Y + (row * TILE_SIZE)
-            pygame.draw.rect(screen_surface, square_color, (square_x, square_y, TILE_SIZE, TILE_SIZE))
+            square_x = column * TILE_SIZE
+            square_y = row * TILE_SIZE
+            pygame.draw.rect(board_surface, square_color, (square_x, square_y, TILE_SIZE, TILE_SIZE))
+            
+    board_surface.blit(board_mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    screen_surface.blit(board_surface, (BOARD_OFFSET_X, BOARD_OFFSET_Y))
 
 def draw_pieces(screen_surface, grid):
     mouse_x, mouse_y = pygame.mouse.get_pos()
@@ -257,8 +218,8 @@ def draw_promotion_menu(screen_surface, turn_color):
 
 def draw_move_log_table(screen, move_history, mouse_pos, font):
     
-    container_rect = pygame.Rect(PANEL_X - 10, PANEL_Y - 10, 220, TILE_SIZE*8)
-    pygame.draw.rect(screen, (38, 37, 34), container_rect, border_radius=5)
+    container_rect = pygame.Rect(PANEL_X - 10, PANEL_Y - 10, TILE_SIZE*5-20, TILE_SIZE*6)
+    pygame.draw.rect(screen, (25,27,29), container_rect, border_radius=5)
     
     actual_moves = move_history[1:] 
     hovered_index = None
@@ -471,9 +432,11 @@ async def main():
                 else:
                     resign_btn = Button(RESIGN_BTN_X, ACTION_BTN_Y_BLACK, ACTION_BTN_W, ACTION_BTN_H, "Resign", (180, 60, 60), (120, 40, 40), font_size=16)
                     draw_btn = Button(DRAW_BTN_X, ACTION_BTN_Y_BLACK, ACTION_BTN_W, ACTION_BTN_H, "Draw", (140, 140, 140), (95, 95, 95), font_size=16)
-
-        in_animation = active_animation is not None and active_animation.is_active
         
+        
+        in_animation = active_animation is not None and active_animation.is_active
+        screen.fill((19, 21, 23)) #background
+        screen.blit(background, (0,0))
         hovered_history_index = draw_move_log_table(screen, game_board.move_history, mouse_pos, log_font)
         current_time = pygame.time.get_ticks()
     
@@ -508,9 +471,9 @@ async def main():
         else:
             viewing_last_move = game_board.last_move
             use_live = True
-
-        draw_chessboard(screen, selected_square, viewing_last_move, game_board, in_animation)
-
+        
+        draw_chessboard(screen, selected_square, viewing_last_move, game_board, in_animation, board_mask)
+        
         if not use_live:
             display_state = game_board.move_history[target_idx]
             draw_historical_pieces(screen, display_state["grid"])
@@ -545,9 +508,15 @@ async def main():
             start_row, start_column = selected_square
             active_legal_moves = game_board.get_safe_legal_moves(start_row, start_column)
             draw_legal_moves(screen, active_legal_moves, game_board.grid, TILE_SIZE, (BOARD_OFFSET_X, BOARD_OFFSET_Y))
-            
+        
+        draw_rightside(screen)
         draw_captured_bars(screen, game_board.captured_white, game_board.captured_black)
         draw_move_log_table(screen, game_board.move_history, mouse_pos, log_font)
+        #draw_sidebar(screen)
+
+        fps_surface = log_font.render(str(int(clock.get_fps())), True, pygame.Color("green"))
+        screen.blit(fps_surface, (10, 10))
+        
         if not game_is_over:
             resign_btn.draw(screen)
             draw_btn.draw(screen)
@@ -557,7 +526,6 @@ async def main():
 
         if game_is_over:
             draw_game_over_screen(screen, game_board.turn, game_buttons, game_board)
-        
         
         pygame.display.flip()
         await asyncio.sleep(0)
@@ -569,5 +537,3 @@ def mainMenu():
 
 if __name__ == "__main__":
     mainMenu()
-
-
