@@ -1,10 +1,11 @@
 import pygame
 from variables import *
 
-def draw_rightside(screen):
+def draw_rightside(screen,font):
 
     width, height = pygame.display.get_window_size()
     rect = (LEFT_SIDE_BUFFER+TILE_SIZE*8+35,BOARD_OFFSET_Y,TILE_SIZE*5,TILE_SIZE*8)
+
     pygame.draw.rect(screen,
                     (25, 27, 29),
                     rect,
@@ -18,3 +19,7 @@ def draw_rightside(screen):
                     rect,
                     border_radius=10,
                     width = 2)
+    
+
+    text_surface = font.render("Game Log", True, (255,255,255))
+    screen.blit(text_surface, (rect[0]+15, rect[1]))

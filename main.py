@@ -8,8 +8,8 @@ from graphics.animator import PieceAnimation
 from graphics.sidebar import draw_sidebar
 from graphics.rightside_screen import draw_rightside
 from variables import *
-
-
+from graphics.general_gfx import *
+from graphics.menus import *
 
 screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.NOFRAME)
 pygame.display.set_caption("PyChess")
@@ -19,10 +19,12 @@ clock = pygame.time.Clock()
 
 pygame.font.init()
 log_font = pygame.font.SysFont("Calibri", 18, bold=True)
+other_log_font = pygame.font.SysFont("Helvetica",100, bold=True)
+font_title = pygame.font.SysFont("arial", 40, bold=True)
 
 ogbackground = pygame.image.load('graphics/images/bg.jpg').convert_alpha()
 background = pygame.transform.scale(ogbackground, (WINDOW_WIDTH, WINDOW_HEIGHT))
-background.set_alpha(25)
+background.set_alpha(50)
 
 board_mask = pygame.Surface((TILE_SIZE*8, TILE_SIZE*8), pygame.SRCALPHA)
 board_mask.fill((0, 0, 0, 0))
@@ -66,108 +68,7 @@ def draw_chessboard(screen_surface, selected_square, last_move, game_board, in_a
     board_surface.blit(board_mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     screen_surface.blit(board_surface, (BOARD_OFFSET_X, BOARD_OFFSET_Y))
 
-def draw_pieces(screen_surface, grid):
-    mouse_x, mouse_y = pygame.mouse.get_pos()
-    
-    for row in range(8):
-        for col in range(8):
-            piece_object = grid[row][col]
-            
-            if piece_object is not None:
-                tile_left = BOARD_OFFSET_X + (col * TILE_SIZE)
-                tile_top = BOARD_OFFSET_Y + (row * TILE_SIZE)
-                
-                center_x = tile_left + (TILE_SIZE // 2)
-                center_y = tile_top + (TILE_SIZE // 2)
-                radius = int(TILE_SIZE * 0.45)
-                
-                if tile_left <= mouse_x < tile_left + TILE_SIZE and tile_top <= mouse_y < tile_top + TILE_SIZE:
-                    tilt_angle = -8  
-                else:
-                    tilt_angle = 0   
-                if "white" in str(piece_object.color).lower() or piece_object.color == WHITE:
-                    fill = (248, 248, 248)
-                    outline = (45, 45, 45)
-                else:
-                    fill = (86, 83, 82)
-                    outline = (25, 25, 25)
-                
-                draw_piece(piece_object.type, screen_surface, fill, outline, center_x, center_y, radius, angle=tilt_angle)
 
-def draw_legal_moves(surface, legal_moves, grid,tile_size, board_offset):
-
-    mouse_x, mouse_y = pygame.mouse.get_pos()
-    
-    offset_x, offset_y = board_offset
-    
-    standard_radius = int(tile_size * 0.15)  
-    hover_radius = int(tile_size * 0.18)     
-    capture_radius = int(tile_size * 0.45)   
-    
-    alpha_surface = pygame.Surface((surface.get_width(), surface.get_height()), pygame.SRCALPHA)
-
-    for move in legal_moves:
-        row, column = move
-        
-        tile_left = offset_x + (column * tile_size)
-        tile_top = offset_y + (row * tile_size)
-        
-        center_x = tile_left + (tile_size // 2)
-        center_y = tile_top + (tile_size // 2)
-        
-        if tile_left <= mouse_x < tile_left + tile_size and tile_top <= mouse_y < tile_top + tile_size:
-            current_radius = hover_radius
-        else:
-            current_radius = standard_radius
-        is_capture = grid[row][column] is not None
-        
-        if is_capture:
-            thickness = max(2, int(tile_size * 0.06))
-            pygame.draw.circle(alpha_surface, PREMOVE_HIGHLIGHT_COLOR, (center_x, center_y), capture_radius, thickness)
-        else:
-            pygame.draw.circle(alpha_surface, PREMOVE_HIGHLIGHT_COLOR, (center_x, center_y), current_radius)
-
-    surface.blit(alpha_surface, (0, 0))
-
-
-def draw_game_over_screen(screen_surface, losing_color, game_over_buttons, game_board):
-    
-    overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA)
-    overlay.fill((0, 0, 0, 180))
-    screen_surface.blit(overlay, (0, 0))
-
-    
-    pygame.draw.rect(screen_surface, (40, 40, 40), (GAME_OVER_X, GAME_OVER_Y, GAME_OVER_WIDTH, GAME_OVER_HEIGHT),0,0,15,15,15,15)
-    pygame.draw.rect(screen_surface, (230, 50, 50), (GAME_OVER_X, GAME_OVER_Y, GAME_OVER_WIDTH, GAME_OVER_HEIGHT),4,15)
-
-    match game_board.game_over_reason:
-        case "WHITE_RESIGN":
-            end_text = "BLACK WINS BY RESIGNATION!"
-        case "BLACK_RESIGN":
-            end_text = "WHITE WINS BY RESIGNATION!"
-        case "DRAW":
-            end_text = "GAME DRAWN BY AGREEMENT"
-        case "FIFTY_MOVE_RULE":
-            end_text = "DRAW! (50-Move Rule Reached)"
-        case "STALEMATE":
-            end_text = "DRAW! (Stalemate)"
-        case "REPETITION":
-            end_text = "DRAW! (Threefold Repetition)"
-        case "CHECKMATE":
-            end_text = "BLACK WINS BY MATE!" if losing_color == WHITE else "WHITE WINS BY MATE!"
-        case _:
-            end_text = "GAME OVER (ERROR)"
-
-    font_title = pygame.font.SysFont("arial", 40, bold=True)
-
-    title_surface = font_title.render(end_text, True, (255, 255, 255))
-
-    
-    screen_surface.blit(title_surface, (GAME_OVER_X + (GAME_OVER_WIDTH - title_surface.get_width()) // 2, GAME_OVER_Y + 30))
-
-    for button in game_over_buttons:
-        button.draw(screen_surface)
-        
 def draw_captured_bars(screen_surface, captured_white, captured_black):
     PANEL_COLOR = (30, 30, 30)
     pygame.draw.rect(screen_surface, PANEL_COLOR, (CAPTURE_BAR_X, WHITE_CAPTURE_BAR_Y, CAPTURE_BAR_WIDTH, CAPTURE_BAR_HEIGHT),0,0,0,0,5,5)
@@ -245,7 +146,7 @@ def draw_move_log_table(screen, move_history, mouse_pos, font):
 
         black_idx = i * 2 + 1
         if black_idx < len(actual_moves):
-            b_move_rect = pygame.Rect(PANEL_X + 30 + COL_WIDTH + 5, y_pos, COL_WIDTH, ROW_HEIGHT - 4)
+            b_move_rect = pygame.Rect(PANEL_X + 80 + COL_WIDTH + 5, y_pos, COL_WIDTH, ROW_HEIGHT - 4)
             b_bg_color = (38, 37, 34)
 
             if b_move_rect.collidepoint(mouse_pos):
@@ -254,7 +155,7 @@ def draw_move_log_table(screen, move_history, mouse_pos, font):
 
             pygame.draw.rect(screen, b_bg_color, b_move_rect, border_radius=3)
             b_text = font.render(actual_moves[black_idx]["notation"].upper(), True, (248, 248, 248))
-            screen.blit(b_text, (PANEL_X + 35 + COL_WIDTH + 5, y_pos + 2))
+            screen.blit(b_text, (PANEL_X + 35 + COL_WIDTH + 5+50, y_pos + 2))
     return hovered_index
 
 def draw_historical_pieces(screen, history_grid):
@@ -299,8 +200,8 @@ async def main():
     rematch_btn = Button(btn_left_x, btn_y, btn_w, btn_h, "Rematch", (50, 150, 50), (70, 190, 70))
     new_game_btn = Button(btn_right_x, btn_y, btn_w, btn_h, "New Game", (70, 70, 180), (100, 100, 230))
     game_buttons = [rematch_btn, new_game_btn]
-    resign_btn = Button(RESIGN_BTN_X, ACTION_BTN_Y_WHITE, ACTION_BTN_W, ACTION_BTN_H, "Resign", (180, 60, 60), (120, 40, 40), font_size=16)
-    draw_btn = Button(DRAW_BTN_X, ACTION_BTN_Y_WHITE, ACTION_BTN_W, ACTION_BTN_H, "Draw", (140, 140, 140), (95, 95, 95), font_size=16)
+    resign_btn = Button(RESIGN_BTN_X, ACTION_BTN_Y_WHITE, ACTION_BTN_W, ACTION_BTN_H, "Resign", (27, 29, 31), (35, 37, 39), font_size=16)
+    draw_btn = Button(DRAW_BTN_X, ACTION_BTN_Y_WHITE, ACTION_BTN_W, ACTION_BTN_H, "Draw", (27, 29, 31), (35, 37, 39), font_size=16)
         
     active_animation = None
     hidden_piece_data = None
@@ -427,11 +328,11 @@ async def main():
                     
                     selected_square = None
                 if game_board.turn == WHITE:
-                    resign_btn = Button(RESIGN_BTN_X, ACTION_BTN_Y_WHITE, ACTION_BTN_W, ACTION_BTN_H, "Resign", (180, 60, 60), (120, 40, 40), font_size=16)
-                    draw_btn = Button(DRAW_BTN_X, ACTION_BTN_Y_WHITE, ACTION_BTN_W, ACTION_BTN_H, "Draw", (140, 140, 140), (95, 95, 95), font_size=16)
+                    resign_btn = Button(RESIGN_BTN_X, ACTION_BTN_Y_WHITE, ACTION_BTN_W, ACTION_BTN_H, "Resign", (27, 29, 31), (35, 37, 39), font_size=16)
+                    draw_btn = Button(DRAW_BTN_X, ACTION_BTN_Y_WHITE, ACTION_BTN_W, ACTION_BTN_H, "Draw", (27, 29, 31), (35, 37, 39), font_size=16)
                 else:
-                    resign_btn = Button(RESIGN_BTN_X, ACTION_BTN_Y_BLACK, ACTION_BTN_W, ACTION_BTN_H, "Resign", (180, 60, 60), (120, 40, 40), font_size=16)
-                    draw_btn = Button(DRAW_BTN_X, ACTION_BTN_Y_BLACK, ACTION_BTN_W, ACTION_BTN_H, "Draw", (140, 140, 140), (95, 95, 95), font_size=16)
+                    resign_btn = Button(RESIGN_BTN_X, ACTION_BTN_Y_BLACK, ACTION_BTN_W, ACTION_BTN_H, "Resign", (27, 29, 31), (35, 37, 39), font_size=16)
+                    draw_btn = Button(DRAW_BTN_X, ACTION_BTN_Y_BLACK, ACTION_BTN_W, ACTION_BTN_H, "Draw", (27, 29, 31), (35, 37, 39), font_size=16)
         
         
         in_animation = active_animation is not None and active_animation.is_active
@@ -509,23 +410,24 @@ async def main():
             active_legal_moves = game_board.get_safe_legal_moves(start_row, start_column)
             draw_legal_moves(screen, active_legal_moves, game_board.grid, TILE_SIZE, (BOARD_OFFSET_X, BOARD_OFFSET_Y))
         
-        draw_rightside(screen)
+        draw_rightside(screen,other_log_font)
         draw_captured_bars(screen, game_board.captured_white, game_board.captured_black)
         draw_move_log_table(screen, game_board.move_history, mouse_pos, log_font)
-        #draw_sidebar(screen)
+        draw_sidebar(screen)
 
+        clock.tick()
         fps_surface = log_font.render(str(int(clock.get_fps())), True, pygame.Color("green"))
         screen.blit(fps_surface, (10, 10))
         
         if not game_is_over:
             resign_btn.draw(screen)
             draw_btn.draw(screen)
-        
+
         if game_board.promotion_required:
             draw_promotion_menu(screen, game_board.turn)
 
         if game_is_over:
-            draw_game_over_screen(screen, game_board.turn, game_buttons, game_board)
+            draw_game_over_screen(screen, game_board.turn, game_buttons, game_board,font_title)
         
         pygame.display.flip()
         await asyncio.sleep(0)
