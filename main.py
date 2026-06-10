@@ -185,6 +185,18 @@ def draw_historical_pieces(screen, history_grid):
                 )
 
 async def main():
+    width, height = pygame.display.get_window_size()
+
+    sidebar_bg = pygame.Surface((200, height), pygame.SRCALPHA).convert_alpha()
+    sidebar_bg.fill((25, 27, 29, 160))
+
+    sidebar_buttons = {
+        "settings": Button(width-175, height-100, 150, 50, "Settings", (27, 29, 31), (35, 37, 39), font_size=20, border=False),
+        "play": Button(width-175, 120, 150, 50, "Play", (27, 29, 31), (35, 37, 39), font_size=20, border=False),
+        "game": Button(width-175, 180, 150, 50, "Game", (27, 29, 31), (35, 37, 39), font_size=20, border=False),
+        "puzzles": Button(width-175, 240, 150, 50, "Puzzles", (27, 29, 31), (35, 37, 39), font_size=20, border=False)
+    }
+
     game_board = ChessBoard()
     view_index = None
     selected_square = None
@@ -205,20 +217,15 @@ async def main():
         
     active_animation = None
     hidden_piece_data = None
+    game_is_over = False
+
+    hovered_history_index = None
+    hover_cooldown_start = None
+    hover_cooldown_duration = 500
+    selected_piece_moves = []
     while is_game_running:
         mouse_pos = pygame.mouse.get_pos()
-        if active_animation and active_animation.is_active:
-            game_is_over = False
-        else:
-            game_board.is_checkmate(game_board.turn)
-            game_is_over = game_board.game_over()
-        if game_is_over:
-            rematch_btn.is_hover(mouse_pos)
-            new_game_btn.is_hover(mouse_pos)
-        else:
-            resign_btn.is_hover(mouse_pos)
-            draw_btn.is_hover(mouse_pos)
-
+        
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 is_game_running = False
@@ -234,6 +241,11 @@ async def main():
                     continue
                 if active_animation and active_animation.is_active:
                     continue
+                if active_animation and active_animation.is_active:
+                    game_is_over = False
+                else:
+                    game_board.is_checkmate(game_board.turn)
+                    game_is_over = game_board.game_over()
             
             
                 mouse_x, mouse_y = pygame.mouse.get_pos()
@@ -282,17 +294,19 @@ async def main():
                         clicked_piece = game_board.grid[clicked_row][clicked_column]
                         if clicked_piece and clicked_piece.color == game_board.turn:
                             selected_square = (clicked_row, clicked_column)
-                    
+                            selected_piece_moves = game_board.get_safe_legal_moves(clicked_row, clicked_column)
                     
                     else:
                         start_row, start_column = selected_square
                         
-                        
-                        available_legal_moves = game_board.get_safe_legal_moves(start_row, start_column)
-                        
-                        
-                        if (clicked_row, clicked_column) in available_legal_moves:
+                        if (clicked_row, clicked_column) in selected_piece_moves:
                             moving_piece = game_board.grid[start_row][start_column]
+                            
+                            hidden_piece_data = {
+                                "row": clicked_row,
+                                "col": clicked_column,
+                                "piece": moving_piece
+                            }
                             
                             active_animation = PieceAnimation(
                                 moving_piece.type,
@@ -304,26 +318,18 @@ async def main():
                                 speed=0.2
                             )
                             
-                            hidden_piece_data = {
-                                "row": clicked_row,
-                                "col": clicked_column,
-                                "piece": moving_piece
-                            }
-                            
                             is_pawn = moving_piece.type == 1
                             is_diagonal = start_column != clicked_column
                             is_target_empty = game_board.grid[clicked_row][clicked_column] is None
-                            
                             if is_pawn and is_diagonal and is_target_empty:
                                 game_board.grid[start_row][clicked_column] = None
-                            # ------------------------------
 
                             game_board.make_move(selected_square, (clicked_row, clicked_column))
                             
                             game_board.grid[clicked_row][clicked_column] = None
                             
                         selected_square = None
-                        
+                        selected_piece_moves = []
                 else:
                     
                     selected_square = None
@@ -333,42 +339,41 @@ async def main():
                 else:
                     resign_btn = Button(RESIGN_BTN_X, ACTION_BTN_Y_BLACK, ACTION_BTN_W, ACTION_BTN_H, "Resign", (27, 29, 31), (35, 37, 39), font_size=16)
                     draw_btn = Button(DRAW_BTN_X, ACTION_BTN_Y_BLACK, ACTION_BTN_W, ACTION_BTN_H, "Draw", (27, 29, 31), (35, 37, 39), font_size=16)
-        
-        
-        in_animation = active_animation is not None and active_animation.is_active
-        screen.fill((19, 21, 23)) #background
-        screen.blit(background, (0,0))
-        hovered_history_index = draw_move_log_table(screen, game_board.move_history, mouse_pos, log_font)
-        current_time = pygame.time.get_ticks()
-    
-        raw_hover_index = draw_move_log_table(screen, game_board.move_history, mouse_pos, log_font)
 
+        if game_is_over:
+            rematch_btn.is_hover(mouse_pos)
+            new_game_btn.is_hover(mouse_pos)
+        else:
+            resign_btn.is_hover(mouse_pos)
+            draw_btn.is_hover(mouse_pos)
+        in_animation = active_animation is not None and active_animation.is_active
+        # #screen.fill((19, 21, 23))
+        draw_rightside(screen, other_log_font)
+        raw_hover_index = draw_move_log_table(screen, game_board.move_history, mouse_pos, log_font)
+        
         if raw_hover_index is not None:
             hovered_history_index = raw_hover_index
             hover_cooldown_start = None 
         else:
             if hovered_history_index is not None:
+                ticks = pygame.time.get_ticks()
                 if hover_cooldown_start is None:
-                    hover_cooldown_start = current_time
+                    hover_cooldown_start = ticks
             
-                if current_time - hover_cooldown_start > hover_cooldown_duration:
+                if ticks - hover_cooldown_start > hover_cooldown_duration:
                     hovered_history_index = None
                     hover_cooldown_start = None
 
         actual_moves_count = len(game_board.move_history) - 1
 
-        if hovered_history_index is not None:
-            if hovered_history_index < actual_moves_count:
-                target_idx = hovered_history_index + 1
-                if target_idx >= actual_moves_count or hovered_history_index == (actual_moves_count - 1):
-                    target_idx = -1
-                
-                display_state = game_board.move_history[target_idx]
-                viewing_last_move = display_state["last_move"]
-                use_live = False
-            else:
-                viewing_last_move = game_board.last_move
-                use_live = True
+        if hovered_history_index is not None and hovered_history_index < actual_moves_count:
+            target_idx = hovered_history_index + 1
+            if target_idx >= actual_moves_count or hovered_history_index == (actual_moves_count - 1):
+                target_idx = -1
+            
+            display_state = game_board.move_history[target_idx]
+            viewing_last_move = display_state["last_move"]
+            use_live = False
         else:
             viewing_last_move = game_board.last_move
             use_live = True
@@ -404,21 +409,20 @@ async def main():
                 game_board.grid[hidden_piece_data["row"]][hidden_piece_data["col"]] = hidden_piece_data["piece"]
                 hidden_piece_data = None
                 active_animation = None
-
+        
         if selected_square is not None and hovered_history_index is None:
-            start_row, start_column = selected_square
-            active_legal_moves = game_board.get_safe_legal_moves(start_row, start_column)
-            draw_legal_moves(screen, active_legal_moves, game_board.grid, TILE_SIZE, (BOARD_OFFSET_X, BOARD_OFFSET_Y))
+            draw_legal_moves(screen, selected_piece_moves, game_board.grid, TILE_SIZE, (BOARD_OFFSET_X, BOARD_OFFSET_Y))
         
-        draw_rightside(screen,other_log_font)
+        
         draw_captured_bars(screen, game_board.captured_white, game_board.captured_black)
-        draw_move_log_table(screen, game_board.move_history, mouse_pos, log_font)
-        draw_sidebar(screen)
-
-        clock.tick()
-        fps_surface = log_font.render(str(int(clock.get_fps())), True, pygame.Color("green"))
-        screen.blit(fps_surface, (10, 10))
         
+        draw_sidebar(screen, sidebar_bg, sidebar_buttons)
+
+        if DEBUGMODE:
+            clock.tick()
+            fps_surface = log_font.render(str(int(clock.get_fps())), True, pygame.Color("green"), (19, 21, 23))
+            screen.blit(fps_surface, (10, 10))
+            
         if not game_is_over:
             resign_btn.draw(screen)
             draw_btn.draw(screen)
@@ -436,6 +440,6 @@ async def main():
 
 def mainMenu():
     asyncio.run(main())
-
+    
 if __name__ == "__main__":
     mainMenu()

@@ -1,5 +1,5 @@
 import copy
-
+from variables import DEBUGMODE
 EMPTY_PIECE = 0
 PAWN = 1
 KNIGHT = 2
@@ -34,6 +34,8 @@ class ChessBoard:
         self.record_current_position() # Log the starting layout
         self.move_history = []  # List of dictionaries holding snapshots
         self.record_history_state("Start") # Record initial state
+        self._move_cache = None
+        self._last_zobrist_hash = None 
 
         self.initialize_standard_board()
     def initialize_standard_board(self):
@@ -87,7 +89,7 @@ class ChessBoard:
                     if target_square is None or target_square.color != piece.color:
                         legal_moves.append((target_row, target_column))
 
-        elif piece.type == BISHOP or piece.type == ROOK or piece.type == QUEEN:
+        elif piece.type in (BISHOP, ROOK, QUEEN):
             directions = []
             if piece.type == BISHOP or piece.type == QUEEN:
                 directions.extend([(-1, -1), (-1, 1), (1, -1), (1, 1)])
@@ -126,27 +128,27 @@ class ChessBoard:
                     if target_square is None or target_square.color != piece.color:
                         legal_moves.append((target_row, target_column))
 
-
             if not ignore_castling:
                 if not piece.has_moved and not self.is_in_check(piece.color):
-                    # short castle
+                    # Short castle
                     kingside_rook = self.grid[start_row][7]
                     if kingside_rook and kingside_rook.type == ROOK and not kingside_rook.has_moved:
                         if self.grid[start_row][5] is None and self.grid[start_row][6] is None:
                             if not self.is_square_attacked(start_row, 5, piece.color):
                                 legal_moves.append((start_row, 6))
 
-                    # long castle
+                    # Long castle
                     queenside_rook = self.grid[start_row][0]
                     if queenside_rook and queenside_rook.type == ROOK and not queenside_rook.has_moved:
                         if self.grid[start_row][1] is None and self.grid[start_row][2] is None and self.grid[start_row][3] is None:
                             if not self.is_square_attacked(start_row, 3, piece.color):
                                 legal_moves.append((start_row, 2))
-                                
-                    
+                                    
         return legal_moves
 
     def get_safe_legal_moves(self, start_row, start_column):
+        if DEBUGMODE:
+            print(f"[DEBUG] get_safe_legal_moves called for ({start_row}, {start_column})")
         piece = self.grid[start_row][start_column]
         if not piece or piece.color != self.turn:
             return []
@@ -154,20 +156,28 @@ class ChessBoard:
         raw_moves = self.get_legal_moves(start_row, start_column)
         safe_moves = []
 
-        
+        king_row, king_col = self.find_king_position(piece.color)
+        in_check_init = self.is_in_check(piece.color)
+
+        is_aligned_with_king = False
+        if piece.type != KING:
+            row_diff = start_row - king_row
+            col_diff = start_column - king_col
+            is_aligned_with_king = (row_diff == 0 or col_diff == 0 or abs(row_diff) == abs(col_diff))
+
         for target_row, target_column in raw_moves:
-            
+            if not in_check_init and piece.type != KING and not is_aligned_with_king:
+                safe_moves.append((target_row, target_column))
+                continue
+
             original_destination_piece = self.grid[target_row][target_column]
-            
-            
+
             self.grid[target_row][target_column] = piece
             self.grid[start_row][start_column] = None
-            
-            
+
             if not self.is_in_check(piece.color):
                 safe_moves.append((target_row, target_column))
-                
-            
+
             self.grid[start_row][start_column] = piece
             self.grid[target_row][target_column] = original_destination_piece
 
@@ -332,12 +342,12 @@ class ChessBoard:
         state_parts.append(self.turn)
         return "|".join(state_parts)
 
-    def record_current_position(self):
-        pos_str = self.generate_position_string()
-        if pos_str in self.position_history:
-            self.position_history[pos_str] += 1
-        else:
-            self.position_history[pos_str] = 1
+    # def record_current_position(self):
+    #     pos_str = self.generate_position_string()
+    #     if pos_str in self.position_history:
+    #         self.position_history[pos_str] += 1
+    #     else:
+    #         self.position_history[pos_str] = 1
 
     def check_three_fold(self):
 
@@ -386,3 +396,24 @@ class ChessBoard:
             "notation": notation
         }
         self.move_history.append(snapshot)
+
+
+    def record_current_position(self):
+        current_state = []
+        for row in range(8):
+            row_state = []
+            for col in range(8):
+                piece = self.grid[row][col]
+                if piece is not None:
+                    row_state.append((piece.type, piece.color))
+                else:
+                    row_state.append(None)
+            current_state.append(tuple(row_state))
+            
+        position_key = (tuple(current_state), self.turn, self.en_passant_target)
+        
+        # Update dictionary safely
+        if position_key in self.position_history:
+            self.position_history[position_key] += 1
+        else:
+            self.position_history[position_key] = 1

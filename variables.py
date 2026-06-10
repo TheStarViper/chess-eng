@@ -2,6 +2,8 @@ import pygame
 
 pygame.init()
 
+DEBUGMODE = True
+
 MONITOR_INFO = pygame.display.Info()
 WINDOW_WIDTH = MONITOR_INFO.current_w
 WINDOW_HEIGHT = MONITOR_INFO.current_h
