@@ -22,9 +22,9 @@ log_font = pygame.font.SysFont("Calibri", 18, bold=True)
 other_log_font = pygame.font.SysFont("Helvetica",100, bold=True)
 font_title = pygame.font.SysFont("arial", 40, bold=True)
 
-ogbackground = pygame.image.load('graphics/images/bg.jpg').convert_alpha()
+ogbackground = pygame.image.load('graphics/images/bg.jpg').convert()
 background = pygame.transform.scale(ogbackground, (WINDOW_WIDTH, WINDOW_HEIGHT))
-background.set_alpha(50)
+background.set_alpha(20)
 
 board_mask = pygame.Surface((TILE_SIZE*8, TILE_SIZE*8), pygame.SRCALPHA)
 board_mask.fill((0, 0, 0, 0))
@@ -347,7 +347,8 @@ async def main():
             resign_btn.is_hover(mouse_pos)
             draw_btn.is_hover(mouse_pos)
         in_animation = active_animation is not None and active_animation.is_active
-        # #screen.fill((19, 21, 23))
+        #screen.fill((19, 21, 23))
+        screen.blit(background, (0,0))
         draw_rightside(screen, other_log_font)
         raw_hover_index = draw_move_log_table(screen, game_board.move_history, mouse_pos, log_font)
         
