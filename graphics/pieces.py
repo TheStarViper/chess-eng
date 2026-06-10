@@ -20,7 +20,7 @@ def rotate_point(px, py, cx, cy, angle_degrees):
     rx = dx * cos_a - dy * sin_a
     ry = dx * sin_a + dy * cos_a
     
-    # Translate back to the absolute square center coordinates
+    # Translate back to the absolute square center coordinatesa
     return (int(rx + cx), int(ry + cy))
 
 
