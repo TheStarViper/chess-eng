@@ -4,6 +4,6 @@
 *.pem
 *.key
 
-/vscode/
+/.vscode/
 /build/
 /__pycache__/
