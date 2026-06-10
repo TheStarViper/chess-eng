@@ -27,7 +27,7 @@ font_title = pygame.font.SysFont("arial", 40, bold=True)
 
 ogbackground = pygame.image.load('graphics/images/bg.jpg').convert()
 background = pygame.transform.scale(ogbackground, (WINDOW_WIDTH, WINDOW_HEIGHT))
-background.set_alpha(20)
+background.set_alpha(50)
 
 board_size = TILE_SIZE * 8
 board_mask = pygame.Surface((board_size, board_size), pygame.SRCALPHA).convert_alpha()
@@ -237,7 +237,6 @@ async def main():
     while is_game_running:
         if not DEBUGMODE:
             clock.tick(60) 
-            
         mouse_pos = pygame.mouse.get_pos()
         current_turn = game_board.turn
         
