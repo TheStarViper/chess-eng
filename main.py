@@ -50,30 +50,20 @@ def get_cached_text(text_string, font_object, color, bg_color=None):
         TEXT_CACHE[cache_key] = font_object.render(text_string, True, color, bg_color)
     return TEXT_CACHE[cache_key]
 
-def draw_chessboard(screen_surface, selected_square, last_move, game_board, in_animation, board_mask):
-    board_size = TILE_SIZE * 8
+def draw_chessboard(screen_surface, selected_square, last_move, in_animation, board_mask, checked_king_pos):
     
     board_surface = STATIC_BOARD_SURFACE.copy()
 
     W_COLOR = 0  
     B_COLOR = 1  
 
-    white_in_check = game_board.is_in_check(W_COLOR) if hasattr(game_board, 'is_in_check') else False
-    black_in_check = game_board.is_in_check(B_COLOR) if hasattr(game_board, 'is_in_check') else False
-    
-    white_king_pos = game_board.find_king_position(W_COLOR) if hasattr(game_board, 'find_king_position') else None
-    black_king_pos = game_board.find_king_position(B_COLOR) if hasattr(game_board, 'find_king_position') else None
-
     if last_move is not None:
         start_pos, end_pos = last_move
         pygame.draw.rect(board_surface, LAST_MOVE_HIGHLIGHT_COLOR, (start_pos[1]*TILE_SIZE, start_pos[0]*TILE_SIZE, TILE_SIZE, TILE_SIZE))
         pygame.draw.rect(board_surface, LAST_MOVE_HIGHLIGHT_COLOR, (end_pos[1]*TILE_SIZE, end_pos[0]*TILE_SIZE, TILE_SIZE, TILE_SIZE))
 
-    if not in_animation and hasattr(game_board, 'king_in_check') and game_board.king_in_check:
-        if white_in_check and white_king_pos:
-            pygame.draw.rect(board_surface, CHECK_INDICATOR_COLOR, (white_king_pos[1]*TILE_SIZE, white_king_pos[0]*TILE_SIZE, TILE_SIZE, TILE_SIZE))
-        if black_in_check and black_king_pos:
-            pygame.draw.rect(board_surface, CHECK_INDICATOR_COLOR, (black_king_pos[1]*TILE_SIZE, black_king_pos[0]*TILE_SIZE, TILE_SIZE, TILE_SIZE))
+    if not in_animation and checked_king_pos is not None:
+        pygame.draw.rect(board_surface, CHECK_INDICATOR_COLOR, (checked_king_pos[1]*TILE_SIZE, checked_king_pos[0]*TILE_SIZE, TILE_SIZE, TILE_SIZE))
     
     if selected_square is not None:
         pygame.draw.rect(board_surface, SELECTED_HIGHLIGHT_COLOR, (selected_square[1]*TILE_SIZE, selected_square[0]*TILE_SIZE, TILE_SIZE, TILE_SIZE))
@@ -102,63 +92,43 @@ def draw_captured_bars(screen_surface, captured_white, captured_black):
         draw_mini_piece(piece, CAPTURE_BAR_X + 30 + column_offset, WHITE_CAPTURE_BAR_Y + CAPTURE_BAR_HEIGHT // 2 - CAPTURE_BAR_HEIGHT // 15)
 
 
-def draw_promotion_menu(screen_surface, turn_color):
-    screen_surface.blit(PROMOTION_OVERLAY, (0, 0))
-
-    pygame.draw.rect(screen_surface, (50, 50, 50), (PROMOTION_MENU_X, PROMOTION_MENU_Y, PROMOTION_MENU_WIDTH, PROMOTION_MENU_HEIGHT))
-    pygame.draw.rect(screen_surface, (200, 200, 200), (PROMOTION_MENU_X, PROMOTION_MENU_Y, PROMOTION_MENU_WIDTH, PROMOTION_MENU_HEIGHT), 3)
-
-    button_width = PROMOTION_MENU_WIDTH // 4
-    piece_types = [QUEEN, ROOK, BISHOP, KNIGHT]
+def draw_promotion_menu(screen_surface, turn_color, promotion_col, promotion_row):
+    button_w = TILE_SIZE
+    button_h = TILE_SIZE
+    cancel_btn_h = TILE_SIZE // 3
+    total_h = (button_h * 4) + cancel_btn_h
     
+    menu_x = BOARD_OFFSET_X + (promotion_col * button_w)
+    menu_y = BOARD_OFFSET_Y if promotion_row == 0 else (BOARD_OFFSET_Y + (8 * TILE_SIZE) - total_h)
+    
+    screen_surface.blit(PROMOTION_OVERLAY, (0, 0))
+    
+    pygame.draw.rect(screen_surface, (240, 240, 240), (menu_x, menu_y, button_w, total_h), border_radius=4)
+    pygame.draw.rect(screen_surface, (60, 60, 60), (menu_x, menu_y, button_w, total_h), 2, border_radius=4)
+    
+    piece_types = [QUEEN, ROOK, BISHOP, KNIGHT]
     fill_color = WHITE_PIECE_COLOR if turn_color == WHITE else BLACK_PIECE_COLOR
     outline_color = WHITE_PIECE_OUTLINE if turn_color == WHITE else BLACK_PIECE_OUTLINE
-
-    for index, piece_type in enumerate(piece_types):
-        btn_x = PROMOTION_MENU_X + (index * button_width) + (button_width // 2)
-        btn_y = PROMOTION_MENU_Y + (PROMOTION_MENU_HEIGHT // 2)
-        draw_piece(piece_type, screen_surface, fill_color, outline_color, btn_x, btn_y, TILE_SIZE // 3)
-
-def draw_move_log_table(screen, move_history, mouse_pos, font):
-    container_rect = pygame.Rect(PANEL_X - 10, PANEL_Y - 10, TILE_SIZE*5-20, TILE_SIZE*6)
-    pygame.draw.rect(screen, (25,27,29), container_rect, border_radius=5)
+    radius = int(TILE_SIZE * 0.4)
     
-    actual_moves = move_history[1:] 
-    hovered_index = None
-    total_pairs = (len(actual_moves) + 1) // 2
-
-    for i in range(total_pairs):
-        y_pos = PANEL_Y + (i * ROW_HEIGHT)
+    for index, piece_type in enumerate(piece_types):
+        box_y = menu_y + (index * button_h)
+        btn_center_x = menu_x + (button_w // 2)
+        btn_center_y = box_y + (button_h // 2)
         
-        num_text = get_cached_text(f"{i + 1}.", font, (118, 115, 111), (25,27,29))
-        screen.blit(num_text, (PANEL_X, y_pos))
-        
-        white_idx = i * 2
-        w_move_rect = pygame.Rect(PANEL_X + 30, y_pos, COL_WIDTH, ROW_HEIGHT - 4)
-        w_bg_color = (38, 37, 34)
-
-        if w_move_rect.collidepoint(mouse_pos):
-            w_bg_color = (26, 25, 23) 
-            hovered_index = white_idx + 1 
-
-        pygame.draw.rect(screen, w_bg_color, w_move_rect, border_radius=3)
-        w_text = get_cached_text(actual_moves[white_idx]["notation"].upper(), font, (248, 248, 248), w_bg_color)
-        screen.blit(w_text, (PANEL_X + 35, y_pos + 2))
-
-        black_idx = i * 2 + 1
-        if black_idx < len(actual_moves):
-            b_move_rect = pygame.Rect(PANEL_X + 80 + COL_WIDTH + 5, y_pos, COL_WIDTH, ROW_HEIGHT - 4)
-            b_bg_color = (38, 37, 34)
-
-            if b_move_rect.collidepoint(mouse_pos):
-                b_bg_color = (26, 25, 23)
-                hovered_index = black_idx + 1
-
-            pygame.draw.rect(screen, b_bg_color, b_move_rect, border_radius=3)
-            b_text = get_cached_text(actual_moves[black_idx]["notation"].upper(), font, (248, 248, 248), b_bg_color)
-            screen.blit(b_text, (PANEL_X + 35 + COL_WIDTH + 5+50, y_pos + 2))
+        if index > 0:
+            pygame.draw.line(screen_surface, (200, 200, 200), (menu_x, box_y), (menu_x + button_w, box_y), 1)
             
-    return hovered_index
+        draw_piece(piece_type, screen_surface, fill_color, outline_color, btn_center_x, btn_center_y, radius)
+        
+    cancel_y = menu_y + (button_h * 4)
+    pygame.draw.rect(screen_surface, (220, 80, 80), (menu_x, cancel_y, button_w, cancel_btn_h), border_radius=3)
+    
+    x_text = get_cached_text("X", log_font, (255, 255, 255), (220, 80, 80))
+    text_rect = x_text.get_rect(center=(menu_x + (button_w // 2), cancel_y + (cancel_btn_h // 2)))
+    screen_surface.blit(x_text, text_rect)
+
+
 
 def draw_historical_pieces(screen, history_grid):
     for row in range(8):
@@ -181,6 +151,7 @@ def draw_historical_pieces(screen, history_grid):
                 )
 
 async def main():
+    global LOG_SCROLL_Y, is_dragging_scroll
     width, height = pygame.display.get_window_size()
 
     # Create the sidebar setup
@@ -248,6 +219,18 @@ async def main():
                     is_game_running = False
             
             elif event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 4:
+                    LOG_SCROLL_Y -= 24
+                    continue
+                elif event.button == 5:
+                    LOG_SCROLL_Y += 24 
+                    continue
+                
+                if event.button == 1:
+                    container_width = TILE_SIZE * 5 - 20
+                    scrollbar_x = PANEL_X + container_width - 25
+                    if scrollbar_x <= event.pos[0] <= scrollbar_x + 8:
+                        is_dragging_scroll = True
                 if hovered_history_index is not None:
                     continue
                 if active_animation and active_animation.is_active:
@@ -255,16 +238,26 @@ async def main():
                 
                 mouse_x, mouse_y = pygame.mouse.get_pos()
                 if game_board.promotion_required:
-                    if PROMOTION_MENU_Y <= mouse_y <= PROMOTION_MENU_Y + PROMOTION_MENU_HEIGHT:
-                        if PROMOTION_MENU_X <= mouse_x <= PROMOTION_MENU_X + PROMOTION_MENU_WIDTH:
-                            relative_x = mouse_x - PROMOTION_MENU_X
-                            button_width = PROMOTION_MENU_WIDTH // 4
-                            clicked_button_index = relative_x // button_width
-                            
+                    menu_x = BOARD_OFFSET_X + (promotion_col * TILE_SIZE)
+                    button_h = TILE_SIZE
+                    cancel_btn_h = TILE_SIZE // 3
+                    total_h = (button_h * 4) + cancel_btn_h
+                    
+                    menu_y = BOARD_OFFSET_Y if promotion_row == 0 else (BOARD_OFFSET_Y + (8 * TILE_SIZE) - total_h)
+                    
+                    if menu_x <= mouse_x <= menu_x + TILE_SIZE and menu_y <= mouse_y <= menu_y + total_h:
+                        relative_y = mouse_y - menu_y
+                        
+                        if relative_y < (button_h * 4):
+                            clicked_button_index = int(relative_y // button_h)
                             piece_options = [QUEEN, ROOK, BISHOP, KNIGHT]
                             chosen_upgrade = piece_options[clicked_button_index]
                             game_board.promote_pawn(chosen_upgrade)
-                    continue 
+                    
+                        elif relative_y >= (button_h * 4):
+                            game_board.promotion_required = False 
+                            
+                    continue
                 
                 if game_is_over:
                     if rematch_btn.is_clicked(mouse_pos, event.type):
@@ -326,13 +319,30 @@ async def main():
                                 game_board.grid[start_row][clicked_column] = None
 
                             game_board.make_move(selected_square, (clicked_row, clicked_column))
+                            if game_board.promotion_required:
+                                promotion_col = clicked_column
+                                promotion_row = clicked_row
                             game_board.grid[clicked_row][clicked_column] = None
                             
                         selected_square = None
                         selected_piece_moves = []
                 else:
                     selected_square = None
+            elif event.type == pygame.MOUSEBUTTONUP:
+                if event.button == 1:
+                    is_dragging_scroll = False
 
+            elif event.type == pygame.MOUSEMOTION:
+                if is_dragging_scroll:
+                    container_height = TILE_SIZE * 6
+                    max_viewable_height = container_height - 20
+                    total_content_height = (((len(game_board.move_history) - 1) + 1) // 2) * ROW_HEIGHT
+                    
+                    if total_content_height > max_viewable_height:
+                        relative_y = event.pos[1] - PANEL_Y
+                        scroll_ratio = relative_y / max_viewable_height
+                        max_scroll = total_content_height - max_viewable_height
+                        LOG_SCROLL_Y = int(scroll_ratio * max_scroll)
         if game_is_over:
             rematch_btn.is_hover(mouse_pos)
             new_game_btn.is_hover(mouse_pos)
@@ -372,9 +382,16 @@ async def main():
         else:
             viewing_last_move = game_board.last_move
             use_live = True
+
+        checked_king_pos = None
+        if not in_animation:
+            if game_board.is_in_check(WHITE):
+                checked_king_pos = ChessBoard.get_king_position(game_board.grid, WHITE)
+            elif game_board.is_in_check(BLACK):
+                checked_king_pos = ChessBoard.get_king_position(game_board.grid, BLACK)
         
         screen.set_clip(pygame.Rect(BOARD_OFFSET_X, BOARD_OFFSET_Y, board_size, board_size))
-        draw_chessboard(screen, selected_square, viewing_last_move, game_board, in_animation, board_mask)
+        draw_chessboard(screen, selected_square, viewing_last_move, in_animation, board_mask, checked_king_pos)
         
         if not use_live:
             display_state = game_board.move_history[target_idx]
@@ -414,7 +431,7 @@ async def main():
             action_buttons[current_turn]["draw"].draw(screen)
 
         if game_board.promotion_required:
-            draw_promotion_menu(screen, game_board.turn)
+            draw_promotion_menu(screen, game_board.turn,promotion_col,promotion_row)
 
         if game_is_over:
             draw_game_over_screen(screen, game_board.turn, [rematch_btn, new_game_btn], game_board, font_title)
@@ -424,9 +441,6 @@ async def main():
         
     pygame.quit()
     sys.exit()
-
-def mainMenu():
-    asyncio.run(main())
     
 if __name__ == "__main__":
-    mainMenu()
+    asyncio.run(main())

@@ -417,3 +417,12 @@ class ChessBoard:
             self.position_history[position_key] += 1
         else:
             self.position_history[position_key] = 1
+    
+    def get_king_position(grid, color_target):
+
+        for row in range(8):
+            for col in range(8):
+                piece = grid[row][col]
+                if piece and piece.type == KING and piece.color == color_target:
+                    return (row, col)
+        return None

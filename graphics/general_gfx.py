@@ -1,7 +1,8 @@
 import pygame
-from variables import WINDOW_WIDTH,WINDOW_HEIGHT,GAME_OVER_X,GAME_OVER_HEIGHT,GAME_OVER_WIDTH,GAME_OVER_Y,TILE_SIZE,BOARD_OFFSET_X,BOARD_OFFSET_Y,PREMOVE_HIGHLIGHT_COLOR
-from gamestate import WHITE
+from variables import *
 from graphics.pieces import draw_piece
+from gamestate import WHITE,BLACK
+from main import get_cached_text
 
 def draw_game_over_screen(screen_surface, losing_color, game_over_buttons, game_board, font):
     
@@ -103,3 +104,96 @@ def draw_legal_moves(surface, legal_moves, grid,tile_size, board_offset):
             pygame.draw.circle(alpha_surface, PREMOVE_HIGHLIGHT_COLOR, (center_x, center_y), current_radius)
 
     surface.blit(alpha_surface, (0, 0))
+
+def draw_move_log_table(screen, move_history, mouse_pos, font):
+    global LOG_SCROLL_Y, is_dragging_scroll
+
+    container_width = TILE_SIZE * 5 - 20
+    container_height = TILE_SIZE * 6
+    container_rect = pygame.Rect(PANEL_X - 10, PANEL_Y - 10, container_width, container_height)
+    pygame.draw.rect(screen, (25, 27, 29), container_rect, border_radius=5)
+    
+    actual_moves = move_history[1:] 
+    total_pairs = (len(actual_moves) + 1) // 2
+    
+    total_content_height = total_pairs * ROW_HEIGHT
+    max_viewable_height = container_height - 20 
+    
+    needs_scroll = total_content_height > max_viewable_height
+    
+    if needs_scroll:
+        max_scroll = total_content_height - max_viewable_height
+        LOG_SCROLL_Y = max(0, min(LOG_SCROLL_Y, max_scroll))
+    else:
+        LOG_SCROLL_Y = 0
+
+
+    view_surface = pygame.Surface((container_width - 20, max_viewable_height))
+    view_surface.fill((25, 27, 29)) 
+    
+    rel_mouse_x = mouse_pos[0] - (PANEL_X - 10 + 10)
+    rel_mouse_y = mouse_pos[1] - (PANEL_Y - 10 + 10)
+    
+    hovered_index = None
+    button_height = ROW_HEIGHT - 4
+
+    for i in range(total_pairs):
+        y_pos = (i * ROW_HEIGHT) - LOG_SCROLL_Y
+        
+        if y_pos + ROW_HEIGHT < 0 or y_pos > max_viewable_height:
+            continue
+            
+        row_bg_color = (32, 34, 37) if i % 2 == 0 else (40, 43, 47)
+        row_strip_rect = pygame.Rect(0, y_pos, container_width - 40, ROW_HEIGHT)
+        pygame.draw.rect(view_surface, row_bg_color, row_strip_rect, border_radius=3)
+        
+        num_text = get_cached_text(f"{i + 1}.", font, (140, 145, 150), row_bg_color)
+        num_rect = num_text.get_rect(midleft=(5, y_pos + (ROW_HEIGHT // 2)))
+        view_surface.blit(num_text, num_rect)
+        
+        white_idx = i * 2
+        w_move_rect = pygame.Rect(40, y_pos + 2, COL_WIDTH, button_height)
+        w_btn_color = row_bg_color
+
+        if w_move_rect.collidepoint((rel_mouse_x, rel_mouse_y)) and container_rect.collidepoint(mouse_pos):
+            w_btn_color = (56, 60, 65)
+            hovered_index = white_idx + 1 
+
+        pygame.draw.rect(view_surface, w_btn_color, w_move_rect, border_radius=3)
+        w_text = get_cached_text(actual_moves[white_idx]["notation"].upper(), font, (248, 248, 248), w_btn_color)
+        view_surface.blit(w_text, w_text.get_rect(center=w_move_rect.center))
+
+        black_idx = i * 2 + 1
+        if black_idx < len(actual_moves):
+            b_move_rect = pygame.Rect(45 + COL_WIDTH + 5, y_pos + 2, COL_WIDTH, button_height)
+            b_btn_color = row_bg_color
+
+            if b_move_rect.collidepoint((rel_mouse_x, rel_mouse_y)) and container_rect.collidepoint(mouse_pos):
+                b_btn_color = (56, 60, 65)
+                hovered_index = black_idx + 1
+
+            pygame.draw.rect(view_surface, b_btn_color, b_move_rect, border_radius=3)
+            b_text = get_cached_text(actual_moves[black_idx]["notation"].upper(), font, (248, 248, 248), b_btn_color)
+            view_surface.blit(b_text, b_text.get_rect(center=b_move_rect.center))
+
+    screen.blit(view_surface, (PANEL_X, PANEL_Y))
+
+    if needs_scroll:
+        scrollbar_w = 6
+        scrollbar_x = PANEL_X + container_width - 25
+        
+        visible_ratio = max_viewable_height / total_content_height
+        handle_height = max(20, int(max_viewable_height * visible_ratio))
+        
+        scroll_ratio = LOG_SCROLL_Y / max_scroll
+        travel_distance = max_viewable_height - handle_height
+        handle_y = PANEL_Y + int(scroll_ratio * travel_distance)
+        
+        handle_rect = pygame.Rect(scrollbar_x, handle_y, scrollbar_w, handle_height)
+        
+        track_hover = handle_rect.collidepoint(mouse_pos) or is_dragging_scroll
+        bar_color = (100, 105, 110) if track_hover else (60, 63, 67)
+        
+        pygame.draw.rect(screen, bar_color, handle_rect, border_radius=3)
+            
+    return hovered_index
