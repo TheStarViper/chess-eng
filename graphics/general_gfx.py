@@ -9,33 +9,36 @@ def draw_game_over_screen(screen_surface, losing_color, game_over_buttons, game_
     overlay.fill((0, 0, 0, 180))
     screen_surface.blit(overlay, (0, 0))
 
-    
-    pygame.draw.rect(screen_surface, (40, 40, 40), (GAME_OVER_X, GAME_OVER_Y, GAME_OVER_WIDTH, GAME_OVER_HEIGHT),0,0,15,15,15,15)
-    pygame.draw.rect(screen_surface, (230, 50, 50), (GAME_OVER_X, GAME_OVER_Y, GAME_OVER_WIDTH, GAME_OVER_HEIGHT),4,15)
+    pygame.draw.rect(screen_surface, (40, 40, 40), (GAME_OVER_X, GAME_OVER_Y, GAME_OVER_WIDTH, GAME_OVER_HEIGHT), 0, 0, 15, 15, 15, 15)
+    pygame.draw.rect(screen_surface, (230, 50, 50), (GAME_OVER_X, GAME_OVER_Y, GAME_OVER_WIDTH, GAME_OVER_HEIGHT), 4, 15)
 
-    match game_board.game_over_reason:
+    reason = getattr(game_board, "game_over_reason", "CHECKMATE")
+
+    match reason:
         case "WHITE_RESIGN":
             end_text = "BLACK WINS BY RESIGNATION!"
         case "BLACK_RESIGN":
             end_text = "WHITE WINS BY RESIGNATION!"
         case "DRAW":
             end_text = "GAME DRAWN BY AGREEMENT"
-        case "FIFTY_MOVE_RULE":
+        case "FIFTY_MOVE_RULE" | "FIFTY_MOVES" | "50_MOVE_RULE":
             end_text = "DRAW! (50-Move Rule Reached)"
         case "STALEMATE":
             end_text = "DRAW! (Stalemate)"
-        case "REPETITION":
+        case "REPETITION" | "THREEFOLD_REPETITION" | "DRAW_REPETITION":
             end_text = "DRAW! (Threefold Repetition)"
-        case "CHECKMATE":
+        case "INSUFFICIENT_MATERIAL" | "DEAD_POSITION":
+            end_text = "DRAW! (Insufficient Material)"
+        case "CHECKMATE" | "MATE":
             end_text = "BLACK WINS BY MATE!" if losing_color == WHITE else "WHITE WINS BY MATE!"
         case _:
-            end_text = "GAME OVER (ERROR)"
-
-    
+            end_text = f"GAME OVER ({reason})"
 
     title_surface = font.render(end_text, True, (255, 255, 255))
 
-    
+    if title_surface.get_width() > GAME_OVER_WIDTH - 20:
+        title_surface = log_font.render(end_text, True, (255, 255, 255))
+
     screen_surface.blit(title_surface, (GAME_OVER_X + (GAME_OVER_WIDTH - title_surface.get_width()) // 2, GAME_OVER_Y + 30))
 
     for button in game_over_buttons:
