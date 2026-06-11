@@ -7,7 +7,7 @@ from graphics.pieces import *
 from graphics.button import Button
 from graphics.animator import PieceAnimation
 from graphics.sidebar import draw_sidebar
-from graphics.rightside_screen import draw_rightside
+from graphics.rightside_screen import *
 from variables import *
 from graphics.general_gfx import *
 
@@ -43,12 +43,7 @@ for row in range(8):
 PROMOTION_OVERLAY = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA).convert_alpha()
 PROMOTION_OVERLAY.fill((0, 0, 0, 150))
 
-TEXT_CACHE = {}
-def get_cached_text(text_string, font_object, color, bg_color=None):
-    cache_key = f"{text_string}_{color}_{bg_color}"
-    if cache_key not in TEXT_CACHE:
-        TEXT_CACHE[cache_key] = font_object.render(text_string, True, color, bg_color)
-    return TEXT_CACHE[cache_key]
+
 
 def draw_chessboard(screen_surface, selected_square, last_move, in_animation, board_mask, checked_king_pos):
     
@@ -195,8 +190,7 @@ async def main():
     hidden_piece_data = None
     game_is_over = False
 
-    hovered_history_index = None
-    hover_cooldown_start = None
+    selected_history_index = None
     hover_cooldown_duration = 500
     selected_piece_moves = []
     
@@ -210,12 +204,13 @@ async def main():
             clock.tick(60) 
         mouse_pos = pygame.mouse.get_pos()
         current_turn = game_board.turn
+
         
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 is_game_running = False
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
+                if event.key == pygame.K_ESCAPE and DEBUGMODE == True:
                     is_game_running = False
             
             elif event.type == pygame.MOUSEBUTTONDOWN:
@@ -231,11 +226,38 @@ async def main():
                     scrollbar_x = PANEL_X + container_width - 25
                     if scrollbar_x <= event.pos[0] <= scrollbar_x + 8:
                         is_dragging_scroll = True
-                if hovered_history_index is not None:
+                clicked_log_idx = check_move_log_click(game_board.move_history, mouse_pos)
+
+                if clicked_log_idx is not None:
+                    selected_history_index = clicked_log_idx
                     continue
+                clicked_nav = check_nav_bar_click(mouse_pos)
+                if clicked_nav is not None:
+                    if clicked_nav == "FIRST":
+                        selected_history_index = 0 if actual_moves_count > 0 else None
+                    elif clicked_nav == "PREV":
+                        if selected_history_index is None:
+                            if actual_moves_count > 0:
+                                selected_history_index = max(0, actual_moves_count - 2)
+                        else:
+                            selected_history_index = max(0, selected_history_index - 1)
+                    elif clicked_nav == "NEXT":
+                        if selected_history_index is not None:
+                            if selected_history_index >= actual_moves_count - 1:
+                                selected_history_index = None  
+                            else:
+                                selected_history_index += 1
+                    elif clicked_nav == "LATEST":
+                        selected_history_index = None  
+                    continue
+
+                if selected_history_index is not None:
+                    selected_history_index = None
+                    viewing_last_move = game_board.last_move
+                    use_live = True
                 if active_animation and active_animation.is_active:
                     continue
-                
+                    
                 mouse_x, mouse_y = pygame.mouse.get_pos()
                 if game_board.promotion_required:
                     menu_x = BOARD_OFFSET_X + (promotion_col * TILE_SIZE)
@@ -343,7 +365,7 @@ async def main():
                         scroll_ratio = relative_y / max_viewable_height
                         max_scroll = total_content_height - max_viewable_height
                         LOG_SCROLL_Y = int(scroll_ratio * max_scroll)
-        if game_is_over:
+        if game_is_over: 
             rematch_btn.is_hover(mouse_pos)
             new_game_btn.is_hover(mouse_pos)
         else:
@@ -354,31 +376,28 @@ async def main():
         
         screen.blit(STATIC_INTERFACE_SURFACE, (0, 0))
         
-        raw_hover_index = draw_move_log_table(screen, game_board.move_history, mouse_pos, log_font)
-        
-        if raw_hover_index is not None:
-            hovered_history_index = raw_hover_index
-            hover_cooldown_start = None 
-        else:
-            if hovered_history_index is not None:
-                ticks = pygame.time.get_ticks()
-                if hover_cooldown_start is None:
-                    hover_cooldown_start = ticks
-            
-                if ticks - hover_cooldown_start > hover_cooldown_duration:
-                    hovered_history_index = None
-                    hover_cooldown_start = None
 
+        draw_move_log_table(screen, game_board.move_history, log_font, selected_history_index)
+        draw_nav_bar(screen, log_font, game_board.move_history)
         actual_moves_count = len(game_board.move_history) - 1
 
-        if hovered_history_index is not None and hovered_history_index < actual_moves_count:
-            target_idx = hovered_history_index + 1
-            if target_idx >= actual_moves_count or hovered_history_index == (actual_moves_count - 1):
-                target_idx = -1
+        if selected_history_index is not None and selected_history_index < actual_moves_count:
+            target_idx = selected_history_index + 2
             
-            display_state = game_board.move_history[target_idx]
-            viewing_last_move = display_state["last_move"]
-            use_live = False
+            if target_idx >= len(game_board.move_history):
+                selected_history_index = None  
+                viewing_last_move = game_board.last_move
+                use_live = True
+            else:
+                display_state = game_board.move_history[target_idx]
+                
+                if isinstance(display_state, dict) and "grid" in display_state:
+                    viewing_grid = display_state["grid"]
+                    viewing_last_move = display_state.get("last_move", None)
+                    use_live = False
+                else:
+                    viewing_last_move = game_board.last_move
+                    use_live = True
         else:
             viewing_last_move = game_board.last_move
             use_live = True
@@ -394,8 +413,7 @@ async def main():
         draw_chessboard(screen, selected_square, viewing_last_move, in_animation, board_mask, checked_king_pos)
         
         if not use_live:
-            display_state = game_board.move_history[target_idx]
-            draw_historical_pieces(screen, display_state["grid"])
+            draw_historical_pieces(screen, viewing_grid)
         else:
             draw_pieces(screen, game_board.grid)
             if active_animation and active_animation.is_active:
@@ -414,7 +432,7 @@ async def main():
                 hidden_piece_data = None
                 active_animation = None
         
-        if selected_square is not None and hovered_history_index is None:
+        if selected_square is not None and selected_history_index is None:
             draw_legal_moves(screen, selected_piece_moves, game_board.grid, TILE_SIZE, (BOARD_OFFSET_X, BOARD_OFFSET_Y))
             
         screen.set_clip(None) 
