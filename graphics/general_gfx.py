@@ -1,8 +1,7 @@
 import pygame
 from variables import *
 from graphics.pieces import draw_piece
-from gamestate import WHITE,BLACK
-
+from gamestate import *
 
 def draw_game_over_screen(screen_surface, losing_color, game_over_buttons, game_board, font):
     

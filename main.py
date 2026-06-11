@@ -11,7 +11,6 @@ from graphics.rightside_screen import *
 from variables import *
 from graphics.general_gfx import *
 
-# Global Video Setup
 screen = pygame.display.set_mode(
     (WINDOW_WIDTH, WINDOW_HEIGHT), 
     pygame.NOFRAME | pygame.HWSURFACE | pygame.DOUBLEBUF
@@ -24,6 +23,7 @@ pygame.font.init()
 log_font = pygame.font.SysFont("Calibri", 18, bold=True)
 other_log_font = pygame.font.SysFont("Helvetica",100, bold=True)
 font_title = pygame.font.SysFont("arial", 40, bold=True)
+coord_font = pygame.font.SysFont("Helvetica", 18, bold=True)
 
 ogbackground = pygame.image.load('graphics/images/bg.jpg').convert()
 background = pygame.transform.scale(ogbackground, (WINDOW_WIDTH, WINDOW_HEIGHT))
@@ -35,6 +35,7 @@ board_mask.fill((0, 0, 0, 0))
 pygame.draw.rect(board_mask, (255, 255, 255, 255), (0, 0, board_size, board_size), border_radius=10)
 
 STATIC_BOARD_SURFACE = pygame.Surface((board_size, board_size)).convert()
+
 for row in range(8):
     for column in range(8):
         square_color = LIGHT_SQUARE_COLOR if (row + column) % 2 == 0 else DARK_SQUARE_COLOR
@@ -42,6 +43,7 @@ for row in range(8):
 
 PROMOTION_OVERLAY = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA).convert_alpha()
 PROMOTION_OVERLAY.fill((0, 0, 0, 150))
+
 
 
 
@@ -62,7 +64,28 @@ def draw_chessboard(screen_surface, selected_square, last_move, in_animation, bo
     
     if selected_square is not None:
         pygame.draw.rect(board_surface, SELECTED_HIGHLIGHT_COLOR, (selected_square[1]*TILE_SIZE, selected_square[0]*TILE_SIZE, TILE_SIZE, TILE_SIZE))
+        
+    for row in range(8):
+        for column in range(8):
+            is_light_square = (row + column) % 2 == 0
+            
+            text_color = DARK_SQUARE_COLOR if is_light_square else LIGHT_SQUARE_COLOR
+            square_bg = LIGHT_SQUARE_COLOR if is_light_square else DARK_SQUARE_COLOR
+            
+            local_x = column * TILE_SIZE
+            local_y = row * TILE_SIZE
+
+            if column == 0:
+                rank_text = str(8 - row)
+                num_surf = get_cached_text(rank_text, coord_font, text_color, square_bg)
+                num_rect = num_surf.get_rect(topright=(local_x + 16, local_y + 4))
+                board_surface.blit(num_surf, num_rect)
                 
+            if row == 7:
+                file_text = chr(ord('a') + column)
+                char_surf = coord_font.render(file_text, True, text_color)
+                char_rect = char_surf.get_rect(bottomleft=(local_x + 4, local_y + TILE_SIZE - 2))
+                board_surface.blit(char_surf, char_rect)
     board_surface.blit(board_mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     screen_surface.blit(board_surface, (BOARD_OFFSET_X, BOARD_OFFSET_Y))
 
@@ -318,6 +341,7 @@ async def main():
                         start_row, start_column = selected_square
                         if (clicked_row, clicked_column) in selected_piece_moves:
                             moving_piece = game_board.grid[start_row][start_column]
+                            
                             hidden_piece_data = {
                                 "row": clicked_row,
                                 "col": clicked_column,
@@ -341,13 +365,16 @@ async def main():
                                 game_board.grid[start_row][clicked_column] = None
 
                             game_board.make_move(selected_square, (clicked_row, clicked_column))
+                            
                             if game_board.promotion_required:
                                 promotion_col = clicked_column
                                 promotion_row = clicked_row
+                            
+                            game_board.grid[start_row][start_column] = None
                             game_board.grid[clicked_row][clicked_column] = None
                             
-                        selected_square = None
-                        selected_piece_moves = []
+                            selected_square = None
+                            selected_piece_moves = []
                 else:
                     selected_square = None
             elif event.type == pygame.MOUSEBUTTONUP:
@@ -408,7 +435,16 @@ async def main():
                 checked_king_pos = ChessBoard.get_king_position(game_board.grid, WHITE)
             elif game_board.is_in_check(BLACK):
                 checked_king_pos = ChessBoard.get_king_position(game_board.grid, BLACK)
-        
+
+        if not game_is_over and not in_animation and selected_history_index is None:
+            if hasattr(game_board, "is_checkmate") and game_board.is_checkmate(game_board.turn):
+                game_is_over = True
+                selected_square = None
+            elif hasattr(game_board, "check_game_status"):
+                status = game_board.check_game_status()
+                if status in ["CHECKMATE", "STALEMATE", "DRAW"]:
+                    game_is_over = True
+                    selected_square = None
         screen.set_clip(pygame.Rect(BOARD_OFFSET_X, BOARD_OFFSET_Y, board_size, board_size))
         draw_chessboard(screen, selected_square, viewing_last_move, in_animation, board_mask, checked_king_pos)
         
