@@ -77,12 +77,11 @@ def check_nav_bar_click(mouse_pos):
         return actions[btn_index]
     return None
 
-def draw_move_log_table(screen, move_history, font, selected_idx):
+def draw_move_log_table(screen, move_history, font, selected_idx, scroll_y):
     container_width = TILE_SIZE * 5 - 20
     container_height = TILE_SIZE * 6
     container_rect = pygame.Rect(PANEL_X - 10, PANEL_Y - 10, container_width, container_height)
     
-    # Draw Outer Panel Box
     pygame.draw.rect(screen, (25, 27, 29), container_rect, border_radius=5)
     
     actual_moves = move_history[1:] 
@@ -96,43 +95,57 @@ def draw_move_log_table(screen, move_history, font, selected_idx):
 
     ROW_COLOR_EVEN = (32, 34, 37)   
     ROW_COLOR_ODD = (40, 43, 47)    
-    HOVER_LIGHT_COLOR = (56, 60, 65)     # Background change on hover
-    OUTLINE_COLOR = (120, 180, 120)      # Clean, soft green border for the active move
+    HOVER_LIGHT_COLOR = (56, 60, 65)     
+    OUTLINE_COLOR = (120, 180, 120)      
     button_height = ROW_HEIGHT - 4
     
     mouse_pos = pygame.mouse.get_pos()
     any_button_hovered = False
 
+    def get_move_string(move_obj):
+        if isinstance(move_obj, str):
+            return move_obj.upper()
+        if isinstance(move_obj, dict):
+            if "notation" in move_obj:
+                return move_obj["notation"].upper()
+            elif "text" in move_obj:
+                return move_obj["text"].upper()
+        return "??"
+
+    screen.set_clip(container_rect)
+
     for i in range(total_pairs):
-        y_pos = PANEL_Y + (i * ROW_HEIGHT) - LOG_SCROLL_Y
+        y_pos = PANEL_Y + (i * ROW_HEIGHT) - scroll_y
         
-        if y_pos + ROW_HEIGHT < PANEL_Y or y_pos > PANEL_Y + container_height - 20:
+        if y_pos + ROW_HEIGHT < PANEL_Y - 10 or y_pos > PANEL_Y + container_height:
             continue
             
         row_bg_color = ROW_COLOR_EVEN if i % 2 == 0 else ROW_COLOR_ODD
         row_strip_rect = pygame.Rect(PANEL_X - 5, y_pos, container_width - 30, ROW_HEIGHT)
         pygame.draw.rect(screen, row_bg_color, row_strip_rect, border_radius=3)
         
-        num_text = get_cached_text(f"{i + 1}.", font, (140, 145, 150), row_bg_color)
+        num_text = font.render(f"{i + 1}.", True, (140, 145, 150))
         num_rect = num_text.get_rect(midleft=(PANEL_X, y_pos + (ROW_HEIGHT // 2)))
         screen.blit(num_text, num_rect)
         
         white_idx = i * 2
-        w_move_rect = pygame.Rect(PANEL_X + 35, y_pos + 2, COL_WIDTH, button_height)
-        
-        if w_move_rect.collidepoint(mouse_pos) and container_rect.collidepoint(mouse_pos):
-            w_btn_color = HOVER_LIGHT_COLOR
-            any_button_hovered = True
-        else:
-            w_btn_color = row_bg_color
+        if white_idx < len(actual_moves):
+            w_move_rect = pygame.Rect(PANEL_X + 35, y_pos + 2, COL_WIDTH, button_height)
+            
+            if w_move_rect.collidepoint(mouse_pos) and container_rect.collidepoint(mouse_pos):
+                w_btn_color = HOVER_LIGHT_COLOR
+                any_button_hovered = True
+            else:
+                w_btn_color = row_bg_color
 
-        pygame.draw.rect(screen, w_btn_color, w_move_rect, border_radius=3)
-        
-        if active_outline_idx == white_idx:
-            pygame.draw.rect(screen, OUTLINE_COLOR, w_move_rect, 2, border_radius=3)
+            pygame.draw.rect(screen, w_btn_color, w_move_rect, border_radius=3)
+            
+            if active_outline_idx == white_idx:
+                pygame.draw.rect(screen, OUTLINE_COLOR, w_move_rect, 2, border_radius=3)
 
-        w_text = get_cached_text(actual_moves[white_idx]["notation"].upper(), font, (248, 248, 248), w_btn_color)
-        screen.blit(w_text, w_text.get_rect(center=w_move_rect.center))
+            w_notation = get_move_string(actual_moves[white_idx])
+            w_text = font.render(w_notation, True, (248, 248, 248))
+            screen.blit(w_text, w_text.get_rect(center=w_move_rect.center))
 
         black_idx = i * 2 + 1
         if black_idx < len(actual_moves):
@@ -149,14 +162,32 @@ def draw_move_log_table(screen, move_history, font, selected_idx):
             if active_outline_idx == black_idx:
                 pygame.draw.rect(screen, OUTLINE_COLOR, b_move_rect, 2, border_radius=3)
 
-            b_text = get_cached_text(actual_moves[black_idx]["notation"].upper(), font, (248, 248, 248), b_btn_color)
+            b_notation = get_move_string(actual_moves[black_idx])
+            b_text = font.render(b_notation, True, (248, 248, 248))
             screen.blit(b_text, b_text.get_rect(center=b_move_rect.center))
+
+    screen.set_clip(None)
+
+    max_viewable_height = container_height - 20
+    total_content_height = total_pairs * ROW_HEIGHT
+
+    if total_content_height > max_viewable_height:
+        scrollbar_x = PANEL_X + container_width - 25
+        thumb_height = max(20, int((max_viewable_height / total_content_height) * max_viewable_height))
+        max_scroll_val = total_content_height - max_viewable_height
+        
+        scroll_ratio = scroll_y / max_scroll_val if max_scroll_val > 0 else 0
+        thumb_y = (PANEL_Y - 5) + int(scroll_ratio * (max_viewable_height - thumb_height))
+        
+        pygame.draw.rect(screen, (35, 38, 41), (scrollbar_x, PANEL_Y - 5, 8, max_viewable_height), border_radius=4)
+        pygame.draw.rect(screen, (90, 95, 100), (scrollbar_x, thumb_y, 8, thumb_height), border_radius=4)
 
     if any_button_hovered:
         pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
     else:
         pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
 
+    return scroll_y
 
 def check_move_log_click(move_history, mouse_pos):
     actual_moves = move_history[1:]

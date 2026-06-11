@@ -248,7 +248,6 @@ class ChessBoard:
         self.turn = BLACK if self.turn == WHITE else WHITE
         self.last_move = (start_position, end_position)
 
-        self.evaluate_game_over_conditions(self.turn)
 
     def find_king_position(self, king_color):
         for row in range(8):
@@ -300,7 +299,6 @@ class ChessBoard:
         self.promotion_square = None
         self.turn = BLACK if self.turn == WHITE else WHITE
 
-        self.evaluate_game_over_conditions(self.turn)
 
     def is_checkmate(self, color):
         original_turn = self.turn
@@ -456,7 +454,6 @@ class ChessBoard:
             
         position_key = (tuple(current_state), self.turn, self.en_passant_target)
         
-        # Update dictionary safely
         if position_key in self.position_history:
             self.position_history[position_key] += 1
         else:

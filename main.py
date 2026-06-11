@@ -113,30 +113,46 @@ def draw_promotion_menu(screen_surface, turn_color, promotion_col, promotion_row
     menu_x = BOARD_OFFSET_X + (promotion_col * button_w)
     menu_y = BOARD_OFFSET_Y if promotion_row == 0 else (BOARD_OFFSET_Y + (8 * TILE_SIZE) - total_h)
     
+    # Draw background overlay
     screen_surface.blit(PROMOTION_OVERLAY, (0, 0))
     
+    # Draw menu container base
     pygame.draw.rect(screen_surface, (240, 240, 240), (menu_x, menu_y, button_w, total_h), border_radius=4)
     pygame.draw.rect(screen_surface, (60, 60, 60), (menu_x, menu_y, button_w, total_h), 2, border_radius=4)
     
+    mouse_x, mouse_y = pygame.mouse.get_pos()
     piece_types = [QUEEN, ROOK, BISHOP, KNIGHT]
     fill_color = WHITE_PIECE_COLOR if turn_color == WHITE else BLACK_PIECE_COLOR
     outline_color = WHITE_PIECE_OUTLINE if turn_color == WHITE else BLACK_PIECE_OUTLINE
     radius = int(TILE_SIZE * 0.4)
     
+    # Draw piece buttons and handle hovers
     for index, piece_type in enumerate(piece_types):
         box_y = menu_y + (index * button_h)
         btn_center_x = menu_x + (button_w // 2)
         btn_center_y = box_y + (button_h // 2)
+        
+        # Check if mouse is hovering over this specific piece bounding box
+        if menu_x <= mouse_x <= menu_x + button_w and box_y <= mouse_y <= box_y + button_h:
+            # Draw subtle gray highlight background for hover feedback
+            pygame.draw.rect(screen_surface, (210, 210, 210), (menu_x + 2, box_y + 2, button_w - 4, button_h - 4), border_radius=2)
         
         if index > 0:
             pygame.draw.line(screen_surface, (200, 200, 200), (menu_x, box_y), (menu_x + button_w, box_y), 1)
             
         draw_piece(piece_type, screen_surface, fill_color, outline_color, btn_center_x, btn_center_y, radius)
         
+    # Cancel button rendering
     cancel_y = menu_y + (button_h * 4)
-    pygame.draw.rect(screen_surface, (220, 80, 80), (menu_x, cancel_y, button_w, cancel_btn_h), border_radius=3)
     
-    x_text = get_cached_text("X", log_font, (255, 255, 255), (220, 80, 80))
+    # Check if hovering over cancel button
+    if menu_x <= mouse_x <= menu_x + button_w and cancel_y <= mouse_y <= cancel_y + cancel_btn_h:
+        # Brighter red highlight on hover
+        pygame.draw.rect(screen_surface, (245, 95, 95), (menu_x, cancel_y, button_w, cancel_btn_h), border_radius=3)
+    else:
+        pygame.draw.rect(screen_surface, (220, 80, 80), (menu_x, cancel_y, button_w, cancel_btn_h), border_radius=3)
+    
+    x_text = get_cached_text("X", log_font, (255, 255, 255), (220, 80, 80) if not (menu_x <= mouse_x <= menu_x + button_w and cancel_y <= mouse_y <= cancel_y + cancel_btn_h) else (245, 95, 95))
     text_rect = x_text.get_rect(center=(menu_x + (button_w // 2), cancel_y + (cancel_btn_h // 2)))
     screen_surface.blit(x_text, text_rect)
 
@@ -200,7 +216,7 @@ async def main():
             "draw": Button(DRAW_BTN_X, ACTION_BTN_Y_BLACK, ACTION_BTN_W, ACTION_BTN_H, "Draw", (27, 29, 31), (35, 37, 39), font_size=16)
         }
     }
-        
+    captured_piece_backup = None
     active_animation = None
     hidden_piece_data = None
     game_is_over = False
@@ -227,18 +243,32 @@ async def main():
                     is_game_running = False
             
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 4:
-                    LOG_SCROLL_Y -= 24
+                if event.button == 4:  # Scroll Up
+                    LOG_SCROLL_Y = max(0, LOG_SCROLL_Y - ROW_HEIGHT)
+                    if DEBUGMODE:
+                        print(f"Scroll Up! New LOG_SCROLL_Y: {LOG_SCROLL_Y}")
                     continue
-                elif event.button == 5:
-                    LOG_SCROLL_Y += 24 
+                elif event.button == 5:  # Scroll Down
+                    actual_moves = game_board.move_history[1:]
+                    total_pairs = (len(actual_moves) + 1) // 2
+                    total_content_height = total_pairs * ROW_HEIGHT
+                    max_viewable_height = (TILE_SIZE * 6) - 20
+                    max_scroll = max(0, total_content_height - max_viewable_height)
+                    
+                    LOG_SCROLL_Y = min(max_scroll, LOG_SCROLL_Y + ROW_HEIGHT)
+                    if DEBUGMODE:
+                        print(f"Scroll Down! New LOG_SCROLL_Y: {LOG_SCROLL_Y}")
                     continue
                 
                 if event.button == 1:
                     container_width = TILE_SIZE * 5 - 20
                     scrollbar_x = PANEL_X + container_width - 25
+                    container_height = TILE_SIZE * 6
+                    
                     if scrollbar_x <= event.pos[0] <= scrollbar_x + 8:
-                        is_dragging_scroll = True
+                        if (PANEL_Y - 5) <= event.pos[1] <= (PANEL_Y - 5) + (container_height - 20):
+                            is_dragging_scroll = True
+                            continue 
                 clicked_log_idx = check_move_log_click(game_board.move_history, mouse_pos)
 
                 if clicked_log_idx is not None:
@@ -285,8 +315,31 @@ async def main():
                             clicked_button_index = int(relative_y // button_h)
                             piece_options = [QUEEN, ROOK, BISHOP, KNIGHT]
                             chosen_upgrade = piece_options[clicked_button_index]
+                            
                             game_board.promote_pawn(chosen_upgrade)
+                            
+                            piece_symbols = {QUEEN: '=Q', ROOK: '=R', BISHOP: '=B', KNIGHT: '=N'}
+                            notation_suffix = piece_symbols.get(chosen_upgrade, '')
+                            
+                            if game_board.move_history:
+                                last_entry = game_board.move_history[-1]
+                                
+                                if isinstance(last_entry, str):
+                                    game_board.move_history[-1] = last_entry + notation_suffix
+                                
+                                elif isinstance(last_entry, dict) and "notation" in last_entry:
+                                    last_entry["notation"] += notation_suffix
+
                         elif relative_y >= (button_h * 4):
+                            moving_pawn = game_board.grid[promotion_row][promotion_col]
+                            if moving_pawn:
+                                game_board.grid[start_row][start_column] = moving_pawn
+                                game_board.grid[promotion_row][promotion_col] = captured_piece_backup
+                                game_board.turn = moving_pawn.color
+                                if len(game_board.move_history) > 0:
+                                    game_board.move_history.pop()
+                                    
+                            captured_piece_backup = None
                             game_board.promotion_required = False 
                     continue
                 
@@ -326,6 +379,8 @@ async def main():
                         
                         elif (clicked_row, clicked_column) in selected_piece_moves:
                             moving_piece = game_board.grid[start_row][start_column]
+                            captured_piece_backup = game_board.grid[clicked_row][clicked_column]
+                            
                             hidden_piece_data = {
                                 "row": clicked_row,
                                 "col": clicked_column,
@@ -365,10 +420,20 @@ async def main():
                 if is_dragging_scroll:
                     container_height = TILE_SIZE * 6
                     max_viewable_height = container_height - 20
-                    total_content_height = (((len(game_board.move_history) - 1) + 1) // 2) * ROW_HEIGHT
-                    if total_content_height > max_viewable_height:
-                        scroll_ratio = (event.pos[1] - PANEL_Y) / max_viewable_height
-                        LOG_SCROLL_Y = int(scroll_ratio * (total_content_height - max_viewable_height))
+                    
+                    actual_moves = game_board.move_history[1:]
+                    total_pairs = (len(actual_moves) + 1) // 2
+                    total_content_height = total_pairs * ROW_HEIGHT
+                    
+                    max_scroll_val = total_content_height - max_viewable_height
+                    
+                    if max_scroll_val > 0:
+                        relative_y = event.pos[1] - (PANEL_Y - 5)
+                        scroll_ratio = relative_y / max_viewable_height
+                        
+                        scroll_ratio = max(0.0, min(1.0, scroll_ratio))
+                        
+                        LOG_SCROLL_Y = int(scroll_ratio * max_scroll_val)
 
         if game_is_over: 
             rematch_btn.is_hover(mouse_pos)
@@ -380,7 +445,7 @@ async def main():
         in_animation = active_animation is not None and active_animation.is_active
         screen.blit(STATIC_INTERFACE_SURFACE, (0, 0))
 
-        draw_move_log_table(screen, game_board.move_history, log_font, selected_history_index)
+        draw_move_log_table(screen, game_board.move_history, log_font, selected_history_index, LOG_SCROLL_Y)
         draw_nav_bar(screen, log_font, game_board.move_history)
         actual_moves_count = len(game_board.move_history) - 1
 
