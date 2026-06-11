@@ -45,14 +45,8 @@ PROMOTION_OVERLAY = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPH
 PROMOTION_OVERLAY.fill((0, 0, 0, 150))
 
 
-
-
 def draw_chessboard(screen_surface, selected_square, last_move, in_animation, board_mask, checked_king_pos):
-    
     board_surface = STATIC_BOARD_SURFACE.copy()
-
-    W_COLOR = 0  
-    B_COLOR = 1  
 
     if last_move is not None:
         start_pos, end_pos = last_move
@@ -68,7 +62,6 @@ def draw_chessboard(screen_surface, selected_square, last_move, in_animation, bo
     for row in range(8):
         for column in range(8):
             is_light_square = (row + column) % 2 == 0
-            
             text_color = DARK_SQUARE_COLOR if is_light_square else LIGHT_SQUARE_COLOR
             square_bg = LIGHT_SQUARE_COLOR if is_light_square else DARK_SQUARE_COLOR
             
@@ -86,6 +79,7 @@ def draw_chessboard(screen_surface, selected_square, last_move, in_animation, bo
                 char_surf = coord_font.render(file_text, True, text_color)
                 char_rect = char_surf.get_rect(bottomleft=(local_x + 4, local_y + TILE_SIZE - 2))
                 board_surface.blit(char_surf, char_rect)
+                
     board_surface.blit(board_mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
     screen_surface.blit(board_surface, (BOARD_OFFSET_X, BOARD_OFFSET_Y))
 
@@ -147,7 +141,6 @@ def draw_promotion_menu(screen_surface, turn_color, promotion_col, promotion_row
     screen_surface.blit(x_text, text_rect)
 
 
-
 def draw_historical_pieces(screen, history_grid):
     for row in range(8):
         for col in range(8):
@@ -168,37 +161,7 @@ def draw_historical_pieces(screen, history_grid):
                     radius, angle=0
                 )
 
-def check_end_game_conditions(game_board):
-    global game_is_over
-    
-    if hasattr(game_board, "is_checkmate") and game_board.is_checkmate(game_board.turn):
-        game_board.game_over_reason = "CHECKMATE"
-        game_is_over = True
-        return
 
-    if hasattr(game_board, "is_stalemate") and game_board.is_stalemate():
-        game_board.game_over_reason = "STALEMATE"
-        game_is_over = True
-        return
-    if hasattr(game_board, "is_threefold_repetition") and game_board.is_threefold_repetition():
-        game_board.game_over_reason = "REPETITION"
-        game_is_over = True
-        return
-
-    if hasattr(game_board, "fifty_move_counter") and game_board.fifty_move_counter >= 100:
-        game_board.game_over_reason = "FIFTY_MOVE_RULE"
-        game_is_over = True
-        return
-    elif hasattr(game_board, "check_fifty_move_rule") and game_board.check_fifty_move_rule():
-        game_board.game_over_reason = "FIFTY_MOVE_RULE"
-        game_is_over = True
-        return
-
-    if hasattr(game_board, "is_insufficient_material") and game_board.is_insufficient_material():
-        game_board.game_over_reason = "INSUFFICIENT_MATERIAL"
-        game_is_over = True
-        return
-    
 async def main():
     global LOG_SCROLL_Y, is_dragging_scroll
     width, height = pygame.display.get_window_size()
@@ -214,7 +177,6 @@ async def main():
     }
 
     game_board = ChessBoard()
-    view_index = None
     selected_square = None
     is_game_running = True
     board_offset = (BOARD_OFFSET_X, BOARD_OFFSET_Y)
@@ -324,7 +286,6 @@ async def main():
                             piece_options = [QUEEN, ROOK, BISHOP, KNIGHT]
                             chosen_upgrade = piece_options[clicked_button_index]
                             game_board.promote_pawn(chosen_upgrade)
-                            check_end_game_conditions(game_board)
                         elif relative_y >= (button_h * 4):
                             game_board.promotion_required = False 
                     continue
@@ -338,12 +299,10 @@ async def main():
                 
                 if not game_is_over:
                     if action_buttons[current_turn]["resign"].is_clicked(mouse_pos, event.type):
-                        game_board.resign(game_board.turn)
                         game_is_over = True
                         selected_square = None
                         continue
                     elif action_buttons[current_turn]["draw"].is_clicked(mouse_pos, event.type):
-                        game_board.declare_draw()
                         game_is_over = True
                         selected_square = None
                         continue
@@ -390,14 +349,8 @@ async def main():
                                 promotion_col = clicked_column
                                 promotion_row = clicked_row
                             
-                            game_board.grid[start_row][start_column] = None
-                            game_board.grid[clicked_row][clicked_column] = None
-                            
                             selected_square = None
                             selected_piece_moves = []
-
-                            if not game_board.promotion_required:
-                                check_end_game_conditions(game_board)
                         else:
                             selected_square = None
                             selected_piece_moves = []
@@ -480,21 +433,31 @@ async def main():
                 elif game_board.is_in_check(BLACK):
                     checked_king_pos = ChessBoard.get_king_position(game_board.grid, BLACK)
 
-
         screen.set_clip(pygame.Rect(BOARD_OFFSET_X, BOARD_OFFSET_Y, board_size, board_size))
         draw_chessboard(screen, selected_square, viewing_last_move, in_animation, board_mask, checked_king_pos)
         
         if not use_live:
             draw_historical_pieces(screen, viewing_grid)
         else:
-            draw_pieces(screen, game_board.grid)
+            omit_square = (hidden_piece_data["row"], hidden_piece_data["col"]) if hidden_piece_data else None
+            
+            for row in range(8):
+                for col in range(8):
+                    if omit_square == (row, col):
+                        continue
+                    piece = game_board.grid[row][col]
+                    if piece:
+                        pixel_x = BOARD_OFFSET_X + (col * TILE_SIZE) + TILE_SIZE // 2
+                        pixel_y = BOARD_OFFSET_Y + (row * TILE_SIZE) + TILE_SIZE // 2
+                        fill, outline = ((248, 248, 248), (45, 45, 45)) if piece.color == WHITE else ((86, 83, 82), (25, 25, 25))
+                        draw_piece(piece.type, screen, fill, outline, int(pixel_x), int(pixel_y), int(TILE_SIZE * 0.45))
+
             if active_animation and active_animation.is_active:
                 active_animation.update()
                 fill, outline = ((248, 248, 248), (45, 45, 45)) if active_animation.color == WHITE else ((86, 83, 82), (25, 25, 25))
                 radius = int(TILE_SIZE * 0.45)
                 draw_piece(active_animation.piece_type, screen, fill, outline, int(active_animation.current_x), int(active_animation.current_y), radius, angle=0)
-            elif hidden_piece_data:
-                game_board.grid[hidden_piece_data["row"]][hidden_piece_data["col"]] = hidden_piece_data["piece"]
+            else:
                 hidden_piece_data = None
                 active_animation = None
 

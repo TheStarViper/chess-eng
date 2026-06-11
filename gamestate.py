@@ -187,12 +187,16 @@ class ChessBoard:
         start_row, start_column = start_position
         end_row, end_column = end_position
         reset_clock = False
+        
         self.record_current_position()
         self.check_three_fold()
         
         moving_piece = self.grid[start_row][start_column]
-        was_capture = self.grid[end_position[0]][end_position[1]] is not None
-        self.record_history_state(start_position, end_position, moving_piece , was_capture)
+        if not moving_piece:
+            return
+            
+        was_capture = self.grid[end_row][end_column] is not None
+        self.record_history_state(start_position, end_position, moving_piece, was_capture)
         
         target_piece = self.grid[end_row][end_column]
         if target_piece is not None:
@@ -200,24 +204,21 @@ class ChessBoard:
                 self.captured_white.append(target_piece)
             else:
                 self.captured_black.append(target_piece)
-        moving_piece = self.grid[start_row][start_column]
+                
         self.grid[end_row][end_column] = self.grid[start_row][start_column]
         self.grid[start_row][start_column] = None
         
         if moving_piece and moving_piece.type == KING:
-            # short castle
             if end_column - start_column == 2:
                 rook = self.grid[end_row][7]
                 self.grid[end_row][5] = rook
                 self.grid[end_row][7] = None
                 if rook: rook.has_moved = True
-            # long castle
             elif start_column - end_column == 2:
                 rook = self.grid[end_row][0]
                 self.grid[end_row][3] = rook
                 self.grid[end_row][0] = None
                 if rook: rook.has_moved = True
-        
 
         self.en_passant_target = None
         if moving_piece and moving_piece.type == PAWN:
@@ -225,7 +226,6 @@ class ChessBoard:
                 skipped_row = (start_row + end_row) // 2
                 self.en_passant_target = (skipped_row, start_column)
 
-        
         if moving_piece:
             moving_piece.has_moved = True
 
@@ -235,7 +235,7 @@ class ChessBoard:
                 self.promotion_required = True
                 self.promotion_square = (end_row, end_column)
                 self.last_move = (start_position, end_position)
-                return
+                return  
             
         if reset_clock:
             self.halfmove_clock = 0
@@ -244,9 +244,11 @@ class ChessBoard:
         
         if self.halfmove_clock >= 100:
             self.game_over_reason = "FIFTY_MOVE_RULE"
+            
         self.turn = BLACK if self.turn == WHITE else WHITE
-
         self.last_move = (start_position, end_position)
+
+        self.evaluate_game_over_conditions(self.turn)
 
     def find_king_position(self, king_color):
         for row in range(8):
@@ -283,7 +285,6 @@ class ChessBoard:
             for board_column in range(8):
                 enemy_piece = self.grid[board_row][board_column]
                 if enemy_piece and enemy_piece.color == enemy_color:
-                    # Check raw structural attacks bypassing safety filters
                     if (row, column) in self.get_raw_moves(board_row, board_column):
                         return True
         return False
@@ -293,32 +294,82 @@ class ChessBoard:
             return
             
         row, column = self.promotion_square
-
         self.grid[row][column] = ChessPiece(choice_type, self.turn)
         
-
         self.promotion_required = False
         self.promotion_square = None
         self.turn = BLACK if self.turn == WHITE else WHITE
 
+        self.evaluate_game_over_conditions(self.turn)
+
     def is_checkmate(self, color):
-        total_legal_moves = 0
+        original_turn = self.turn
+        self.turn = color
         
+        total_legal_moves = 0
         for row in range(8):
             for column in range(8):
                 piece = self.grid[row][column]
                 if piece and piece.color == color:
                     safe_moves = self.get_safe_legal_moves(row, column)
                     total_legal_moves += len(safe_moves)
+                    
+        self.turn = original_turn
+
         if total_legal_moves > 0:
             return False
 
         if self.is_in_check(color):
             self.game_over_reason = "CHECKMATE"
             return True
-        else:
+        return False
+
+    def is_stalemate(self, color):
+        original_turn = self.turn
+        self.turn = color
+        
+        total_legal_moves = 0
+        for row in range(8):
+            for column in range(8):
+                piece = self.grid[row][column]
+                if piece and piece.color == color:
+                    safe_moves = self.get_safe_legal_moves(row, column)
+                    total_legal_moves += len(safe_moves)
+                    
+        self.turn = original_turn
+
+        if total_legal_moves == 0 and not self.is_in_check(color):
             self.game_over_reason = "STALEMATE"
+            return True
+        return False
+
+    def check_three_fold(self):
+        for state_key, count in self.position_history.items():
+            if count >= 3:
+                self.game_over_reason = "REPETITION"
+                return True
+        return False
+
+    def is_insufficient_material(self):
+        white_pieces = []
+        black_pieces = []
+        for r in range(8):
+            for c in range(8):
+                p = self.grid[r][c]
+                if p:
+                    if p.color == WHITE:
+                        white_pieces.append(p.type)
+                    else:
+                        black_pieces.append(p.type)
+                        
+        all_pieces = white_pieces + black_pieces
+        if 1 in all_pieces or 4 in all_pieces or 5 in all_pieces:
             return False
+            
+        if len(all_pieces) <= 3:
+            self.game_over_reason = "INSUFFICIENT_MATERIAL"
+            return True
+        return False
 
     def resign(self, losing_color):
         self.game_over_reason = "WHITE_RESIGN" if losing_color == WHITE else "BLACK_RESIGN"
@@ -327,7 +378,13 @@ class ChessBoard:
         self.game_over_reason = "DRAW"
 
     def game_over(self):
-        return True if self.game_over_reason is not None else False
+        if self.game_over_reason is not None:
+            return True
+            
+        if self.is_checkmate(self.turn) or self.is_stalemate(self.turn) or self.is_insufficient_material():
+            return True
+            
+        return False
     
     def generate_position_string(self):
         state_parts = []
@@ -342,19 +399,6 @@ class ChessBoard:
         state_parts.append(self.turn)
         return "|".join(state_parts)
 
-    # def record_current_position(self):
-    #     pos_str = self.generate_position_string()
-    #     if pos_str in self.position_history:
-    #         self.position_history[pos_str] += 1
-    #     else:
-    #         self.position_history[pos_str] = 1
-
-    def check_three_fold(self):
-
-        for count in self.position_history.values():
-            if count >= 3:
-                self.game_over_reason = "REPETITION"
-                return
     
 
     def get_square_notation(self, row, col):
