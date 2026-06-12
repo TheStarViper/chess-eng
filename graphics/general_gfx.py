@@ -2,6 +2,8 @@ import pygame
 from variables import *
 from graphics.pieces import draw_piece
 from gamestate import *
+from graphics.rightside_screen import get_cached_text
+
 
 def draw_game_over_screen(screen_surface, losing_color, game_over_buttons, game_board, font):
     
@@ -106,4 +108,58 @@ def draw_legal_moves(surface, legal_moves, grid,tile_size, board_offset):
             pygame.draw.circle(alpha_surface, PREMOVE_HIGHLIGHT_COLOR, (center_x, center_y), current_radius)
 
     surface.blit(alpha_surface, (0, 0))
+
+
+
+def initialize_chessboard():
+    board_mask = pygame.Surface((board_size, board_size), pygame.SRCALPHA).convert_alpha()
+    board_mask.fill((0, 0, 0, 0))
+    pygame.draw.rect(board_mask, (255, 255, 255, 255), (0, 0, board_size, board_size), border_radius=10)
+
+    STATIC_BOARD_SURFACE = pygame.Surface((board_size, board_size)).convert()
+
+    for row in range(8):
+        for column in range(8):
+            square_color = LIGHT_SQUARE_COLOR if (row + column) % 2 == 0 else DARK_SQUARE_COLOR
+            pygame.draw.rect(STATIC_BOARD_SURFACE, square_color, (column * TILE_SIZE, row * TILE_SIZE, TILE_SIZE, TILE_SIZE))
+    return STATIC_BOARD_SURFACE, board_mask
+    
+
+def draw_chessboard(screen_surface, selected_square, last_move, in_animation, checked_king_pos, board_surface1,board_mask):
+    board_surface = board_surface1.copy()
+
+    if last_move is not None:
+        start_pos, end_pos = last_move
+        pygame.draw.rect(board_surface, LAST_MOVE_HIGHLIGHT_COLOR, (start_pos[1]*TILE_SIZE, start_pos[0]*TILE_SIZE, TILE_SIZE, TILE_SIZE))
+        pygame.draw.rect(board_surface, LAST_MOVE_HIGHLIGHT_COLOR, (end_pos[1]*TILE_SIZE, end_pos[0]*TILE_SIZE, TILE_SIZE, TILE_SIZE))
+
+    if not in_animation and checked_king_pos is not None:
+        pygame.draw.rect(board_surface, CHECK_INDICATOR_COLOR, (checked_king_pos[1]*TILE_SIZE, checked_king_pos[0]*TILE_SIZE, TILE_SIZE, TILE_SIZE))
+    
+    if selected_square is not None:
+        pygame.draw.rect(board_surface, SELECTED_HIGHLIGHT_COLOR, (selected_square[1]*TILE_SIZE, selected_square[0]*TILE_SIZE, TILE_SIZE, TILE_SIZE))
+        
+    for row in range(8):
+        for column in range(8):
+            is_light_square = (row + column) % 2 == 0
+            text_color = DARK_SQUARE_COLOR if is_light_square else LIGHT_SQUARE_COLOR
+            square_bg = LIGHT_SQUARE_COLOR if is_light_square else DARK_SQUARE_COLOR
+            
+            local_x = column * TILE_SIZE
+            local_y = row * TILE_SIZE
+
+            if column == 0:
+                rank_text = str(8 - row)
+                num_surf = get_cached_text(rank_text, coord_font, text_color, square_bg)
+                num_rect = num_surf.get_rect(topright=(local_x + 16, local_y + 4))
+                board_surface.blit(num_surf, num_rect)
+                
+            if row == 7:
+                file_text = chr(ord('a') + column)
+                char_surf = coord_font.render(file_text, True, text_color)
+                char_rect = char_surf.get_rect(bottomleft=(local_x + 4, local_y + TILE_SIZE - 2))
+                board_surface.blit(char_surf, char_rect)
+                
+    board_surface.blit(board_mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+    screen_surface.blit(board_surface, (BOARD_OFFSET_X, BOARD_OFFSET_Y))
 

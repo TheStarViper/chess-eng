@@ -208,3 +208,35 @@ def check_move_log_click(move_history, mouse_pos):
                 return black_idx
                 
     return None
+
+def handle_move_log_scrolling(event, move_history, scroll_y, is_dragging, debug_mode=False):
+
+    if event.button == 4:  # Scroll Up
+        scroll_y = max(0, scroll_y - ROW_HEIGHT)
+        if debug_mode:
+            print(f"Scroll Up! New LOG_SCROLL_Y: {scroll_y}")
+        return scroll_y, is_dragging, True
+
+    elif event.button == 5:  # Scroll Down
+        actual_moves = move_history[1:]
+        total_pairs = (len(actual_moves) + 1) // 2
+        total_content_height = total_pairs * ROW_HEIGHT
+        max_viewable_height = (TILE_SIZE * 6) - 20
+        max_scroll = max(0, total_content_height - max_viewable_height)
+        
+        scroll_y = min(max_scroll, scroll_y + ROW_HEIGHT)
+        if debug_mode:
+            print(f"Scroll Down! New LOG_SCROLL_Y: {scroll_y}")
+        return scroll_y, is_dragging, True
+    
+    elif event.button == 1:
+        container_width = TILE_SIZE * 5 - 20
+        scrollbar_x = PANEL_X + container_width - 25
+        container_height = TILE_SIZE * 6
+        
+        if scrollbar_x <= event.pos[0] <= scrollbar_x + 8:
+            if (PANEL_Y - 5) <= event.pos[1] <= (PANEL_Y - 5) + (container_height - 20):
+                is_dragging = True
+                return scroll_y, is_dragging, True
+
+    return scroll_y, is_dragging, False

@@ -1,6 +1,13 @@
 import pygame
 
 pygame.init()
+pygame.font.init()
+log_font = pygame.font.SysFont("Calibri", 18, bold=True)
+other_log_font = pygame.font.Font("graphics/fonts/Audiowide-Regular.ttf",94)
+font_title = pygame.font.SysFont("arial", 40, bold=True)
+coord_font = pygame.font.SysFont("Helvetica", 18, bold=True)
+
+
 
 DEBUGMODE = True
 
@@ -66,3 +73,4 @@ WHITE_PIECE_OUTLINE = (0, 0, 0)
 BLACK_PIECE_COLOR = (50, 50, 50)
 BLACK_PIECE_OUTLINE = (200, 200, 200)
 
+board_size = TILE_SIZE * 8

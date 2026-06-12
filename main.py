@@ -19,70 +19,15 @@ pygame.display.set_caption("PyChess")
 
 clock = pygame.time.Clock()
 
-pygame.font.init()
-log_font = pygame.font.SysFont("Calibri", 18, bold=True)
-other_log_font = pygame.font.SysFont("Helvetica",100, bold=True)
-font_title = pygame.font.SysFont("arial", 40, bold=True)
-coord_font = pygame.font.SysFont("Helvetica", 18, bold=True)
 
 ogbackground = pygame.image.load('graphics/images/bg.jpg').convert()
 background = pygame.transform.scale(ogbackground, (WINDOW_WIDTH, WINDOW_HEIGHT))
 background.set_alpha(50)
 
-board_size = TILE_SIZE * 8
-board_mask = pygame.Surface((board_size, board_size), pygame.SRCALPHA).convert_alpha()
-board_mask.fill((0, 0, 0, 0))
-pygame.draw.rect(board_mask, (255, 255, 255, 255), (0, 0, board_size, board_size), border_radius=10)
-
-STATIC_BOARD_SURFACE = pygame.Surface((board_size, board_size)).convert()
-
-for row in range(8):
-    for column in range(8):
-        square_color = LIGHT_SQUARE_COLOR if (row + column) % 2 == 0 else DARK_SQUARE_COLOR
-        pygame.draw.rect(STATIC_BOARD_SURFACE, square_color, (column * TILE_SIZE, row * TILE_SIZE, TILE_SIZE, TILE_SIZE))
 
 PROMOTION_OVERLAY = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA).convert_alpha()
 PROMOTION_OVERLAY.fill((0, 0, 0, 150))
-
-
-def draw_chessboard(screen_surface, selected_square, last_move, in_animation, board_mask, checked_king_pos):
-    board_surface = STATIC_BOARD_SURFACE.copy()
-
-    if last_move is not None:
-        start_pos, end_pos = last_move
-        pygame.draw.rect(board_surface, LAST_MOVE_HIGHLIGHT_COLOR, (start_pos[1]*TILE_SIZE, start_pos[0]*TILE_SIZE, TILE_SIZE, TILE_SIZE))
-        pygame.draw.rect(board_surface, LAST_MOVE_HIGHLIGHT_COLOR, (end_pos[1]*TILE_SIZE, end_pos[0]*TILE_SIZE, TILE_SIZE, TILE_SIZE))
-
-    if not in_animation and checked_king_pos is not None:
-        pygame.draw.rect(board_surface, CHECK_INDICATOR_COLOR, (checked_king_pos[1]*TILE_SIZE, checked_king_pos[0]*TILE_SIZE, TILE_SIZE, TILE_SIZE))
-    
-    if selected_square is not None:
-        pygame.draw.rect(board_surface, SELECTED_HIGHLIGHT_COLOR, (selected_square[1]*TILE_SIZE, selected_square[0]*TILE_SIZE, TILE_SIZE, TILE_SIZE))
-        
-    for row in range(8):
-        for column in range(8):
-            is_light_square = (row + column) % 2 == 0
-            text_color = DARK_SQUARE_COLOR if is_light_square else LIGHT_SQUARE_COLOR
-            square_bg = LIGHT_SQUARE_COLOR if is_light_square else DARK_SQUARE_COLOR
-            
-            local_x = column * TILE_SIZE
-            local_y = row * TILE_SIZE
-
-            if column == 0:
-                rank_text = str(8 - row)
-                num_surf = get_cached_text(rank_text, coord_font, text_color, square_bg)
-                num_rect = num_surf.get_rect(topright=(local_x + 16, local_y + 4))
-                board_surface.blit(num_surf, num_rect)
-                
-            if row == 7:
-                file_text = chr(ord('a') + column)
-                char_surf = coord_font.render(file_text, True, text_color)
-                char_rect = char_surf.get_rect(bottomleft=(local_x + 4, local_y + TILE_SIZE - 2))
-                board_surface.blit(char_surf, char_rect)
-                
-    board_surface.blit(board_mask, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
-    screen_surface.blit(board_surface, (BOARD_OFFSET_X, BOARD_OFFSET_Y))
-
+board_surface, board_mask = initialize_chessboard()
 
 def draw_captured_bars(screen_surface, captured_white, captured_black):
     PANEL_COLOR = (30, 30, 30)
@@ -113,10 +58,8 @@ def draw_promotion_menu(screen_surface, turn_color, promotion_col, promotion_row
     menu_x = BOARD_OFFSET_X + (promotion_col * button_w)
     menu_y = BOARD_OFFSET_Y if promotion_row == 0 else (BOARD_OFFSET_Y + (8 * TILE_SIZE) - total_h)
     
-    # Draw background overlay
     screen_surface.blit(PROMOTION_OVERLAY, (0, 0))
     
-    # Draw menu container base
     pygame.draw.rect(screen_surface, (240, 240, 240), (menu_x, menu_y, button_w, total_h), border_radius=4)
     pygame.draw.rect(screen_surface, (60, 60, 60), (menu_x, menu_y, button_w, total_h), 2, border_radius=4)
     
@@ -126,15 +69,12 @@ def draw_promotion_menu(screen_surface, turn_color, promotion_col, promotion_row
     outline_color = WHITE_PIECE_OUTLINE if turn_color == WHITE else BLACK_PIECE_OUTLINE
     radius = int(TILE_SIZE * 0.4)
     
-    # Draw piece buttons and handle hovers
     for index, piece_type in enumerate(piece_types):
         box_y = menu_y + (index * button_h)
         btn_center_x = menu_x + (button_w // 2)
         btn_center_y = box_y + (button_h // 2)
         
-        # Check if mouse is hovering over this specific piece bounding box
         if menu_x <= mouse_x <= menu_x + button_w and box_y <= mouse_y <= box_y + button_h:
-            # Draw subtle gray highlight background for hover feedback
             pygame.draw.rect(screen_surface, (210, 210, 210), (menu_x + 2, box_y + 2, button_w - 4, button_h - 4), border_radius=2)
         
         if index > 0:
@@ -142,12 +82,9 @@ def draw_promotion_menu(screen_surface, turn_color, promotion_col, promotion_row
             
         draw_piece(piece_type, screen_surface, fill_color, outline_color, btn_center_x, btn_center_y, radius)
         
-    # Cancel button rendering
     cancel_y = menu_y + (button_h * 4)
     
-    # Check if hovering over cancel button
     if menu_x <= mouse_x <= menu_x + button_w and cancel_y <= mouse_y <= cancel_y + cancel_btn_h:
-        # Brighter red highlight on hover
         pygame.draw.rect(screen_surface, (245, 95, 95), (menu_x, cancel_y, button_w, cancel_btn_h), border_radius=3)
     else:
         pygame.draw.rect(screen_surface, (220, 80, 80), (menu_x, cancel_y, button_w, cancel_btn_h), border_radius=3)
@@ -243,55 +180,34 @@ async def main():
                     is_game_running = False
             
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                if event.button == 4:  # Scroll Up
-                    LOG_SCROLL_Y = max(0, LOG_SCROLL_Y - ROW_HEIGHT)
-                    if DEBUGMODE:
-                        print(f"Scroll Up! New LOG_SCROLL_Y: {LOG_SCROLL_Y}")
-                    continue
-                elif event.button == 5:  # Scroll Down
-                    actual_moves = game_board.move_history[1:]
-                    total_pairs = (len(actual_moves) + 1) // 2
-                    total_content_height = total_pairs * ROW_HEIGHT
-                    max_viewable_height = (TILE_SIZE * 6) - 20
-                    max_scroll = max(0, total_content_height - max_viewable_height)
-                    
-                    LOG_SCROLL_Y = min(max_scroll, LOG_SCROLL_Y + ROW_HEIGHT)
-                    if DEBUGMODE:
-                        print(f"Scroll Down! New LOG_SCROLL_Y: {LOG_SCROLL_Y}")
-                    continue
+                LOG_SCROLL_Y, is_dragging_scroll, should_continue = handle_move_log_scrolling(
+                    event, 
+                    game_board.move_history, 
+                    LOG_SCROLL_Y, 
+                    is_dragging_scroll, 
+                    DEBUGMODE
+                )
                 
-                if event.button == 1:
-                    container_width = TILE_SIZE * 5 - 20
-                    scrollbar_x = PANEL_X + container_width - 25
-                    container_height = TILE_SIZE * 6
-                    
-                    if scrollbar_x <= event.pos[0] <= scrollbar_x + 8:
-                        if (PANEL_Y - 5) <= event.pos[1] <= (PANEL_Y - 5) + (container_height - 20):
-                            is_dragging_scroll = True
-                            continue 
+                if should_continue:
+                    continue
                 clicked_log_idx = check_move_log_click(game_board.move_history, mouse_pos)
 
                 if clicked_log_idx is not None:
                     selected_history_index = clicked_log_idx
                     continue
                 clicked_nav = check_nav_bar_click(mouse_pos)
+
                 if clicked_nav is not None:
-                    if clicked_nav == "FIRST":
-                        selected_history_index = 0 if actual_moves_count > 0 else None
-                    elif clicked_nav == "PREV":
-                        if selected_history_index is None:
-                            if actual_moves_count > 0:
-                                selected_history_index = max(0, actual_moves_count - 2)
-                        else:
-                            selected_history_index = max(0, selected_history_index - 1)
-                    elif clicked_nav == "NEXT":
-                        if selected_history_index is not None:
-                            if selected_history_index >= actual_moves_count - 1:
-                                selected_history_index = None  
-                            else:
-                                selected_history_index += 1
-                    elif clicked_nav == "LATEST":
-                        selected_history_index = None  
+                    match clicked_nav:
+                        case "FIRST":
+                            selected_history_index = 0 if actual_moves_count > 0 else None
+                        case "PREV" if actual_moves_count > 0:
+                            idx = selected_history_index if selected_history_index is not None else actual_moves_count - 1
+                            selected_history_index = max(0, idx - 1)
+                        case "NEXT" if selected_history_index is not None:
+                            selected_history_index = None if selected_history_index >= actual_moves_count - 1 else selected_history_index + 1
+                        case "LATEST":
+                            selected_history_index = None
                     continue
 
                 if selected_history_index is not None:
@@ -302,6 +218,9 @@ async def main():
                     continue
                     
                 mouse_x, mouse_y = pygame.mouse.get_pos()
+                PIECE_OPTIONS = [QUEEN, ROOK, BISHOP, KNIGHT]
+                NOTATION_SUFFIXES = {QUEEN: '=Q', ROOK: '=R', BISHOP: '=B', KNIGHT: '=N'}
+
                 if game_board.promotion_required:
                     menu_x = BOARD_OFFSET_X + (promotion_col * TILE_SIZE)
                     button_h = TILE_SIZE
@@ -309,38 +228,35 @@ async def main():
                     total_h = (button_h * 4) + cancel_btn_h
                     menu_y = BOARD_OFFSET_Y if promotion_row == 0 else (BOARD_OFFSET_Y + (8 * TILE_SIZE) - total_h)
                     
-                    if menu_x <= mouse_x <= menu_x + TILE_SIZE and menu_y <= mouse_y <= menu_y + total_h:
-                        relative_y = mouse_y - menu_y
-                        if relative_y < (button_h * 4):
-                            clicked_button_index = int(relative_y // button_h)
-                            piece_options = [QUEEN, ROOK, BISHOP, KNIGHT]
-                            chosen_upgrade = piece_options[clicked_button_index]
-                            
-                            game_board.promote_pawn(chosen_upgrade)
-                            
-                            piece_symbols = {QUEEN: '=Q', ROOK: '=R', BISHOP: '=B', KNIGHT: '=N'}
-                            notation_suffix = piece_symbols.get(chosen_upgrade, '')
-                            
-                            if game_board.move_history:
-                                last_entry = game_board.move_history[-1]
-                                
-                                if isinstance(last_entry, str):
-                                    game_board.move_history[-1] = last_entry + notation_suffix
-                                
-                                elif isinstance(last_entry, dict) and "notation" in last_entry:
-                                    last_entry["notation"] += notation_suffix
+                    if not (menu_x <= mouse_x <= menu_x + TILE_SIZE and menu_y <= mouse_y <= menu_y + total_h):
+                        continue
 
-                        elif relative_y >= (button_h * 4):
-                            moving_pawn = game_board.grid[promotion_row][promotion_col]
-                            if moving_pawn:
-                                game_board.grid[start_row][start_column] = moving_pawn
-                                game_board.grid[promotion_row][promotion_col] = captured_piece_backup
-                                game_board.turn = moving_pawn.color
-                                if len(game_board.move_history) > 0:
-                                    game_board.move_history.pop()
-                                    
-                            captured_piece_backup = None
-                            game_board.promotion_required = False 
+                    relative_y = mouse_y - menu_y
+
+                    if relative_y < (button_h * 4):
+                        chosen_upgrade = PIECE_OPTIONS[int(relative_y // button_h)]
+                        game_board.promote_pawn(chosen_upgrade)
+                        
+                        if game_board.move_history:
+                            last_entry = game_board.move_history[-1]
+                            suffix = NOTATION_SUFFIXES.get(chosen_upgrade, '')
+                            if isinstance(last_entry, str):
+                                game_board.move_history[-1] += suffix
+                            elif isinstance(last_entry, dict) and "notation" in last_entry:
+                                last_entry["notation"] += suffix
+
+                    else:
+                        moving_pawn = game_board.grid[promotion_row][promotion_col]
+                        if moving_pawn:
+                            game_board.grid[start_row][start_column] = moving_pawn
+                            game_board.grid[promotion_row][promotion_col] = captured_piece_backup
+                            game_board.turn = moving_pawn.color
+                            if game_board.move_history:
+                                game_board.move_history.pop()
+                                
+                        captured_piece_backup = None
+                        game_board.promotion_required = False 
+
                     continue
                 
                 if game_is_over:
@@ -412,10 +328,8 @@ async def main():
                 else:
                     selected_square = None
 
-            elif event.type == pygame.MOUSEBUTTONUP:
-                if event.button == 1:
-                    is_dragging_scroll = False
-
+            elif event.type == pygame.MOUSEBUTTONUP and event.button ==1:
+                is_dragging_scroll = False
             elif event.type == pygame.MOUSEMOTION:
                 if is_dragging_scroll:
                     container_height = TILE_SIZE * 6
@@ -444,7 +358,6 @@ async def main():
             
         in_animation = active_animation is not None and active_animation.is_active
         screen.blit(STATIC_INTERFACE_SURFACE, (0, 0))
-
         draw_move_log_table(screen, game_board.move_history, log_font, selected_history_index, LOG_SCROLL_Y)
         draw_nav_bar(screen, log_font, game_board.move_history)
         actual_moves_count = len(game_board.move_history) - 1
@@ -499,7 +412,7 @@ async def main():
                     checked_king_pos = ChessBoard.get_king_position(game_board.grid, BLACK)
 
         screen.set_clip(pygame.Rect(BOARD_OFFSET_X, BOARD_OFFSET_Y, board_size, board_size))
-        draw_chessboard(screen, selected_square, viewing_last_move, in_animation, board_mask, checked_king_pos)
+        draw_chessboard(screen, selected_square, viewing_last_move, in_animation, checked_king_pos, board_surface, board_mask)
         
         if not use_live:
             draw_historical_pieces(screen, viewing_grid)
@@ -529,7 +442,7 @@ async def main():
         if selected_square is not None and selected_history_index is None:
             draw_legal_moves(screen, selected_piece_moves, game_board.grid, TILE_SIZE, (BOARD_OFFSET_X, BOARD_OFFSET_Y))
             
-        screen.set_clip(None) 
+        screen.set_clip(None)
         draw_captured_bars(screen, game_board.captured_white, game_board.captured_black)
 
         if DEBUGMODE:
