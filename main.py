@@ -144,15 +144,15 @@ async def main():
     new_game_btn = Button(btn_right_x, btn_y, btn_w, btn_h, "New Game", (70, 70, 180), (100, 100, 230))
     
     action_buttons = {
-        WHITE: {
-            "resign": Button(RESIGN_BTN_X, ACTION_BTN_Y_WHITE, ACTION_BTN_W, ACTION_BTN_H, "Resign", (27, 29, 31), (35, 37, 39), font_size=16),
-            "draw": Button(DRAW_BTN_X, ACTION_BTN_Y_WHITE, ACTION_BTN_W, ACTION_BTN_H, "Draw", (27, 29, 31), (35, 37, 39), font_size=16)
-        },
-        BLACK: {
-            "resign": Button(RESIGN_BTN_X, ACTION_BTN_Y_BLACK, ACTION_BTN_W, ACTION_BTN_H, "Resign", (27, 29, 31), (35, 37, 39), font_size=16),
-            "draw": Button(DRAW_BTN_X, ACTION_BTN_Y_BLACK, ACTION_BTN_W, ACTION_BTN_H, "Draw", (27, 29, 31), (35, 37, 39), font_size=16)
-        }
+    WHITE: {
+        "resign": Button(RESIGN_BTN_X, ACTION_BTN_Y_WHITE, ACTION_BTN_W, ACTION_BTN_H, "Resign", (27, 29, 31), (35, 37, 39), font_size=16, action_type="resign", image_path="graphics/images/resign.png"),
+        "draw": Button(DRAW_BTN_X, ACTION_BTN_Y_WHITE, ACTION_BTN_W, ACTION_BTN_H, "Draw", (27, 29, 31), (35, 37, 39), font_size=16, action_type="draw", image_path="graphics/images/draw.png")
+    },
+    BLACK: {
+        "resign": Button(RESIGN_BTN_X, ACTION_BTN_Y_BLACK, ACTION_BTN_W, ACTION_BTN_H, "Resign", (27, 29, 31), (35, 37, 39), font_size=16, action_type="resign", image_path="graphics/images/resign.png"),
+        "draw": Button(DRAW_BTN_X, ACTION_BTN_Y_BLACK, ACTION_BTN_W, ACTION_BTN_H, "Draw", (27, 29, 31), (35, 37, 39), font_size=16, action_type="draw", image_path="graphics/images/draw.png")
     }
+}
     captured_piece_backup = None
     active_animation = None
     hidden_piece_data = None
@@ -236,7 +236,6 @@ async def main():
                     if relative_y < (button_h * 4):
                         chosen_upgrade = PIECE_OPTIONS[int(relative_y // button_h)]
                         game_board.promote_pawn(chosen_upgrade)
-                        
                         if game_board.move_history:
                             last_entry = game_board.move_history[-1]
                             suffix = NOTATION_SUFFIXES.get(chosen_upgrade, '')

@@ -13,7 +13,7 @@ DEBUGMODE = True
 
 MONITOR_INFO = pygame.display.Info()
 WINDOW_WIDTH = 1920
-WINDOW_HEIGHT = 1080
+WINDOW_HEIGHT = 800
 
 TILE_SIZE = min(WINDOW_WIDTH, WINDOW_HEIGHT) // 10
 LEFT_SIDE_BUFFER = 150 # board buffer from left side of screen
