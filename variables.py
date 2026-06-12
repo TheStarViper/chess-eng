@@ -1,11 +1,6 @@
 import pygame
 
 pygame.init()
-pygame.font.init()
-log_font = pygame.font.SysFont("Calibri", 18, bold=True)
-other_log_font = pygame.font.Font("graphics/fonts/Audiowide-Regular.ttf",94)
-font_title = pygame.font.SysFont("arial", 40, bold=True)
-coord_font = pygame.font.SysFont("Helvetica", 18, bold=True)
 
 
 
@@ -60,7 +55,7 @@ DRAW_BTN_X = CAPTURE_BAR_X + CAPTURE_BAR_WIDTH + TILE_SIZE +(TILE_SIZE-ACTION_BT
 ACTION_BTN_Y_WHITE = WHITE_CAPTURE_BAR_Y + (CAPTURE_BAR_HEIGHT - ACTION_BTN_H) / 2
 ACTION_BTN_Y_BLACK = BLACK_CAPTURE_BAR_Y + (CAPTURE_BAR_HEIGHT - ACTION_BTN_H) / 2
 
-LIGHT_SQUARE_COLOR = (234, 235, 239) #yk
+LIGHT_SQUARE_COLOR = (237, 237, 237) #yk
 DARK_SQUARE_COLOR = (134, 142, 151) #yk
 SELECTED_HIGHLIGHT_COLOR = (159, 204, 239) #highlight for the square u selected
 LAST_MOVE_HIGHLIGHT_COLOR = (159, 204, 239)
@@ -74,3 +69,11 @@ BLACK_PIECE_COLOR = (50, 50, 50)
 BLACK_PIECE_OUTLINE = (200, 200, 200)
 
 board_size = TILE_SIZE * 8
+
+
+pygame.font.init()
+log_font = pygame.font.SysFont("Calibri", 18, bold=True)
+other_log_font = pygame.font.Font("graphics/fonts/Audiowide-Regular.ttf",94)
+font_title = pygame.font.SysFont("arial", 40, bold=True)
+coord_font = pygame.font.SysFont("Helvetica", 18, bold=True)
+pieces = pygame.font.Font("graphics/fonts/pieces.ttf", TILE_SIZE)

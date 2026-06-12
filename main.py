@@ -38,7 +38,7 @@ def draw_captured_bars(screen_surface, captured_white, captured_black):
         radius = TILE_SIZE // 4
         fill_color = WHITE_PIECE_COLOR if piece.color == WHITE else BLACK_PIECE_COLOR
         outline_color = WHITE_PIECE_OUTLINE if piece.color == WHITE else BLACK_PIECE_OUTLINE
-        draw_piece(piece.type, screen_surface, fill_color, outline_color, x, y, radius)
+        draw_piece(piece.type, screen_surface, fill_color, x, y,piece.color)
 
     for index, piece in enumerate(captured_white):
         column_offset = (index % 8) * (TILE_SIZE // 2)
@@ -80,7 +80,7 @@ def draw_promotion_menu(screen_surface, turn_color, promotion_col, promotion_row
         if index > 0:
             pygame.draw.line(screen_surface, (200, 200, 200), (menu_x, box_y), (menu_x + button_w, box_y), 1)
             
-        draw_piece(piece_type, screen_surface, fill_color, outline_color, btn_center_x, btn_center_y, radius)
+        draw_piece(piece_type, screen_surface, fill_color, btn_center_x, btn_center_y,piece.color)
         
     cancel_y = menu_y + (button_h * 4)
     
@@ -94,7 +94,7 @@ def draw_promotion_menu(screen_surface, turn_color, promotion_col, promotion_row
     screen_surface.blit(x_text, text_rect)
 
 
-def draw_historical_pieces(screen, history_grid):
+def draw_historical_pieces(screen, history_grid,piececolor):
     for row in range(8):
         for col in range(8):
             data = history_grid[row][col]
@@ -109,10 +109,8 @@ def draw_historical_pieces(screen, history_grid):
                     
                 radius = int(TILE_SIZE * 0.45)
                 draw_piece(
-                    data["type"], screen, fill, outline,
-                    int(pixel_x + TILE_SIZE // 2), int(pixel_y + TILE_SIZE // 2),
-                    radius, angle=0
-                )
+                    data["type"], screen, fill,
+                    int(pixel_x + TILE_SIZE // 2), int(pixel_y + TILE_SIZE // 2),piececolor, angle=0)
 
 
 async def main():
@@ -414,7 +412,7 @@ async def main():
         draw_chessboard(screen, selected_square, viewing_last_move, in_animation, checked_king_pos, board_surface, board_mask)
         
         if not use_live:
-            draw_historical_pieces(screen, viewing_grid)
+            draw_historical_pieces(screen, viewing_grid,piece.color)
         else:
             omit_square = (hidden_piece_data["row"], hidden_piece_data["col"]) if hidden_piece_data else None
             
@@ -427,13 +425,13 @@ async def main():
                         pixel_x = BOARD_OFFSET_X + (col * TILE_SIZE) + TILE_SIZE // 2
                         pixel_y = BOARD_OFFSET_Y + (row * TILE_SIZE) + TILE_SIZE // 2
                         fill, outline = ((248, 248, 248), (45, 45, 45)) if piece.color == WHITE else ((86, 83, 82), (25, 25, 25))
-                        draw_piece(piece.type, screen, fill, outline, int(pixel_x), int(pixel_y), int(TILE_SIZE * 0.45))
+                        draw_piece(piece.type, screen, fill, int(pixel_x), int(pixel_y),piece.color)
 
             if active_animation and active_animation.is_active:
                 active_animation.update()
                 fill, outline = ((248, 248, 248), (45, 45, 45)) if active_animation.color == WHITE else ((86, 83, 82), (25, 25, 25))
                 radius = int(TILE_SIZE * 0.45)
-                draw_piece(active_animation.piece_type, screen, fill, outline, int(active_animation.current_x), int(active_animation.current_y), radius, angle=0)
+                draw_piece(active_animation.piece_type, screen, fill, int(active_animation.current_x), int(active_animation.current_y),piece.color, angle=0)
             else:
                 hidden_piece_data = None
                 active_animation = None
