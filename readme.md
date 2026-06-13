@@ -11,10 +11,10 @@ Omni-Chess is my chess engine that i've made and developed in PYgame. Omni-Chess
 - [x] show captured pieces
 - [x] move log
 - [x] pawn promotion
-- [ ] sound effects
+- [x] sound effects
 - [ ] time control
 - [ ] bots (i plan to just ping chess.com api to implement)
-- [ ] board markings (a,b,c/1,2,3)
+- [x] board markings (a,b,c/1,2,3)
 - [ ] drag to move
 - [ ] main menu
 - [ ] settings menu

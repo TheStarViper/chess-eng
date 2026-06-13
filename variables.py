@@ -89,10 +89,10 @@ coord_font = pygame.font.SysFont("Helvetica", 18, bold=True)
 pieces = pygame.font.Font("assets/fonts/pieces.ttf", TILE_SIZE)
 
 pygame.mixer.init()
-move_sound = pygame.mixer.Sound("assets/sfx/move.mp3")
+move_sound = pygame.mixer.Sound("assets/sfx/move.ogg")
 move_sound.set_volume(0.5) 
 
-click_sound = pygame.mixer.Sound("assets/sfx/click.wav")
+click_sound = pygame.mixer.Sound("assets/sfx/click.ogg")
 
 win_sound = pygame.mixer.Sound("assets/sfx/win.ogg")
 loss_sound = pygame.mixer.Sound("assets/sfx/loss.ogg")

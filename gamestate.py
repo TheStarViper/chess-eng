@@ -29,6 +29,7 @@ class ChessBoard:
         self._last_zobrist_hash = None 
 
         self.initialize_standard_board()
+
     def initialize_standard_board(self):
         back_rank_setup = [ROOK, KNIGHT, BISHOP, QUEEN, KING, BISHOP, KNIGHT, ROOK]
         for column in range(8):
@@ -179,11 +180,6 @@ class ChessBoard:
         end_row, end_column = end_position
         target_piece = self.grid[end_row][end_column]
         reset_clock = False
-        
-        
-        
-        
-
         
         moving_piece = self.grid[start_row][start_column]
         if moving_piece.type == 1 or target_piece is not None:
