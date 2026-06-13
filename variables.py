@@ -2,13 +2,22 @@ import pygame
 
 pygame.init()
 
+EMPTY_PIECE = 0
+PAWN = 1
+KNIGHT = 2
+BISHOP = 3
+ROOK = 4
+QUEEN = 5
+KING = 6
 
+WHITE = "W"
+BLACK = "B"
 
 DEBUGMODE = True
 
 MONITOR_INFO = pygame.display.Info()
 WINDOW_WIDTH = 1920
-WINDOW_HEIGHT = 800
+WINDOW_HEIGHT =  1080
 
 TILE_SIZE = min(WINDOW_WIDTH, WINDOW_HEIGHT) // 10
 LEFT_SIDE_BUFFER = 150 # board buffer from left side of screen
@@ -71,9 +80,25 @@ BLACK_PIECE_OUTLINE = (200, 200, 200)
 board_size = TILE_SIZE * 8
 
 
+
 pygame.font.init()
 log_font = pygame.font.SysFont("Calibri", 18, bold=True)
-other_log_font = pygame.font.Font("graphics/fonts/Audiowide-Regular.ttf",94)
+other_log_font = pygame.font.Font("assets/fonts/Audiowide-Regular.ttf",94)
 font_title = pygame.font.SysFont("arial", 40, bold=True)
 coord_font = pygame.font.SysFont("Helvetica", 18, bold=True)
-pieces = pygame.font.Font("graphics/fonts/pieces.ttf", TILE_SIZE)
+pieces = pygame.font.Font("assets/fonts/pieces.ttf", TILE_SIZE)
+
+pygame.mixer.init()
+move_sound = pygame.mixer.Sound("assets/sfx/move.mp3")
+move_sound.set_volume(0.5) 
+
+click_sound = pygame.mixer.Sound("assets/sfx/click.wav")
+
+win_sound = pygame.mixer.Sound("assets/sfx/win.ogg")
+loss_sound = pygame.mixer.Sound("assets/sfx/loss.ogg")
+draw_sound = pygame.mixer.Sound("assets/sfx/draw.ogg")
+
+
+hover_sound = pygame.mixer.Sound("assets/sfx/hover.ogg")
+hover_sound.set_volume(.25)
+

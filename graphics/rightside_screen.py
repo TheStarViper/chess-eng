@@ -74,6 +74,7 @@ def check_nav_bar_click(mouse_pos):
     
     actions = ["FIRST", "PREV", "NEXT", "LATEST"]
     if 0 <= btn_index < len(actions):
+        click_sound.play()
         return actions[btn_index]
     return None
 
@@ -193,18 +194,19 @@ def check_move_log_click(move_history, mouse_pos):
     actual_moves = move_history[1:]
     total_pairs = (len(actual_moves) + 1) // 2
     button_height = ROW_HEIGHT - 4
-
     for i in range(total_pairs):
         y_pos = PANEL_Y + (i * ROW_HEIGHT) - LOG_SCROLL_Y
         
         w_move_rect = pygame.Rect(PANEL_X + 35, y_pos + 2, COL_WIDTH, button_height)
         if w_move_rect.collidepoint(mouse_pos):
+            click_sound.play()
             return i * 2
             
         black_idx = i * 2 + 1
         if black_idx < len(actual_moves):
             b_move_rect = pygame.Rect(PANEL_X + 85 + COL_WIDTH + 5, y_pos + 2, COL_WIDTH, button_height)
             if b_move_rect.collidepoint(mouse_pos):
+                click_sound.play()
                 return black_idx
                 
     return None

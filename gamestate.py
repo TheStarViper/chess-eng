@@ -1,15 +1,5 @@
 import copy
-from variables import DEBUGMODE
-EMPTY_PIECE = 0
-PAWN = 1
-KNIGHT = 2
-BISHOP = 3
-ROOK = 4
-QUEEN = 5
-KING = 6
-
-WHITE = "W"
-BLACK = "B"
+from variables import DEBUGMODE,move_sound,WHITE,BLACK,PAWN,BISHOP,KNIGHT,ROOK,QUEEN,KING,EMPTY_PIECE
 
 class ChessPiece:
     def __init__(self, piece_type, color):
@@ -20,6 +10,7 @@ class ChessPiece:
 class ChessBoard:
     def __init__(self):
         self.grid = [[None for _ in range(8)] for _ in range(8)] 
+        self.end_game_sound_played = False
         self.turn = WHITE
         self.captured_white = []
         self.captured_black = []
@@ -186,12 +177,19 @@ class ChessBoard:
     def make_move(self, start_position, end_position):
         start_row, start_column = start_position
         end_row, end_column = end_position
+        target_piece = self.grid[end_row][end_column]
         reset_clock = False
         
-        self.record_current_position()
-        self.check_three_fold()
+        
+        
+        
+
         
         moving_piece = self.grid[start_row][start_column]
+        if moving_piece.type == 1 or target_piece is not None:
+            self.halfmove_clock = 0
+        else:
+            self.halfmove_clock += 1
         if not moving_piece:
             return
             
@@ -227,7 +225,9 @@ class ChessBoard:
                 self.en_passant_target = (skipped_row, start_column)
 
         if moving_piece:
+            move_sound.play()
             moving_piece.has_moved = True
+            
 
         if moving_piece and moving_piece.type == PAWN:
             reset_clock = True
@@ -247,7 +247,7 @@ class ChessBoard:
             
         self.turn = BLACK if self.turn == WHITE else WHITE
         self.last_move = (start_position, end_position)
-
+        self.record_current_position()
 
     def find_king_position(self, king_color):
         for row in range(8):
@@ -299,75 +299,6 @@ class ChessBoard:
         self.promotion_square = None
         self.turn = BLACK if self.turn == WHITE else WHITE
 
-
-    def is_checkmate(self, color):
-        original_turn = self.turn
-        self.turn = color
-        
-        total_legal_moves = 0
-        for row in range(8):
-            for column in range(8):
-                piece = self.grid[row][column]
-                if piece and piece.color == color:
-                    safe_moves = self.get_safe_legal_moves(row, column)
-                    total_legal_moves += len(safe_moves)
-                    
-        self.turn = original_turn
-
-        if total_legal_moves > 0:
-            return False
-
-        if self.is_in_check(color):
-            self.game_over_reason = "CHECKMATE"
-            return True
-        return False
-
-    def is_stalemate(self, color):
-        original_turn = self.turn
-        self.turn = color
-        
-        total_legal_moves = 0
-        for row in range(8):
-            for column in range(8):
-                piece = self.grid[row][column]
-                if piece and piece.color == color:
-                    safe_moves = self.get_safe_legal_moves(row, column)
-                    total_legal_moves += len(safe_moves)
-                    
-        self.turn = original_turn
-
-        if total_legal_moves == 0 and not self.is_in_check(color):
-            self.game_over_reason = "STALEMATE"
-            return True
-        return False
-
-    def check_three_fold(self):
-        for state_key, count in self.position_history.items():
-            if count >= 3:
-                self.game_over_reason = "REPETITION"
-                return True
-        return False
-
-    def is_insufficient_material(self):
-        white_pieces = []
-        black_pieces = []
-        for r in range(8):
-            for c in range(8):
-                p = self.grid[r][c]
-                if p:
-                    if p.color == WHITE:
-                        white_pieces.append(p.type)
-                    else:
-                        black_pieces.append(p.type)
-                        
-        all_pieces = white_pieces + black_pieces
-        if 1 in all_pieces or 4 in all_pieces or 5 in all_pieces:
-            return False
-            
-        if len(all_pieces) <= 3:
-            self.game_over_reason = "INSUFFICIENT_MATERIAL"
-            return True
-        return False
 
     def resign(self, losing_color):
         self.game_over_reason = "WHITE_RESIGN" if losing_color == WHITE else "BLACK_RESIGN"
@@ -467,3 +398,5 @@ class ChessBoard:
                 if piece and piece.type == KING and piece.color == color_target:
                     return (row, col)
         return None
+    
+    

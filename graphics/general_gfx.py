@@ -3,49 +3,73 @@ from variables import *
 from graphics.pieces import draw_piece
 from gamestate import *
 from graphics.rightside_screen import get_cached_text
-
+from gameover import *
 
 def draw_game_over_screen(screen_surface, losing_color, game_over_buttons, game_board, font):
-    
     overlay = pygame.Surface((WINDOW_WIDTH, WINDOW_HEIGHT), pygame.SRCALPHA)
     overlay.fill((0, 0, 0, 180))
     screen_surface.blit(overlay, (0, 0))
 
-    pygame.draw.rect(screen_surface, (40, 40, 40), (GAME_OVER_X, GAME_OVER_Y, GAME_OVER_WIDTH, GAME_OVER_HEIGHT), 0, 0, 15, 15, 15, 15)
+    pygame.draw.rect(screen_surface, (40, 40, 40), (GAME_OVER_X, GAME_OVER_Y, GAME_OVER_WIDTH, GAME_OVER_HEIGHT), 0, 15)
     pygame.draw.rect(screen_surface, (230, 50, 50), (GAME_OVER_X, GAME_OVER_Y, GAME_OVER_WIDTH, GAME_OVER_HEIGHT), 4, 15)
 
     reason = getattr(game_board, "game_over_reason", "CHECKMATE")
-
     match reason:
-        case "WHITE_RESIGN":
-            end_text = "BLACK WINS BY RESIGNATION!"
-        case "BLACK_RESIGN":
-            end_text = "WHITE WINS BY RESIGNATION!"
-        case "DRAW":
-            end_text = "GAME DRAWN BY AGREEMENT"
-        case "FIFTY_MOVE_RULE" | "FIFTY_MOVES" | "50_MOVE_RULE":
-            end_text = "DRAW! (50-Move Rule Reached)"
-        case "STALEMATE":
-            end_text = "DRAW! (Stalemate)"
-        case "REPETITION" | "THREEFOLD_REPETITION" | "DRAW_REPETITION":
-            end_text = "DRAW! (Threefold Repetition)"
-        case "INSUFFICIENT_MATERIAL" | "DEAD_POSITION":
-            end_text = "DRAW! (Insufficient Material)"
-        case "CHECKMATE" | "MATE":
+        case "WHITE_RESIGN":          end_text = "BLACK WINS BY RESIGNATION!"
+        case "BLACK_RESIGN":          end_text = "WHITE WINS BY RESIGNATION!"
+        case "DRAW":                  end_text = "GAME DRAWN BY AGREEMENT"
+        case "FIFTY_MOVE_RULE":       end_text = "DRAW! (50-Move Rule Reached)"
+        case "STALEMATE":             end_text = "DRAW! (Stalemate)"
+        case "THREEFOLD_REPETITION":  end_text = "DRAW! (Threefold Repetition)"
+        case "INSUFFICIENT_MATERIAL": end_text = "DRAW! (Insufficient Material)"
+        case "CHECKMATE":
             end_text = "BLACK WINS BY MATE!" if losing_color == WHITE else "WHITE WINS BY MATE!"
         case _:
             end_text = f"GAME OVER ({reason})"
 
+    if not game_board.end_game_sound_played:
+        if "DRAW" in reason or reason in ("STALEMATE", "FIFTY_MOVE_RULE", "THREEFOLD_REPETITION", "INSUFFICIENT_MATERIAL"):
+            draw_sound.play()
+        else:
+            win_sound.play()
+        game_board.end_game_sound_played = True
     title_surface = font.render(end_text, True, (255, 255, 255))
+    max_allowed_width = GAME_OVER_WIDTH - 40
 
-    if title_surface.get_width() > GAME_OVER_WIDTH - 20:
-        title_surface = log_font.render(end_text, True, (255, 255, 255))
+    if title_surface.get_width() > max_allowed_width:
+        scale_ratio = max_allowed_width / title_surface.get_width()
+        new_w = int(title_surface.get_width() * scale_ratio)
+        new_h = int(title_surface.get_height() * scale_ratio)
+        title_surface = pygame.transform.smoothscale(title_surface, (new_w, new_h))
 
     screen_surface.blit(title_surface, (GAME_OVER_X + (GAME_OVER_WIDTH - title_surface.get_width()) // 2, GAME_OVER_Y + 30))
 
     for button in game_over_buttons:
         button.draw(screen_surface)
-        
+
+def check_game_over_states(game_board):
+    current_turn = game_board.turn
+    in_check = game_board.is_in_check(current_turn)
+    has_moves = has_legal_moves(game_board, current_turn)
+
+    if in_check and not has_moves:
+        return True, "CHECKMATE"
+
+    if not in_check and not has_moves:
+        return True, "STALEMATE"
+
+    if is_insufficient_material(game_board.grid):
+        return True, "INSUFFICIENT_MATERIAL"
+
+    if getattr(game_board, "halfmove_clock", 0) >= 100:
+        return True, "FIFTY_MOVE_RULE"
+
+    if check_threefold_repetition(game_board):
+        return True, "THREEFOLD_REPETITION"
+
+    return False, ""
+
+
 def draw_pieces(screen_surface, grid):
     mouse_x, mouse_y = pygame.mouse.get_pos()
     
@@ -74,12 +98,24 @@ def draw_pieces(screen_surface, grid):
                 
                 draw_piece(piece_object.type, screen_surface, fill, outline, center_x, center_y, radius, angle=tilt_angle)
 
-def draw_legal_moves(surface, legal_moves, grid,tile_size, board_offset):
-
+def draw_legal_moves(surface, legal_moves, grid, tile_size, board_offset):
     mouse_x, mouse_y = pygame.mouse.get_pos()
-    
     offset_x, offset_y = board_offset
     
+    hovered_col = (mouse_x - offset_x) // tile_size
+    hovered_row = (mouse_y - offset_y) // tile_size
+    current_hovered_tile = (hovered_row, hovered_col)
+
+    if not hasattr(draw_legal_moves, "last_hovered_tile"):
+        draw_legal_moves.last_hovered_tile = None
+
+    if current_hovered_tile in legal_moves:
+        if current_hovered_tile != draw_legal_moves.last_hovered_tile:
+            hover_sound.play()
+            draw_legal_moves.last_hovered_tile = current_hovered_tile
+    else:
+        draw_legal_moves.last_hovered_tile = None
+
     standard_radius = int(tile_size * 0.15)  
     hover_radius = int(tile_size * 0.18)     
     capture_radius = int(tile_size * 0.45)   
@@ -95,10 +131,11 @@ def draw_legal_moves(surface, legal_moves, grid,tile_size, board_offset):
         center_x = tile_left + (tile_size // 2)
         center_y = tile_top + (tile_size // 2)
         
-        if tile_left <= mouse_x < tile_left + tile_size and tile_top <= mouse_y < tile_top + tile_size:
+        if row == hovered_row and column == hovered_col:
             current_radius = hover_radius
         else:
             current_radius = standard_radius
+            
         is_capture = grid[row][column] is not None
         
         if is_capture:
