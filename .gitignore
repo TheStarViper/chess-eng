@@ -5,5 +5,3 @@
 *.key
 
 .vscode/
-/build/
-/__pycache__/
