@@ -37,7 +37,7 @@ namespace Config {
     const Color COLOR_LEAF_LIGHT = Color{ 151, 163, 69, 255 }; 
     const Color COLOR_LEAF_VEIN  = Color{ 113, 129, 63, 255 }; 
     const Color COLOR_GEM_BASE   = Color{ 42, 24, 18, 255 };    
-    const Color COLOR_GEM_GLINT  = Color{ 162, 103, 56, 255 };  
+    const Color COLOR_GEM_GLINT  = Color{ 162, 103, 56, 255 };
 
     // NEW THEMATIC UI COLORS
     const Color COLOR_UI_PANEL_BG   = Color{ 36, 22, 14, 255 }; 
@@ -55,7 +55,7 @@ namespace Config {
     const Color COLOR_DOT_RING = Color{ 100, 149, 237, 100 };
     const Color COLOR_LAST_MOVE= Color{ 246, 235, 120, 100 };  
     
-    const Color BOARD_MARKINGS_TEXT = Color{0,0,0,255};
+    const Color BOARD_MARKINGS_TEXT = Color{ 36, 22, 14, 255 };
     constexpr float ANIMATION_DURATION = 0.12f;
 }
 
@@ -403,6 +403,7 @@ struct GameContext {
 
     HistoryState historyView;
     PieceAnimation anim;
+    Texture2D backgroundTexture;
 
     std::map<std::string, Texture2D> pieceSprites; 
     bool useSprites = false;
@@ -425,6 +426,11 @@ struct GameContext {
     std::vector<std::unique_ptr<Button>> btnPromotionTrays;
 
     GameContext() {
+        std::string bgPath = ResolveAssetPath("assets/images/bg.png");
+        backgroundTexture = LoadTexture(bgPath.c_str());
+        if (backgroundTexture.id == 0) {
+            std::cout << "[ERROR] Failed to load background: " << bgPath << std::endl;
+        }
         board = std::make_unique<ChessBoard>();
         mousePosition = Vector2{ 0, 0 };
         active_turn_id = 0;
@@ -1330,11 +1336,9 @@ namespace CanvasRenderer {
 
         float scrollOffset = g_ctx->move_log_scroll_ratio * maxScroll;
         
-        // Track mouse state
         Vector2 mousePos = GetMousePosition();
         bool anyMoveHovered = false;
 
-        // Bounding box for the visible scroll region to prevent clicking text scrolled out of view
         Rectangle visibleScissorRect = { (float)logContainerX, (float)logContainerY + 10, (float)logW, (float)logH - 20 };
 
         for (size_t i = 0; i < totalPairs; ++i) {
@@ -1346,11 +1350,9 @@ namespace CanvasRenderer {
             std::string stepStr = std::to_string(i + 1) + ".";
             DrawTextSmooth(stepStr.c_str(), (float)logContainerX + 25, yPos + 8.0f, 16.0f, Config::COLOR_UI_TEXT_DIM);
 
-            // --- WHITE MOVE INTERACTION ---
             size_t wIndex = i * 2;
             std::string whiteMove = hist[wIndex].notation;
             
-            // Define clickable boundary box for White's move column
             Rectangle whiteClickRect = { (float)logContainerX + 85, yPos + 3, 80, itemHeight - 9 };
             bool isWhiteHovered = CheckCollisionPointRec(mousePos, whiteClickRect) && CheckCollisionPointRec(mousePos, visibleScissorRect);
 
@@ -1370,12 +1372,10 @@ namespace CanvasRenderer {
             }
             DrawTextSmooth(whiteMove.c_str(), (float)logContainerX + 95, yPos + 8.0f, 16.0f, isWhiteHighlighted ? Config::COLOR_LEAF_VEIN : Config::COLOR_UI_TEXT);
 
-            // --- BLACK MOVE INTERACTION ---
             size_t bIndex = wIndex + 1;
             if (bIndex < totalMoves) {
                 std::string blackMove = hist[bIndex].notation;
                 
-                // Define clickable boundary box for Black's move column
                 Rectangle blackClickRect = { (float)logContainerX + 195, yPos + 3, 80, itemHeight - 9 };
                 bool isBlackHovered = CheckCollisionPointRec(mousePos, blackClickRect) && CheckCollisionPointRec(mousePos, visibleScissorRect);
 
@@ -1475,7 +1475,7 @@ namespace CanvasRenderer {
             DrawTextSmooth(viewStr.c_str(), (float)Config::PANEL_X + 25 + (Config::PANEL_WIDTH - 50 - vSize.x)/2, warning_info_y+4, 14.0f, Config::COLOR_FRAME_DARK);
         } else {
             char stats[128];
-            snprintf(stats, sizeof(stats), "Halfmoves: %d / 100", g_ctx->board->halfmove_clock);
+            snprintf(stats, sizeof(stats), "50 Move Rule: %d / 50", (int)std::round(g_ctx->board->halfmove_clock/2.1)); //2.1 to avoid rounding up .5
             DrawTextSmooth(stats, (float)Config::PANEL_X + 30, warning_info_y, 14.0f, Config::COLOR_UI_TEXT_DIM);
 
             if (repCount == 2) {
@@ -1544,17 +1544,41 @@ namespace CanvasRenderer {
         VectorRenderer::DrawOvergrownVines(Config::BOARD_OFFSET_X, Config::BOARD_OFFSET_Y, boardSize);
 
         if (g_ctx->board->has_selection && g_ctx->historyView.useLive) {
+            Vector2 mousePos = GetMousePosition(); 
+
             for (const auto& move : g_ctx->cached_legal_moves) {
                 int r = move.first;
                 int c = move.second;
                 int drawX = Config::BOARD_OFFSET_X + c * Config::TILE_SIZE + Config::TILE_SIZE / 2;
                 int drawY = Config::BOARD_OFFSET_Y + r * Config::TILE_SIZE + Config::TILE_SIZE / 2;
 
+                Rectangle tileRect = {
+                    (float)(Config::BOARD_OFFSET_X + c * Config::TILE_SIZE),
+                    (float)(Config::BOARD_OFFSET_Y + r * Config::TILE_SIZE),
+                    (float)Config::TILE_SIZE,
+                    (float)Config::TILE_SIZE
+                };
+
+                bool isHovered = CheckCollisionPointRec(mousePos, tileRect);
+
                 if (g_ctx->board->grid[r][c].has_piece) {
-                    DrawCircleLines(drawX, drawY, (float)Config::TILE_SIZE * 0.4f, Config::COLOR_DOT_RING);
-                    DrawCircleLines(drawX, drawY, (float)Config::TILE_SIZE * 0.38f, Config::COLOR_DOT_RING);
+                    float baseRadius1 = (float)Config::TILE_SIZE * 0.4f;
+                    float baseRadius2 = (float)Config::TILE_SIZE * 0.38f;
+                    
+                    if (isHovered) {
+                        baseRadius1 += 4.0f; 
+                        baseRadius2 += 2.0f;
+                    }
+
+                    DrawCircleLines(drawX, drawY, baseRadius1, Config::COLOR_DOT_RING);
+                    DrawCircleLines(drawX, drawY, baseRadius2, Config::COLOR_DOT_RING);
                 } else {
-                    DrawCircle(drawX, drawY, (float)Config::TILE_SIZE * 0.12f, Config::COLOR_DOT);
+                    float radius = (float)Config::TILE_SIZE * 0.12f;
+                    if (isHovered) {
+                        radius = (float)Config::TILE_SIZE * 0.17f; 
+                    }
+
+                    DrawCircle(drawX, drawY, radius, Config::COLOR_DOT);
                 }
             }
         }
@@ -1563,9 +1587,17 @@ namespace CanvasRenderer {
             for (int c = 0; c < 8; ++c) {
                 const auto& cell = displayState.grid[r][c];
                 if (cell.has_piece) {
-                    if (g_ctx->anim.active && g_ctx->anim.targetRow == r && g_ctx->anim.targetCol == c) {
-                        continue;
+                    
+                    // --- FIX: TRANSLATE SCREEN SPACE STARTPOS TO GRID COORDINATES ---
+                    if (g_ctx->anim.active) {
+                        int animStartCol = (int)((g_ctx->anim.startPos.x - Config::BOARD_OFFSET_X) / Config::TILE_SIZE);
+                        int animStartRow = (int)((g_ctx->anim.startPos.y - Config::BOARD_OFFSET_Y) / Config::TILE_SIZE);
+
+                        if (animStartRow == r && animStartCol == c) {
+                            continue; // Skip drawing the ghost piece at the origin square!
+                        }
                     }
+                    // -----------------------------------------------------------------
 
                     int drawX = Config::BOARD_OFFSET_X + c * Config::TILE_SIZE;
                     int drawY = Config::BOARD_OFFSET_Y + r * Config::TILE_SIZE;
@@ -1684,6 +1716,10 @@ namespace TickEngine {
             g_ctx->historyView.viewingIndex = 0;
             g_ctx->anim.active = false;
             g_ctx->cached_legal_moves.clear();
+
+            g_ctx->isGameRunning = true;                
+            g_ctx->btnOverlayRematch->isPressed = false; 
+            
             return;
         }
 
@@ -1871,6 +1907,14 @@ void UpdateDrawFrame() {
     TickEngine::ProcessInput();
 
     BeginTextureMode(g_ctx->targetScreen);
+        DrawTexturePro(
+            g_ctx->backgroundTexture,
+            Rectangle{ 0, 0, (float)g_ctx->backgroundTexture.width, (float)g_ctx->backgroundTexture.height },
+            Rectangle{ 0, 0, (float)Config::WINDOW_WIDTH, (float)Config::WINDOW_HEIGHT },
+            Vector2{ 0, 0 },
+            0.0f,
+            Color{ 255, 255, 255, 90 }
+        );
         ClearBackground(Color{ 18, 12, 10, 255 }); 
         CanvasRenderer::DrawChessboard();
         CanvasRenderer::DrawGameMetrics();

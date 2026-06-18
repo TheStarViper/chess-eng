@@ -37,5 +37,6 @@ Chess engines are not a new thing so there is a ton of documentation online on h
 - [opengameart sound effects](https://opengameart.org/art-search-advanced?keys=&field_art_type_tid%5B%5D=13&sort_by=count&sort_order=DESC)
 - [kenny.nl assets](https://kenney.nl/assets)
 - [chess pieces](https://yumejiart.itch.io/pixel-wooden-chess-asset-pack)
+- [background](https://trashboat93.itch.io/jungle-background-parallax)
 
 **AI DISCLAIMER: I used AI to make some of the graphics cuz I'm bad at that**
