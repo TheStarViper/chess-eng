@@ -395,12 +395,21 @@ public:
 
 
 struct GameContext {
+
+    //SOUNDS
+    Sound hoversound;
+
+
+
+    int lastHoveredLeafId = -1;
+    int lastHoveredBoardPieceTile;
+    int genuineHoveredLeafId = -1;  
     std::unique_ptr<ChessBoard> board;
     Vector2 mousePosition;
     int active_turn_id; 
     float move_log_scroll_ratio;
     bool isGameRunning;
-
+    
     HistoryState historyView;
     PieceAnimation anim;
     Texture2D backgroundTexture;
@@ -426,6 +435,9 @@ struct GameContext {
     std::vector<std::unique_ptr<Button>> btnPromotionTrays;
 
     GameContext() {
+        //Sound
+        Sound hoversound = LoadSound("assets/sfx/hover.ogg");
+
         std::string bgPath = ResolveAssetPath("assets/images/bg.png");
         backgroundTexture = LoadTexture(bgPath.c_str());
         if (backgroundTexture.id == 0) {
@@ -983,77 +995,110 @@ namespace VectorRenderer {
         DrawLineEx(Vector2{ x + offset3, y + 3 }, Vector2{ x + offset3, y + h - 3 }, 1.1f, grainColor);
     }
 
-    void DrawOvergrownVines(int boardX, int boardY, int boardSize) {
-        Color stemColor = Color{ 35, 48, 22, 255 };
-        float framePad = 12.0f;
+    void DrawOvergrownVines(int boardX, int boardY, float boardSize) {
+        Vector2 mousePos = GetMousePosition();
+        int currentLeafId = 0;
+        int hoveredLeafThisFrame = -1;
+
+        auto UpdateAndDrawLeaf = [&](float x, float y, float size, float angleDegrees) {
+            int id = currentLeafId++;
+            float finalSize = size;
+
+            float hoverRadius = size * 1.2f; 
+            bool isHovered = CheckCollisionPointCircle(mousePos, Vector2{ x, y }, hoverRadius);
+
+            if (isHovered) {
+                hoveredLeafThisFrame = id;
+                finalSize = size * 1.30f;
+
+                if (g_ctx->lastHoveredLeafId != id) {
+                    PlaySound(g_ctx->hoversound);
+                }
+            }
+
+            DrawLeaf(x, y, finalSize, angleDegrees);
+        };
+
+        //TOP
+        // --- BOARD TOP LEAVES ---
+        UpdateAndDrawLeaf((float)boardX + 75,  (float)boardY - 6,  14, -15);
+        UpdateAndDrawLeaf((float)boardX + 95,  (float)boardY - 12, 17, 10);
+        UpdateAndDrawLeaf((float)boardX + 115, (float)boardY - 5,  13, 35);
+        UpdateAndDrawLeaf((float)boardX + 135, (float)boardY - 9,  15, -10);
+        UpdateAndDrawLeaf((float)boardX + 160, (float)boardY - 6,  12, 45);
+
+        // --- Board Top Grouping (Spread across mid-to-right) ---
+        UpdateAndDrawLeaf((float)boardX + 380, (float)boardY - 10, 15, -25);
+        UpdateAndDrawLeaf((float)boardX + 405, (float)boardY - 6,  13, 5);
+        UpdateAndDrawLeaf((float)boardX + 430, (float)boardY - 13, 18, 20);
+        UpdateAndDrawLeaf((float)boardX + 455, (float)boardY - 5,  14, -15);
+        UpdateAndDrawLeaf((float)boardX + 480, (float)boardY + 2,  16, 55);
+
+        // --- Board Bottom Grouping (Spread left-to-mid) ---
+        UpdateAndDrawLeaf((float)boardX + 65,  (float)boardY + boardSize + 6,  14, 160);
+        UpdateAndDrawLeaf((float)boardX + 90,  (float)boardY + boardSize + 12, 18, 195);
+        UpdateAndDrawLeaf((float)boardX + 115, (float)boardY + boardSize + 4,  13, 140);
+        UpdateAndDrawLeaf((float)boardX + 140, (float)boardY + boardSize + 9,  15, 175);
+
+        // --- Board Bottom Grouping (Spread mid-to-right) ---
+        UpdateAndDrawLeaf((float)boardX + 420, (float)boardY + boardSize + 5,  13, 150);
+        UpdateAndDrawLeaf((float)boardX + 445, (float)boardY + boardSize + 11, 17, 215);
+        UpdateAndDrawLeaf((float)boardX + 470, (float)boardY + boardSize + 4,  14, 135);
+        UpdateAndDrawLeaf((float)boardX + 495, (float)boardY + boardSize + 8,  16, 185);
+
+        // --- Board Left Side Grouping (Spread vertically down) ---
+        UpdateAndDrawLeaf((float)boardX - 6,   (float)boardY + 210, 14, -75);
+        UpdateAndDrawLeaf((float)boardX - 10,  (float)boardY + 235, 16, -100);
+        UpdateAndDrawLeaf((float)boardX - 13,  (float)boardY + 260, 18, -120);
+        UpdateAndDrawLeaf((float)boardX - 8,   (float)boardY + 285, 13, -60);
+        UpdateAndDrawLeaf((float)boardX - 5,   (float)boardY + 310, 15, -85);
+
+        // --- Board Right Side Grouping (Spread vertically down) ---
+        UpdateAndDrawLeaf((float)boardX + boardSize + 6,  (float)boardY + 310, 13, 65);
+        UpdateAndDrawLeaf((float)boardX + boardSize + 11, (float)boardY + 335, 17, 90);
+        UpdateAndDrawLeaf((float)boardX + boardSize + 14, (float)boardY + 360, 19, 120);
+        UpdateAndDrawLeaf((float)boardX + boardSize + 9,  (float)boardY + 385, 14, 55);
+        UpdateAndDrawLeaf((float)boardX + boardSize + 7,  (float)boardY + 410, 15, 100);
+
         
-        DrawLineBezier(
-            Vector2{ (float)boardX - framePad, (float)boardY - 6.0f }, 
-            Vector2{ (float)boardX + boardSize + framePad, (float)boardY - 4.0f }, 
-            3.0f, stemColor
-        );
-        DrawLineBezier(
-            Vector2{ (float)boardX - framePad, (float)boardY + boardSize + 4.0f }, 
-            Vector2{ (float)boardX + boardSize + framePad, (float)boardY + boardSize + 6.0f }, 
-            3.2f, stemColor
-        );
-        DrawLineBezier(
-            Vector2{ (float)boardX - 4.0f, (float)boardY - framePad }, 
-            Vector2{ (float)boardX - 6.0f, (float)boardY + boardSize + framePad }, 
-            3.0f, stemColor
-        );
-        DrawLineBezier(
-            Vector2{ (float)boardX + boardSize + 6.0f, (float)boardY - framePad }, 
-            Vector2{ (float)boardX + boardSize + 4.0f, (float)boardY + boardSize + framePad }, 
-            3.0f, stemColor
-        );
+        // --- Move Log Top Border (Spanning left half) ---
+        UpdateAndDrawLeaf((float)Config::PANEL_X + 10,  (float)Config::PANEL_Y + 6,   13, -45);
+        UpdateAndDrawLeaf((float)Config::PANEL_X + 30,  (float)Config::PANEL_Y + 1,   16, 10);
+        UpdateAndDrawLeaf((float)Config::PANEL_X + 50,  (float)Config::PANEL_Y + 4,   12, -20);
+        UpdateAndDrawLeaf((float)Config::PANEL_X + 70,  (float)Config::PANEL_Y + 1,   15, 30);
+        UpdateAndDrawLeaf((float)Config::PANEL_X + 90,  (float)Config::PANEL_Y + 5,   13, -10);
 
-        //top
-        DrawLeaf((float)boardX + 80,  (float)boardY - 8,  14, -15);
-        DrawLeaf((float)boardX + 110, (float)boardY - 14, 18, 5);
-        DrawLeaf((float)boardX + 130, (float)boardY - 6,  12, 45);
+        // --- Move Log Top Border (Spanning right half) ---
+        UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 100, (float)Config::PANEL_Y + 4,   14, -15);
+        UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 80,  (float)Config::PANEL_Y + 1,   15, 35);
+        UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 60,  (float)Config::PANEL_Y + 6,   12, 10);
+        UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 40,  (float)Config::PANEL_Y + 2,   17, 75);
+        UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 15,  (float)Config::PANEL_Y + 8,   13, 115);
 
-        DrawLeaf((float)boardX + 220, (float)boardY - 10, 16, -30);
-        DrawLeaf((float)boardX + 250, (float)boardY - 8,  15, 20);
+        // --- Move Log Left Side (Cascading down the edge) ---
+        UpdateAndDrawLeaf((float)Config::PANEL_X+3,   (float)Config::PANEL_Y + 120, 13, -80);
+        UpdateAndDrawLeaf((float)Config::PANEL_X+2,   (float)Config::PANEL_Y + 145, 16, -110);
+        UpdateAndDrawLeaf((float)Config::PANEL_X+4,  (float)Config::PANEL_Y + 170, 15, -70);
+        UpdateAndDrawLeaf((float)Config::PANEL_X+2,   (float)Config::PANEL_Y + 195, 14, -95);
+        UpdateAndDrawLeaf((float)Config::PANEL_X+1,   (float)Config::PANEL_Y + 220, 12, -120);
 
-        DrawLeaf((float)boardX + 410, (float)boardY - 12, 17, -10);
-        DrawLeaf((float)boardX + 440, (float)boardY - 8,  13, 30);
+        // --- Move Log Right Side (Cascading down the edge) ---
+        UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH + 1, (float)Config::PANEL_Y + 140, 12, 60);
+        UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH + 1, (float)Config::PANEL_Y + 165, 15, 95);
+        UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH + 2, (float)Config::PANEL_Y + 190, 17, 115);
+        UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH + 1, (float)Config::PANEL_Y + 215, 13, 50);
+        UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH + 2, (float)Config::PANEL_Y + 240, 14, 85);
 
-        DrawLeaf((float)boardX + 530, (float)boardY - 12, 19, -20);
-        DrawLeaf((float)boardX + 560, (float)boardY - 6,  14, 15);
-
-        //bottom
-        DrawLeaf((float)boardX + 60,  (float)boardY + boardSize + 8,  15, 170);
-        DrawLeaf((float)boardX + 90,  (float)boardY + boardSize + 12, 18, 195);
-
-        DrawLeaf((float)boardX + 260, (float)boardY + boardSize + 6,  14, 160);
-        DrawLeaf((float)boardX + 285, (float)boardY + boardSize + 10, 16, 210);
-
-        DrawLeaf((float)boardX + 440, (float)boardY + boardSize + 8,  19, 175);
-        DrawLeaf((float)boardX + 470, (float)boardY + boardSize + 14, 15, 150);
-
-        DrawLeaf((float)boardX + 540, (float)boardY + boardSize + 10, 17, 190);
-
-        //left
-        DrawLeaf((float)boardX - 8,  (float)boardY + 50,  15, -80);
-        DrawLeaf((float)boardX - 12, (float)boardY + 80,  17, -105);
+        // --- Move Log Bottom Border (Spanning along the base) ---
+        UpdateAndDrawLeaf((float)Config::PANEL_X + 12,  (float)Config::PANEL_Y + Config::PANEL_HEIGHT + 3, 14, -135);
+        UpdateAndDrawLeaf((float)Config::PANEL_X + 37,  (float)Config::PANEL_Y + Config::PANEL_HEIGHT + 2,  16, 185);
+        UpdateAndDrawLeaf((float)Config::PANEL_X + 62,  (float)Config::PANEL_Y + Config::PANEL_HEIGHT + 5, 13, 150);
         
-        DrawLeaf((float)boardX - 10, (float)boardY + 230, 16, -95);
-        DrawLeaf((float)boardX - 8,  (float)boardY + 260, 14, -60);
-
-        DrawLeaf((float)boardX - 14, (float)boardY + 410, 18, -110);
-        DrawLeaf((float)boardX - 10, (float)boardY + 440, 15, -75);
-
-        DrawLeaf((float)boardX - 12, (float)boardY + 550, 16, -90);
-
-        //right
-        DrawLeaf((float)boardX + boardSize + 10, (float)boardY + 120, 17, 85);
-        DrawLeaf((float)boardX + boardSize + 8,  (float)boardY + 150, 14, 110);
-
-        DrawLeaf((float)boardX + boardSize + 12, (float)boardY + 330, 18, 95);
-        DrawLeaf((float)boardX + boardSize + 9,  (float)boardY + 360, 15, 65);
-
-        DrawLeaf((float)boardX + boardSize + 10, (float)boardY + 510, 16, 90);
+        UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 75, (float)Config::PANEL_Y + Config::PANEL_HEIGHT +2, 14, 210);
+        UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 50, (float)Config::PANEL_Y + Config::PANEL_HEIGHT +3, 15, 145);
+        UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 20, (float)Config::PANEL_Y + Config::PANEL_HEIGHT+1,  13, 70);
+        
+        g_ctx->lastHoveredLeafId = hoveredLeafThisFrame;
     }
 
     void DrawBoardOrnateFrame(int x, int y, int size) {
@@ -1238,72 +1283,73 @@ void DrawChessPiece(PieceType type, std::string color, int x, int y, int size) {
 namespace CanvasRenderer {
 
     void DrawCapturedTrays(BoardState& displayState) {
-        std::vector<PieceType> standardSet = { QUEEN, ROOK, ROOK, BISHOP, BISHOP, KNIGHT, KNIGHT, PAWN, PAWN, PAWN, PAWN, PAWN, PAWN, PAWN, PAWN };
-        
-        std::map<PieceType, int> activeWhite;
-        std::map<PieceType, int> activeBlack;
-        for (int r = 0; r < 8; ++r) {
-            for (int c = 0; c < 8; ++c) {
-                if (displayState.grid[r][c].has_piece) {
-                    auto piece = displayState.grid[r][c].piece;
-                    if (piece->color == P_WHITE) activeWhite[piece->type]++;
-                    else activeBlack[piece->type]++;
+    auto getVal = [](PieceType t) {
+        if (t == PAWN) return 1;
+        if (t == KNIGHT || t == BISHOP) return 3;
+        if (t == ROOK) return 5;
+        if (t == QUEEN) return 9;
+        return 0;
+    };
+
+    auto getStartCount = [](PieceType t) {
+        if (t == PAWN) return 8;
+        if (t == KNIGHT || t == BISHOP) return 2;
+        if (t == ROOK) return 2;
+        if (t == QUEEN) return 1;
+        return 0;
+    };
+
+    int currentWhiteVal = 0, currentBlackVal = 0;
+    std::map<PieceType, int> activeWhite, activeBlack;
+
+    for (int r = 0; r < 8; ++r) {
+        for (int c = 0; c < 8; ++c) {
+            if (displayState.grid[r][c].has_piece) {
+                auto p = displayState.grid[r][c].piece;
+                if (p->color == P_WHITE) {
+                    activeWhite[p->type]++;
+                    currentWhiteVal += getVal(p->type);
+                } else {
+                    activeBlack[p->type]++;
+                    currentBlackVal += getVal(p->type);
                 }
             }
         }
+    }
 
-        auto getVal = [](PieceType t) {
-            if (t == PAWN) return 1;
-            if (t == KNIGHT || t == BISHOP) return 3;
-            if (t == ROOK) return 5;
-            if (t == QUEEN) return 9;
-            return 0;
-        };
+    const int START_VAL = 39;
+    int capturedWhiteVal = START_VAL - currentWhiteVal;
+    int capturedBlackVal = START_VAL - currentBlackVal;
 
-        std::vector<PieceType> capturedWhite; 
-        std::vector<PieceType> capturedBlack; 
+    int topY = Config::BOARD_OFFSET_Y - 55;
+    int bottomY = Config::BOARD_OFFSET_Y + (Config::TILE_SIZE * 8) + 15;
+    int capSize = 35;
+    int startX = Config::BOARD_OFFSET_X + 110;
 
-        int whiteTotalVal = 0;
-        int blackTotalVal = 0;
-
-        for (auto t : standardSet) {
-            whiteTotalVal += activeWhite[t] * getVal(t);
-            blackTotalVal += activeBlack[t] * getVal(t);
-        }
-
-        std::map<PieceType, int> tempWhite = activeWhite;
-        std::map<PieceType, int> tempBlack = activeBlack;
-
-        for (auto t : standardSet) {
-            if (tempWhite[t] > 0) tempWhite[t]--;
-            else capturedWhite.push_back(t);
-
-            if (tempBlack[t] > 0) tempBlack[t]--;
-            else capturedBlack.push_back(t);
-        }
-
-        int topY = Config::BOARD_OFFSET_Y - 55;
-        int capSize = 35;
-        int startX = Config::BOARD_OFFSET_X;
-        int currentX = startX + 110;
-        for (auto t : capturedWhite) {
-            DrawChessPiece(t, P_WHITE, currentX, topY, capSize);
-            currentX += 28;
-        }
-        if (blackTotalVal > whiteTotalVal) {
-            DrawTextSmooth(TextFormat("+%d", blackTotalVal - whiteTotalVal), (float)currentX + 10, (float)topY + 10, 16.0f, Config::COLOR_LEAF_LIGHT);
-        }
-
-        int bottomY = Config::BOARD_OFFSET_Y + (Config::TILE_SIZE * 8) + 15;
-        currentX = startX + 110;
-        for (auto t : capturedBlack) {
-            DrawChessPiece(t, P_BLACK, currentX, bottomY, capSize);
-            currentX += 28;
-        }
-        if (whiteTotalVal > blackTotalVal) {
-            DrawTextSmooth(TextFormat("+%d", whiteTotalVal - blackTotalVal), (float)currentX + 10, (float)bottomY + 10, 16.0f, Config::COLOR_LEAF_LIGHT);
+    int curX = startX;
+    for (int t = PAWN; t <= QUEEN; t++) {
+        int capturedCount = getStartCount((PieceType)t) - activeWhite[(PieceType)t];
+        for (int i = 0; i < capturedCount; i++) {
+            DrawChessPiece((PieceType)t, P_WHITE, curX, topY, capSize);
+            curX += 28;
         }
     }
+    if (capturedWhiteVal > capturedBlackVal) {
+        DrawTextSmooth(TextFormat("+%d", capturedWhiteVal - capturedBlackVal), (float)curX + 10, (float)topY + 10, 16.0f, Config::COLOR_LEAF_LIGHT);
+    }
+
+    curX = startX;
+    for (int t = PAWN; t <= QUEEN; t++) {
+        int capturedCount = getStartCount((PieceType)t) - activeBlack[(PieceType)t];
+        for (int i = 0; i < capturedCount; i++) {
+            DrawChessPiece((PieceType)t, P_BLACK, curX, bottomY, capSize);
+            curX += 28;
+        }
+    }
+    if (capturedBlackVal > capturedWhiteVal) {
+        DrawTextSmooth(TextFormat("+%d", capturedBlackVal - capturedWhiteVal), (float)curX + 10, (float)bottomY + 10, 16.0f, Config::COLOR_LEAF_LIGHT);
+    }
+}
 
     void DrawMoveLog() {
         int logContainerX = Config::PANEL_X + 25;
@@ -1582,22 +1628,20 @@ namespace CanvasRenderer {
                 }
             }
         }
-
+        
         for (int r = 0; r < 8; ++r) {
             for (int c = 0; c < 8; ++c) {
                 const auto& cell = displayState.grid[r][c];
                 if (cell.has_piece) {
                     
-                    // --- FIX: TRANSLATE SCREEN SPACE STARTPOS TO GRID COORDINATES ---
                     if (g_ctx->anim.active) {
                         int animStartCol = (int)((g_ctx->anim.startPos.x - Config::BOARD_OFFSET_X) / Config::TILE_SIZE);
                         int animStartRow = (int)((g_ctx->anim.startPos.y - Config::BOARD_OFFSET_Y) / Config::TILE_SIZE);
 
                         if (animStartRow == r && animStartCol == c) {
-                            continue; // Skip drawing the ghost piece at the origin square!
+                            continue;
                         }
                     }
-                    // -----------------------------------------------------------------
 
                     int drawX = Config::BOARD_OFFSET_X + c * Config::TILE_SIZE;
                     int drawY = Config::BOARD_OFFSET_Y + r * Config::TILE_SIZE;
@@ -1688,6 +1732,11 @@ namespace TickEngine {
     }
 
     void ProcessInput() {
+        int targetCursor = MOUSE_CURSOR_DEFAULT;
+        int gridX = (int)((g_ctx->mousePosition.x - Config::BOARD_OFFSET_X) / Config::TILE_SIZE);
+        int gridY = (int)((g_ctx->mousePosition.y - Config::BOARD_OFFSET_Y) / Config::TILE_SIZE);
+        bool isMouseOnBoard = (gridX >= 0 && gridX < 8 && gridY >= 0 && gridY < 8);
+
         g_ctx->mousePosition = GetMousePosition();
 
         g_ctx->btnResign->Update(g_ctx->mousePosition);
@@ -1709,6 +1758,7 @@ namespace TickEngine {
                 return; 
             }
         }
+
 
         if (g_ctx->btnOverlayRematch->isPressed) { //restart game
             g_ctx->board->Reset();
@@ -1896,11 +1946,12 @@ namespace TickEngine {
                 g_ctx->cached_legal_moves.clear();
             }
         }
+        SetMouseCursor(targetCursor);
     }
 }
 
 
-void UpdateDrawFrame() {
+void UpdateDrawFrame() { //rendering
     float dt = GetFrameTime();
 
     TickEngine::UpdateAnimations(dt);
@@ -1915,9 +1966,9 @@ void UpdateDrawFrame() {
             0.0f,
             Color{ 255, 255, 255, 90 }
         );
-        ClearBackground(Color{ 18, 12, 10, 255 }); 
+        ClearBackground(Color{ 18, 12, 10, 255 });
+        CanvasRenderer::DrawGameMetrics(); 
         CanvasRenderer::DrawChessboard();
-        CanvasRenderer::DrawGameMetrics();
         DrawTextSmooth(TextFormat("%d", GetFPS()), 25.0f, 20.0f, 24.0f, Config::COLOR_LEAF_LIGHT);
     EndTextureMode();
 
@@ -1952,3 +2003,4 @@ int main(int argc, char* argv[]) {
 
     return 0;
 }
+
