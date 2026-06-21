@@ -86,6 +86,4 @@ enum Menus {
     PUZZLES, 
     OPENINGS };
 
-struct GameContext; 
-extern std::unique_ptr<GameContext> g_ctx;
 
