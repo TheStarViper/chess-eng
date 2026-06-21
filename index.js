@@ -71,7 +71,7 @@ var ENVIRONMENT_IS_SHELL = !ENVIRONMENT_IS_WEB && !ENVIRONMENT_IS_NODE && !ENVIR
 
 // --pre-jses are emitted after the Module integration code, so that they can
 // refer to Module (if they choose; they can also define Module)
-// include: C:\Users\andre\AppData\Local\Temp\tmpyvradef6.js
+// include: C:\Users\andre\AppData\Local\Temp\tmp2acxnj9q.js
 
   if (!Module['expectedDataFileDownloads']) Module['expectedDataFileDownloads'] = 0;
   Module['expectedDataFileDownloads']++;
@@ -204,25 +204,25 @@ Module['FS_createPath']("/assets", "sfx", true, true);
     }
 
     }
-    loadPackage({"files": [{"filename": "/assets/fonts/Audiowide-Regular.ttf", "start": 0, "end": 47676}, {"filename": "/assets/fonts/pieces.ttf", "start": 47676, "end": 76256}, {"filename": "/assets/images/bg.png", "start": 76256, "end": 134111}, {"filename": "/assets/images/draw.png", "start": 134111, "end": 155738}, {"filename": "/assets/images/resign.png", "start": 155738, "end": 163298}, {"filename": "/assets/images/set/BlackBishop.png", "start": 163298, "end": 164217}, {"filename": "/assets/images/set/BlackKing.png", "start": 164217, "end": 165207}, {"filename": "/assets/images/set/BlackKnight.png", "start": 165207, "end": 166249}, {"filename": "/assets/images/set/BlackPawn.png", "start": 166249, "end": 167061}, {"filename": "/assets/images/set/BlackQueen.png", "start": 167061, "end": 168059}, {"filename": "/assets/images/set/BlackRook.png", "start": 168059, "end": 168973}, {"filename": "/assets/images/set/Board.png", "start": 168973, "end": 180778}, {"filename": "/assets/images/set/WhiteBishop.png", "start": 180778, "end": 181691}, {"filename": "/assets/images/set/WhiteKing.png", "start": 181691, "end": 182709}, {"filename": "/assets/images/set/WhiteKnight.png", "start": 182709, "end": 183744}, {"filename": "/assets/images/set/WhitePawn.png", "start": 183744, "end": 184524}, {"filename": "/assets/images/set/WhiteQueen.png", "start": 184524, "end": 185491}, {"filename": "/assets/images/set/WhiteRook.png", "start": 185491, "end": 186390}, {"filename": "/assets/openings.csv", "start": 186390, "end": 215238}, {"filename": "/assets/puzzles.csv", "start": 215238, "end": 10659303}, {"filename": "/assets/sfx/click.ogg", "start": 10659303, "end": 10664640}, {"filename": "/assets/sfx/draw.ogg", "start": 10664640, "end": 10674841}, {"filename": "/assets/sfx/hover.ogg", "start": 10674841, "end": 10679616}, {"filename": "/assets/sfx/loss.ogg", "start": 10679616, "end": 10698753}, {"filename": "/assets/sfx/move.ogg", "start": 10698753, "end": 10705750}, {"filename": "/assets/sfx/win.ogg", "start": 10705750, "end": 10719754}], "remote_package_size": 10719754});
+    loadPackage({"files": [{"filename": "/assets/fonts/Audiowide-Regular.ttf", "start": 0, "end": 47676}, {"filename": "/assets/images/bg.png", "start": 47676, "end": 105531}, {"filename": "/assets/images/draw.png", "start": 105531, "end": 127158}, {"filename": "/assets/images/resign.png", "start": 127158, "end": 134718}, {"filename": "/assets/images/set/BlackBishop.png", "start": 134718, "end": 135637}, {"filename": "/assets/images/set/BlackKing.png", "start": 135637, "end": 136627}, {"filename": "/assets/images/set/BlackKnight.png", "start": 136627, "end": 137669}, {"filename": "/assets/images/set/BlackPawn.png", "start": 137669, "end": 138481}, {"filename": "/assets/images/set/BlackQueen.png", "start": 138481, "end": 139479}, {"filename": "/assets/images/set/BlackRook.png", "start": 139479, "end": 140393}, {"filename": "/assets/images/set/Board.png", "start": 140393, "end": 152198}, {"filename": "/assets/images/set/WhiteBishop.png", "start": 152198, "end": 153111}, {"filename": "/assets/images/set/WhiteKing.png", "start": 153111, "end": 154129}, {"filename": "/assets/images/set/WhiteKnight.png", "start": 154129, "end": 155164}, {"filename": "/assets/images/set/WhitePawn.png", "start": 155164, "end": 155944}, {"filename": "/assets/images/set/WhiteQueen.png", "start": 155944, "end": 156911}, {"filename": "/assets/images/set/WhiteRook.png", "start": 156911, "end": 157810}, {"filename": "/assets/openings.csv", "start": 157810, "end": 186658}, {"filename": "/assets/puzzles.csv", "start": 186658, "end": 10630723}, {"filename": "/assets/sfx/click.ogg", "start": 10630723, "end": 10636060}, {"filename": "/assets/sfx/draw.ogg", "start": 10636060, "end": 10646261}, {"filename": "/assets/sfx/hover.ogg", "start": 10646261, "end": 10651036}, {"filename": "/assets/sfx/loss.ogg", "start": 10651036, "end": 10670173}, {"filename": "/assets/sfx/move.ogg", "start": 10670173, "end": 10677170}, {"filename": "/assets/sfx/win.ogg", "start": 10677170, "end": 10691174}], "remote_package_size": 10691174});
 
   })();
 
-// end include: C:\Users\andre\AppData\Local\Temp\tmpyvradef6.js
-// include: C:\Users\andre\AppData\Local\Temp\tmpomg0f4t8.js
+// end include: C:\Users\andre\AppData\Local\Temp\tmp2acxnj9q.js
+// include: C:\Users\andre\AppData\Local\Temp\tmpisxu0c02.js
 
     // All the pre-js content up to here must remain later on, we need to run
     // it.
     if ((typeof ENVIRONMENT_IS_WASM_WORKER != 'undefined' && ENVIRONMENT_IS_WASM_WORKER) || (typeof ENVIRONMENT_IS_PTHREAD != 'undefined' && ENVIRONMENT_IS_PTHREAD) || (typeof ENVIRONMENT_IS_AUDIO_WORKLET != 'undefined' && ENVIRONMENT_IS_AUDIO_WORKLET)) Module['preRun'] = [];
     var necessaryPreJSTasks = Module['preRun'].slice();
-  // end include: C:\Users\andre\AppData\Local\Temp\tmpomg0f4t8.js
-// include: C:\Users\andre\AppData\Local\Temp\tmp51hb0p59.js
+  // end include: C:\Users\andre\AppData\Local\Temp\tmpisxu0c02.js
+// include: C:\Users\andre\AppData\Local\Temp\tmpvz8jwhg7.js
 
     if (!Module['preRun']) throw 'Module.preRun should exist because file support used it; did a pre-js delete it?';
     necessaryPreJSTasks.forEach((task) => {
       if (Module['preRun'].indexOf(task) < 0) throw 'All preRun tasks that exist before user pre-js code should remain after; did you replace Module or modify Module.preRun?';
     });
-  // end include: C:\Users\andre\AppData\Local\Temp\tmp51hb0p59.js
+  // end include: C:\Users\andre\AppData\Local\Temp\tmpvz8jwhg7.js
 
 
 var programArgs = [];
@@ -618,7 +618,7 @@ function updateMemoryViews() {
   HEAPU16 = new Uint16Array(b);
   HEAP32 = new Int32Array(b);
   HEAPU32 = new Uint32Array(b);
-  HEAPF32 = new Float32Array(b);
+  Module['HEAPF32'] = HEAPF32 = new Float32Array(b);
   HEAPF64 = new Float64Array(b);
   HEAP64 = new BigInt64Array(b);
   HEAPU64 = new BigUint64Array(b);
@@ -1859,6 +1859,13 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
         },
   write(stream, buffer, offset, length, position, canOwn) {
           assert(buffer.subarray, 'FS.write expects a TypedArray');
+          // If the buffer is located in main memory (HEAP), and if
+          // memory can grow, we can't hold on to references of the
+          // memory buffer, as they may get invalidated. That means we
+          // need to copy its contents.
+          if (buffer.buffer === HEAP8.buffer) {
+            canOwn = false;
+          }
   
           if (!length) return 0;
           var node = stream.node;
@@ -6288,14 +6295,83 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
 
   var _emscripten_glViewport = (x0, x1, x2, x3) => GLctx.viewport(x0, x1, x2, x3);
 
-  var abortOnCannotGrowMemory = (requestedSize) => {
-      abort(`Cannot enlarge memory arrays to size ${requestedSize} bytes (OOM). Either (1) compile with -sINITIAL_MEMORY=X with X higher than the current value ${HEAP8.length}, (2) compile with -sALLOW_MEMORY_GROWTH which allows increasing the size at runtime, or (3) if you want malloc to return NULL (0) instead of this abort, compile with -sABORTING_MALLOC=0`);
+  var getHeapMax = () =>
+      // Stay one Wasm page short of 4GB: while e.g. Chrome is able to allocate
+      // full 4GB Wasm memories, the size will wrap back to 0 bytes in Wasm side
+      // for any code that deals with heap sizes, which would require special
+      // casing all heap size related code to treat 0 specially.
+      2147483648;
+  
+  var alignMemory = (size, alignment) => {
+      assert(alignment, 'alignment argument is required');
+      return Math.ceil(size / alignment) * alignment;
+    };
+  
+  var growMemory = (size) => {
+      var oldHeapSize = wasmMemory.buffer.byteLength;
+      var pages = ((size - oldHeapSize + 65535) / 65536) | 0;
+      try {
+        // round size grow request up to wasm page size (fixed 64KB per spec)
+        wasmMemory.grow(pages); // .grow() takes a delta compared to the previous size
+        updateMemoryViews();
+        return 1 /*success*/;
+      } catch(e) {
+        err(`growMemory: Attempted to grow heap from ${oldHeapSize} bytes to ${size} bytes, but got error: ${e}`);
+      }
+      // implicit 0 return to save code size (caller will cast "undefined" into 0
+      // anyhow)
     };
   var _emscripten_resize_heap = (requestedSize) => {
       var oldSize = HEAPU8.length;
       // With CAN_ADDRESS_2GB or MEMORY64, pointers are already unsigned.
       requestedSize >>>= 0;
-      abortOnCannotGrowMemory(requestedSize);
+      // With multithreaded builds, races can happen (another thread might increase the size
+      // in between), so return a failure, and let the caller retry.
+      assert(requestedSize > oldSize);
+  
+      // Memory resize rules:
+      // 1.  Always increase heap size to at least the requested size, rounded up
+      //     to next page multiple.
+      // 2a. If MEMORY_GROWTH_LINEAR_STEP == -1, excessively resize the heap
+      //     geometrically: increase the heap size according to
+      //     MEMORY_GROWTH_GEOMETRIC_STEP factor (default +20%), At most
+      //     overreserve by MEMORY_GROWTH_GEOMETRIC_CAP bytes (default 96MB).
+      // 2b. If MEMORY_GROWTH_LINEAR_STEP != -1, excessively resize the heap
+      //     linearly: increase the heap size by at least
+      //     MEMORY_GROWTH_LINEAR_STEP bytes.
+      // 3.  Max size for the heap is capped at 2048MB-WASM_PAGE_SIZE, or by
+      //     MAXIMUM_MEMORY, or by ASAN limit, depending on which is smallest
+      // 4.  If we were unable to allocate as much memory, it may be due to
+      //     over-eager decision to excessively reserve due to (3) above.
+      //     Hence if an allocation fails, cut down on the amount of excess
+      //     growth, in an attempt to succeed to perform a smaller allocation.
+  
+      // A limit is set for how much we can grow. We should not exceed that
+      // (the wasm binary specifies it, so if we tried, we'd fail anyhow).
+      var maxHeapSize = getHeapMax();
+      if (requestedSize > maxHeapSize) {
+        err(`Cannot enlarge memory, requested ${requestedSize} bytes, but the limit is ${maxHeapSize} bytes!`);
+        return false;
+      }
+  
+      // Loop through potential heap size increases. If we attempt a too eager
+      // reservation that fails, cut down on the attempted size and reserve a
+      // smaller bump instead. (max 3 times, chosen somewhat arbitrarily)
+      for (var cutDown = 1; cutDown <= 4; cutDown *= 2) {
+        var overGrownHeapSize = oldSize * (1 + 0.2 / cutDown); // ensure geometric growth
+        // but limit overreserving (default to capping at +96MB overgrowth at most)
+        overGrownHeapSize = Math.min(overGrownHeapSize, requestedSize + 100663296 );
+  
+        var newSize = Math.min(maxHeapSize, alignMemory(Math.max(requestedSize, overGrownHeapSize), 65536));
+  
+        var replacement = growMemory(newSize);
+        if (replacement) {
+  
+          return true;
+        }
+      }
+      err(`Failed to grow the heap from ${oldSize} bytes to ${newSize} bytes, not enough memory!`);
+      return false;
     };
 
   /** @suppress {checkTypes} */
@@ -7675,13 +7751,7 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
 
   var _glCullFace = _emscripten_glCullFace;
 
-  var _glDeleteFramebuffers = _emscripten_glDeleteFramebuffers;
-
   var _glDeleteProgram = _emscripten_glDeleteProgram;
-
-  var _glDeleteRenderbuffers = _emscripten_glDeleteRenderbuffers;
-
-  var _glDeleteTextures = _emscripten_glDeleteTextures;
 
   var _glDepthFunc = _emscripten_glDepthFunc;
 
@@ -7712,8 +7782,6 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
   var _glGetAttribLocation = _emscripten_glGetAttribLocation;
 
   var _glGetFloatv = _emscripten_glGetFloatv;
-
-  var _glGetFramebufferAttachmentParameteriv = _emscripten_glGetFramebufferAttachmentParameteriv;
 
   var _glGetProgramInfoLog = _emscripten_glGetProgramInfoLog;
 
@@ -9369,6 +9437,7 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
       }),
   };
 
+
   var FS_createPath = (...args) => FS.createPath(...args);
 
 
@@ -9466,8 +9535,6 @@ if (Module['wasmBinary']) wasmBinary = Module['wasmBinary'];
   'getTempRet0',
   'setTempRet0',
   'zeroMemory',
-  'getHeapMax',
-  'growMemory',
   'withStackSave',
   'inetPton4',
   'inetNtop4',
@@ -9479,7 +9546,6 @@ if (Module['wasmBinary']) wasmBinary = Module['wasmBinary'];
   'autoResumeAudioContext',
   'getDynCaller',
   'asmjsMangle',
-  'alignMemory',
   'HandleAllocator',
   'addOnInit',
   'addOnPostCtor',
@@ -9596,7 +9662,6 @@ missingLibrarySymbols.forEach(missingLibrarySymbol)
   'HEAPU16',
   'HEAP32',
   'HEAPU32',
-  'HEAPF32',
   'HEAPF64',
   'HEAP64',
   'HEAPU64',
@@ -9606,7 +9671,8 @@ missingLibrarySymbols.forEach(missingLibrarySymbol)
   'createNamedFunction',
   'ptrToString',
   'exitJS',
-  'abortOnCannotGrowMemory',
+  'getHeapMax',
+  'growMemory',
   'ENV',
   'ERRNO_CODES',
   'strError',
@@ -9629,6 +9695,7 @@ missingLibrarySymbols.forEach(missingLibrarySymbol)
   'callUserCallback',
   'maybeExit',
   'asyncLoad',
+  'alignMemory',
   'mmapAlloc',
   'wasmTable',
   'wasmMemory',
@@ -9874,48 +9941,58 @@ function checkIncomingModuleAPI() {
   ignoredModuleProp('onSbrkGrow');
 }
 var ASM_CONSTS = {
-  142992: () => { if (document.fullscreenElement) return 1; },  
- 143038: () => { return document.getElementById('canvas').width; },  
- 143090: () => { return parseInt(document.getElementById('canvas').style.width); },  
- 143158: () => { document.exitFullscreen(); },  
- 143185: () => { setTimeout(function() { Module.requestFullscreen(false, false); }, 100); },  
- 143258: () => { if (document.fullscreenElement) return 1; },  
- 143304: () => { return document.getElementById('canvas').width; },  
- 143356: () => { return screen.width; },  
- 143381: () => { document.exitFullscreen(); },  
- 143408: () => { setTimeout(function() { Module.requestFullscreen(false, true); setTimeout(function() { canvas.style.width="unset"; }, 100); }, 100); },  
- 143541: () => { return window.innerWidth; },  
- 143567: () => { return window.innerHeight; },  
- 143594: () => { if (document.fullscreenElement) return 1; },  
- 143640: () => { return document.getElementById('canvas').width; },  
- 143692: () => { return parseInt(document.getElementById('canvas').style.width); },  
- 143760: () => { if (document.fullscreenElement) return 1; },  
- 143806: () => { return document.getElementById('canvas').width; },  
- 143858: () => { return screen.width; },  
- 143883: () => { return window.innerWidth; },  
- 143909: () => { return window.innerHeight; },  
- 143936: () => { if (document.fullscreenElement) return 1; },  
- 143982: () => { return document.getElementById('canvas').width; },  
- 144034: () => { return screen.width; },  
- 144059: () => { document.exitFullscreen(); },  
- 144086: () => { if (document.fullscreenElement) return 1; },  
- 144132: () => { return document.getElementById('canvas').width; },  
- 144184: () => { return parseInt(document.getElementById('canvas').style.width); },  
- 144252: () => { document.exitFullscreen(); },  
- 144279: ($0) => { document.getElementById('canvas').style.opacity = $0; },  
- 144337: () => { return screen.width; },  
- 144362: () => { return screen.height; },  
- 144388: () => { return window.screenX; },  
- 144415: () => { return window.screenY; },  
- 144442: ($0) => { navigator.clipboard.writeText(UTF8ToString($0)); },  
- 144495: ($0) => { document.getElementById("canvas").style.cursor = UTF8ToString($0); },  
- 144566: () => { document.getElementById('canvas').style.cursor = 'none'; },  
- 144623: ($0, $1, $2, $3) => { try { navigator.getGamepads()[$0].vibrationActuator.playEffect('dual-rumble', { startDelay: 0, duration: $3, weakMagnitude: $1, strongMagnitude: $2 }); } catch (e) { try { navigator.getGamepads()[$0].hapticActuators[0].pulse($2, $3); } catch (e) { } } },  
- 144879: ($0) => { document.getElementById('canvas').style.cursor = UTF8ToString($0); },  
- 144950: () => { if (document.fullscreenElement) return 1; },  
- 144996: () => { return window.innerWidth; },  
- 145022: () => { return window.innerHeight; },  
- 145049: () => { if (document.pointerLockElement) return 1; }
+  147280: () => { if (document.fullscreenElement) return 1; },  
+ 147326: () => { return document.getElementById('canvas').width; },  
+ 147378: () => { return parseInt(document.getElementById('canvas').style.width); },  
+ 147446: () => { document.exitFullscreen(); },  
+ 147473: () => { setTimeout(function() { Module.requestFullscreen(false, false); }, 100); },  
+ 147546: () => { if (document.fullscreenElement) return 1; },  
+ 147592: () => { return document.getElementById('canvas').width; },  
+ 147644: () => { return screen.width; },  
+ 147669: () => { document.exitFullscreen(); },  
+ 147696: () => { setTimeout(function() { Module.requestFullscreen(false, true); setTimeout(function() { canvas.style.width="unset"; }, 100); }, 100); },  
+ 147829: () => { return window.innerWidth; },  
+ 147855: () => { return window.innerHeight; },  
+ 147882: () => { if (document.fullscreenElement) return 1; },  
+ 147928: () => { return document.getElementById('canvas').width; },  
+ 147980: () => { return parseInt(document.getElementById('canvas').style.width); },  
+ 148048: () => { if (document.fullscreenElement) return 1; },  
+ 148094: () => { return document.getElementById('canvas').width; },  
+ 148146: () => { return screen.width; },  
+ 148171: () => { return window.innerWidth; },  
+ 148197: () => { return window.innerHeight; },  
+ 148224: () => { if (document.fullscreenElement) return 1; },  
+ 148270: () => { return document.getElementById('canvas').width; },  
+ 148322: () => { return screen.width; },  
+ 148347: () => { document.exitFullscreen(); },  
+ 148374: () => { if (document.fullscreenElement) return 1; },  
+ 148420: () => { return document.getElementById('canvas').width; },  
+ 148472: () => { return parseInt(document.getElementById('canvas').style.width); },  
+ 148540: () => { document.exitFullscreen(); },  
+ 148567: ($0) => { document.getElementById('canvas').style.opacity = $0; },  
+ 148625: () => { return screen.width; },  
+ 148650: () => { return screen.height; },  
+ 148676: () => { return window.screenX; },  
+ 148703: () => { return window.screenY; },  
+ 148730: ($0) => { navigator.clipboard.writeText(UTF8ToString($0)); },  
+ 148783: ($0) => { document.getElementById("canvas").style.cursor = UTF8ToString($0); },  
+ 148854: () => { document.getElementById('canvas').style.cursor = 'none'; },  
+ 148911: ($0, $1, $2, $3) => { try { navigator.getGamepads()[$0].vibrationActuator.playEffect('dual-rumble', { startDelay: 0, duration: $3, weakMagnitude: $1, strongMagnitude: $2 }); } catch (e) { try { navigator.getGamepads()[$0].hapticActuators[0].pulse($2, $3); } catch (e) { } } },  
+ 149167: ($0) => { document.getElementById('canvas').style.cursor = UTF8ToString($0); },  
+ 149238: () => { if (document.fullscreenElement) return 1; },  
+ 149284: () => { return window.innerWidth; },  
+ 149310: () => { return window.innerHeight; },  
+ 149337: () => { if (document.pointerLockElement) return 1; },  
+ 149384: ($0, $1, $2, $3, $4) => { if (typeof window === 'undefined' || (window.AudioContext || window.webkitAudioContext) === undefined) { return 0; } if (typeof(window.miniaudio) === 'undefined') { window.miniaudio = { referenceCount: 0 }; window.miniaudio.device_type = {}; window.miniaudio.device_type.playback = $0; window.miniaudio.device_type.capture = $1; window.miniaudio.device_type.duplex = $2; window.miniaudio.device_state = {}; window.miniaudio.device_state.stopped = $3; window.miniaudio.device_state.started = $4; miniaudio.devices = []; miniaudio.track_device = function(device) { for (var iDevice = 0; iDevice < miniaudio.devices.length; ++iDevice) { if (miniaudio.devices[iDevice] == null) { miniaudio.devices[iDevice] = device; return iDevice; } } miniaudio.devices.push(device); return miniaudio.devices.length - 1; }; miniaudio.untrack_device_by_index = function(deviceIndex) { miniaudio.devices[deviceIndex] = null; while (miniaudio.devices.length > 0) { if (miniaudio.devices[miniaudio.devices.length-1] == null) { miniaudio.devices.pop(); } else { break; } } }; miniaudio.untrack_device = function(device) { for (var iDevice = 0; iDevice < miniaudio.devices.length; ++iDevice) { if (miniaudio.devices[iDevice] == device) { return miniaudio.untrack_device_by_index(iDevice); } } }; miniaudio.get_device_by_index = function(deviceIndex) { return miniaudio.devices[deviceIndex]; }; miniaudio.unlock_event_types = (function(){ return ['touchend', 'click']; })(); miniaudio.unlock = function() { for(var i = 0; i < miniaudio.devices.length; ++i) { var device = miniaudio.devices[i]; if (device != null && device.webaudio != null && device.state === window.miniaudio.device_state.started) { device.webaudio.resume().then(() => { Module._ma_device__on_notification_unlocked(device.pDevice); }, (error) => {console.error("Failed to resume audiocontext", error); }); } } miniaudio.unlock_event_types.map(function(event_type) { document.removeEventListener(event_type, miniaudio.unlock, true); }); }; miniaudio.unlock_event_types.map(function(event_type) { document.addEventListener(event_type, miniaudio.unlock, true); }); } window.miniaudio.referenceCount += 1; return 1; },  
+ 151542: () => { if (typeof(window.miniaudio) !== 'undefined') { window.miniaudio.referenceCount -= 1; if (window.miniaudio.referenceCount === 0) { delete window.miniaudio; } } },  
+ 151706: () => { return (navigator.mediaDevices !== undefined && navigator.mediaDevices.getUserMedia !== undefined); },  
+ 151810: () => { try { var temp = new (window.AudioContext || window.webkitAudioContext)(); var sampleRate = temp.sampleRate; temp.close(); return sampleRate; } catch(e) { return 0; } },  
+ 151981: ($0, $1, $2, $3, $4, $5) => { var deviceType = $0; var channels = $1; var sampleRate = $2; var bufferSize = $3; var pIntermediaryBuffer = $4; var pDevice = $5; if (typeof(window.miniaudio) === 'undefined') { return -1; } var device = {}; var audioContextOptions = {}; if (deviceType == window.miniaudio.device_type.playback && sampleRate != 0) { audioContextOptions.sampleRate = sampleRate; } device.webaudio = new (window.AudioContext || window.webkitAudioContext)(audioContextOptions); device.webaudio.suspend(); device.state = window.miniaudio.device_state.stopped; var channelCountIn = 0; var channelCountOut = channels; if (deviceType != window.miniaudio.device_type.playback) { channelCountIn = channels; } device.scriptNode = device.webaudio.createScriptProcessor(bufferSize, channelCountIn, channelCountOut); device.scriptNode.onaudioprocess = function(e) { if (device.intermediaryBufferView == null || device.intermediaryBufferView.length == 0) { device.intermediaryBufferView = new Float32Array(Module.HEAPF32.buffer, pIntermediaryBuffer, bufferSize * channels); } if (deviceType == miniaudio.device_type.capture || deviceType == miniaudio.device_type.duplex) { for (var iChannel = 0; iChannel < channels; iChannel += 1) { var inputBuffer = e.inputBuffer.getChannelData(iChannel); var intermediaryBuffer = device.intermediaryBufferView; for (var iFrame = 0; iFrame < bufferSize; iFrame += 1) { intermediaryBuffer[iFrame*channels + iChannel] = inputBuffer[iFrame]; } } _ma_device_process_pcm_frames_capture__webaudio(pDevice, bufferSize, pIntermediaryBuffer); } if (deviceType == miniaudio.device_type.playback || deviceType == miniaudio.device_type.duplex) { _ma_device_process_pcm_frames_playback__webaudio(pDevice, bufferSize, pIntermediaryBuffer); for (var iChannel = 0; iChannel < e.outputBuffer.numberOfChannels; ++iChannel) { var outputBuffer = e.outputBuffer.getChannelData(iChannel); var intermediaryBuffer = device.intermediaryBufferView; for (var iFrame = 0; iFrame < bufferSize; iFrame += 1) { outputBuffer[iFrame] = intermediaryBuffer[iFrame*channels + iChannel]; } } } else { for (var iChannel = 0; iChannel < e.outputBuffer.numberOfChannels; ++iChannel) { e.outputBuffer.getChannelData(iChannel).fill(0.0); } } }; if (deviceType == miniaudio.device_type.capture || deviceType == miniaudio.device_type.duplex) { navigator.mediaDevices.getUserMedia({audio:true, video:false}) .then(function(stream) { device.streamNode = device.webaudio.createMediaStreamSource(stream); device.streamNode.connect(device.scriptNode); device.scriptNode.connect(device.webaudio.destination); }) .catch(function(error) { console.log("Failed to get user media: " + error); }); } if (deviceType == miniaudio.device_type.playback) { device.scriptNode.connect(device.webaudio.destination); } device.pDevice = pDevice; return miniaudio.track_device(device); },  
+ 154809: ($0) => { return miniaudio.get_device_by_index($0).webaudio.sampleRate; },  
+ 154875: ($0) => { var device = miniaudio.get_device_by_index($0); if (device.scriptNode !== undefined) { device.scriptNode.onaudioprocess = function(e) {}; device.scriptNode.disconnect(); device.scriptNode = undefined; } if (device.streamNode !== undefined) { device.streamNode.disconnect(); device.streamNode = undefined; } device.webaudio.close(); device.webaudio = undefined; device.pDevice = undefined; },  
+ 155268: ($0) => { miniaudio.untrack_device_by_index($0); },  
+ 155311: ($0) => { var device = miniaudio.get_device_by_index($0); device.webaudio.resume(); device.state = miniaudio.device_state.started; },  
+ 155436: ($0) => { var device = miniaudio.get_device_by_index($0); device.webaudio.suspend(); device.state = miniaudio.device_state.stopped; }
 };
 
 // Imports from the Wasm binary.
@@ -9950,9 +10027,9 @@ var dynCall_iiii = makeInvalidEarlyAccess('dynCall_iiii');
 var dynCall_iiiiii = makeInvalidEarlyAccess('dynCall_iiiiii');
 var dynCall_viiiiii = makeInvalidEarlyAccess('dynCall_viiiiii');
 var dynCall_iiiii = makeInvalidEarlyAccess('dynCall_iiiii');
+var dynCall_iiiji = makeInvalidEarlyAccess('dynCall_iiiji');
 var dynCall_iiiiiii = makeInvalidEarlyAccess('dynCall_iiiiiii');
 var dynCall_jii = makeInvalidEarlyAccess('dynCall_jii');
-var dynCall_iiiji = makeInvalidEarlyAccess('dynCall_iiiji');
 var dynCall_vffff = makeInvalidEarlyAccess('dynCall_vffff');
 var dynCall_vf = makeInvalidEarlyAccess('dynCall_vf');
 var dynCall_viiiiiiii = makeInvalidEarlyAccess('dynCall_viiiiiiii');
@@ -10015,9 +10092,9 @@ function assignWasmExports(wasmExports) {
   assert(typeof wasmExports['dynCall_iiiiii'] != 'undefined', 'missing Wasm export: dynCall_iiiiii');
   assert(typeof wasmExports['dynCall_viiiiii'] != 'undefined', 'missing Wasm export: dynCall_viiiiii');
   assert(typeof wasmExports['dynCall_iiiii'] != 'undefined', 'missing Wasm export: dynCall_iiiii');
+  assert(typeof wasmExports['dynCall_iiiji'] != 'undefined', 'missing Wasm export: dynCall_iiiji');
   assert(typeof wasmExports['dynCall_iiiiiii'] != 'undefined', 'missing Wasm export: dynCall_iiiiiii');
   assert(typeof wasmExports['dynCall_jii'] != 'undefined', 'missing Wasm export: dynCall_jii');
-  assert(typeof wasmExports['dynCall_iiiji'] != 'undefined', 'missing Wasm export: dynCall_iiiji');
   assert(typeof wasmExports['dynCall_vffff'] != 'undefined', 'missing Wasm export: dynCall_vffff');
   assert(typeof wasmExports['dynCall_vf'] != 'undefined', 'missing Wasm export: dynCall_vf');
   assert(typeof wasmExports['dynCall_viiiiiiii'] != 'undefined', 'missing Wasm export: dynCall_viiiiiiii');
@@ -10077,9 +10154,9 @@ function assignWasmExports(wasmExports) {
   dynCall_iiiiii = dynCalls['iiiiii'] = createExportWrapper('dynCall_iiiiii', 6);
   dynCall_viiiiii = dynCalls['viiiiii'] = createExportWrapper('dynCall_viiiiii', 7);
   dynCall_iiiii = dynCalls['iiiii'] = createExportWrapper('dynCall_iiiii', 5);
+  dynCall_iiiji = dynCalls['iiiji'] = createExportWrapper('dynCall_iiiji', 5);
   dynCall_iiiiiii = dynCalls['iiiiiii'] = createExportWrapper('dynCall_iiiiiii', 7);
   dynCall_jii = dynCalls['jii'] = createExportWrapper('dynCall_jii', 3);
-  dynCall_iiiji = dynCalls['iiiji'] = createExportWrapper('dynCall_iiiji', 5);
   dynCall_vffff = dynCalls['vffff'] = createExportWrapper('dynCall_vffff', 5);
   dynCall_vf = dynCalls['vf'] = createExportWrapper('dynCall_vf', 2);
   dynCall_viiiiiiii = dynCalls['viiiiiiii'] = createExportWrapper('dynCall_viiiiiiii', 9);
@@ -10558,13 +10635,7 @@ var wasmImports = {
   /** @export */
   glCullFace: _glCullFace,
   /** @export */
-  glDeleteFramebuffers: _glDeleteFramebuffers,
-  /** @export */
   glDeleteProgram: _glDeleteProgram,
-  /** @export */
-  glDeleteRenderbuffers: _glDeleteRenderbuffers,
-  /** @export */
-  glDeleteTextures: _glDeleteTextures,
   /** @export */
   glDepthFunc: _glDepthFunc,
   /** @export */
@@ -10595,8 +10666,6 @@ var wasmImports = {
   glGetAttribLocation: _glGetAttribLocation,
   /** @export */
   glGetFloatv: _glGetFloatv,
-  /** @export */
-  glGetFramebufferAttachmentParameteriv: _glGetFramebufferAttachmentParameteriv,
   /** @export */
   glGetProgramInfoLog: _glGetProgramInfoLog,
   /** @export */

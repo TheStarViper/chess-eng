@@ -1,8 +1,13 @@
 #pragma once
 #include <memory>
 #include "raylib.h"
+#include <iostream>
 #define P_WHITE "WHITE"
 #define P_BLACK "BLACK"
+
+//security checks
+bool g_puzzlesLoaded = false;
+bool audio_loaded = false;
 
 namespace Config {
     constexpr int WINDOW_WIDTH = 1280;
@@ -87,3 +92,6 @@ enum Menus {
     OPENINGS };
 
 
+//asset file paths
+std::string puzzlefilepath = "assets/puzzles.csv";
+const char * hoversoundfilepath = "assets/sfx/hover.ogg";

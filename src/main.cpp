@@ -10,7 +10,10 @@
 #include <sstream>
 #include <map>
 #include <utility>
-
+#include <cstdlib>
+#include <random>
+#include <sstream>
+#include <fstream>
 
 #if defined(PLATFORM_WEB)
     #include <emscripten/emscripten.h>
@@ -65,6 +68,14 @@ struct GridData {
 
     GridData() : has_piece(false), piece(nullptr) {}
     GridData(std::shared_ptr<ChessPiece> p) : has_piece(p != nullptr), piece(p) {}
+};
+
+struct Puzzle{
+    std::string puzzleid;
+    std::string gameid;
+    std::string boardsetup;
+    std::string solution;
+    int rating;
 };
 
 struct BoardState {
@@ -330,13 +341,9 @@ public:
     }
 };
 
-
 struct GameContext {
-
-    //SOUNDS
+    //Sounds
     Sound hoversound;
-
-
 
     int lastHoveredLeafId = -1;
     int lastHoveredBoardPieceTile;
@@ -353,7 +360,6 @@ struct GameContext {
     std::map<std::string, Texture2D> pieceSprites; 
     bool useSprites = false;
     
-    Font pieceFont;
     Font uiFont;
     RenderTexture2D targetScreen; 
 
@@ -383,9 +389,6 @@ struct GameContext {
     std::vector<std::unique_ptr<Button>> btnPromotionTrays;
 
     GameContext() {
-        //Sound
-        Sound hoversound = LoadSound("assets/sfx/hover.ogg");
-
         std::string bgPath = ResolveAssetPath("assets/images/bg.png");
         backgroundTexture = LoadTexture(bgPath.c_str());
         if (backgroundTexture.id == 0) {
@@ -400,10 +403,6 @@ struct GameContext {
         isGameRunning = true;
         historyView = HistoryState{ true, 0 };
         anim = PieceAnimation{ false, nullptr, Vector2{0,0}, Vector2{0,0}, Vector2{0,0}, 0.0f, -1, -1 };
-
-        std::string resolvedPiecesFont = ResolveAssetPath("assets/fonts/pieces.ttf");
-        pieceFont = LoadFontEx(resolvedPiecesFont.c_str(), 128, nullptr, 0);
-
         uiFont = LoadSystemUIFont();
 
         auto LoadPieceTex = [&](std::string name) {
@@ -423,7 +422,6 @@ struct GameContext {
         if (!pieceSprites.empty()) {
             useSprites = true;
         }
-
         targetScreen = LoadRenderTexture(Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT);
         SetTextureFilter(targetScreen.texture, TEXTURE_FILTER_BILINEAR);
 
@@ -446,18 +444,6 @@ struct GameContext {
         ResetPromotionButtons();
     }
 
-    ~GameContext() {
-        UnloadRenderTexture(targetScreen);
-        if (pieceFont.texture.id > 0) {
-            UnloadFont(pieceFont);
-        }
-        if (uiFont.texture.id > 0) {
-            UnloadFont(uiFont);
-        }
-        for (auto& [name, tex] : pieceSprites) {
-            if (tex.id > 0) UnloadTexture(tex);
-        }
-    }
 
     void ResetPromotionButtons() {
         btnPromotionTrays.clear();
@@ -1126,32 +1112,6 @@ namespace VectorRenderer {
         float fY = (float)y;
         float fS = (float)size;
 
-        if (g_ctx && g_ctx->pieceFont.texture.id > 0) {
-            char c = ' ';
-            switch (type) {
-                case PAWN:   c = 'O'; break;
-                case KNIGHT: c = 'J'; break;
-                case BISHOP: c = 'N'; break;
-                case ROOK:   c = 'T'; break;
-                case QUEEN:  c = 'W'; break;
-                case KING:   c = 'L'; break;
-                case NONE:   return;
-            }
-            if (color == P_BLACK) {
-                c = tolower(c);
-            }
-            char codepointStr[2] = { c, '\0' };
-
-            Vector2 sizeVec = MeasureTextEx(g_ctx->pieceFont, codepointStr, (float)size, 0.0f);
-            float drawX = fX + (fS - sizeVec.x) / 2.0f;
-            float drawY = fY + (fS - sizeVec.y) / 2.0f;
-
-            Color tintColor = (color == P_WHITE) ? Color{ 255, 255, 255, 255 } : Color{ 35, 35, 40, 255 };
-
-            DrawTextEx(g_ctx->pieceFont, codepointStr, Vector2{ drawX + 2, drawY + 2 }, (float)size, 0.0f, Color{ 0, 0, 0, 60 });
-            DrawTextEx(g_ctx->pieceFont, codepointStr, Vector2{ drawX, drawY }, (float)size, 0.0f, tintColor);
-            return;
-        }
 
         Color fill = (color == P_WHITE) ? Color{ 255, 255, 255, 255 } : Color{ 55, 55, 60, 255 };
         Color stroke = (color == P_WHITE) ? Color{ 140, 140, 145, 255 } : Color{ 225, 225, 230, 255 };
@@ -2059,6 +2019,108 @@ void DrawSettingsMenu(Vector2 mousePos) {
     }
 }
 
+void load_puzzles() {
+    int dataSize = 0;
+    unsigned char *fileData = LoadFileData(puzzlefilepath.c_str(), &dataSize);
+
+    if (fileData == nullptr || dataSize == 0) {
+        TraceLog(LOG_ERROR, "CSV_LOADER: Could not open or find %s", puzzlefilepath.c_str());
+        return;
+    }
+
+#if defined(PLATFORM_WEB)
+    unsigned int seed = static_cast<unsigned int>(emscripten_get_now());
+    srand(seed);
+#else
+    srand(GetRandomValue(0, 100000));
+#endif
+
+    size_t fileSize = static_cast<size_t>(dataSize);
+    if (fileSize < 500) {
+        TraceLog(LOG_ERROR, "CSV_LOADER: File too small to parse.");
+        UnloadFileData(fileData);
+        return;
+    }
+
+    size_t randomOffset = rand() % (fileSize - 250);
+
+    size_t startPos = randomOffset;
+    while (startPos < fileSize && fileData[startPos] != '\n') {
+        startPos++;
+    }
+    startPos++;
+
+    if (startPos >= fileSize - 10) {
+        startPos = 0;
+        while (startPos < fileSize && fileData[startPos] != '\n') {
+            startPos++;
+        }
+        startPos++;
+    }
+
+    size_t endPos = startPos;
+    while (endPos < fileSize && fileData[endPos] != '\n') {
+        endPos++;
+    }
+
+    std::string line(reinterpret_cast<char*>(&fileData[startPos]), endPos - startPos);
+    
+    UnloadFileData(fileData);
+
+    line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
+    if (line.empty()) {
+        TraceLog(LOG_ERROR, "CSV_LOADER: Landed on empty row string slice.");
+        return;
+    }
+
+    std::vector<std::string> row;
+    size_t commaPrev = 0;
+
+    for (int i = 0; i < 4; i++) {
+        size_t commaPos = line.find(',', commaPrev);
+        if (commaPos == std::string::npos) break;
+
+        std::string segment = line.substr(commaPrev, commaPos - commaPrev);
+        segment.erase(0, segment.find_first_not_of(" \t"));
+        size_t last = segment.find_last_not_of(" \t");
+        if (last != std::string::npos) segment.erase(last + 1);
+
+        row.push_back(segment);
+        commaPrev = commaPos + 1;
+    }
+
+    if (commaPrev < line.length()) {
+        std::string ratingSegment = line.substr(commaPrev);
+        ratingSegment.erase(0, ratingSegment.find_first_not_of(" \t"));
+        size_t last = ratingSegment.find_last_not_of(" \t");
+        if (last != std::string::npos) ratingSegment.erase(last + 1);
+        row.push_back(ratingSegment);
+    }
+
+    if (row.size() == 5) {
+        Puzzle selectedpuzzle;
+        selectedpuzzle.puzzleid = row[0];
+        selectedpuzzle.gameid = row[1];
+        selectedpuzzle.boardsetup = row[2];
+        selectedpuzzle.solution = row[3];
+        
+        char* endptr;
+        selectedpuzzle.rating = static_cast<int>(std::strtol(row[4].c_str(), &endptr, 10));
+
+        TraceLog(LOG_INFO, "--- Randomly Selected Row ---");
+        TraceLog(LOG_INFO, "Puzzle ID: %s", selectedpuzzle.puzzleid.c_str());
+        TraceLog(LOG_INFO, "Game ID:   %s", selectedpuzzle.gameid.c_str());
+        TraceLog(LOG_INFO, "Setup:     %s", selectedpuzzle.boardsetup.c_str());
+        TraceLog(LOG_INFO, "Solution:  %s", selectedpuzzle.solution.c_str());
+        TraceLog(LOG_INFO, "Rating:    %d", selectedpuzzle.rating);
+ 
+
+    } else {
+        TraceLog(LOG_ERROR, "CSV_LOADER: Extracted line slice was invalid.");
+    }
+}
+
+
 void UpdateDrawFrame() { // rendering
     float dt = GetFrameTime();
     Vector2 rawMousePos = GetMousePosition();
@@ -2066,6 +2128,23 @@ void UpdateDrawFrame() { // rendering
         rawMousePos.x * ((float)Config::WINDOW_WIDTH / (float)GetScreenWidth()),
         rawMousePos.y * ((float)Config::WINDOW_HEIGHT / (float)GetScreenHeight())
     };
+
+    if (!g_puzzlesLoaded) {
+        load_puzzles();
+        g_puzzlesLoaded = true;
+    }
+    if (audio_loaded && IsKeyPressed(KEY_B)) {
+        
+        // WEB SAFEGUARD: Ensure the browser hasn't suspended the audio state
+        #if defined(PLATFORM_WEB)
+        if (!IsAudioDeviceReady()) {
+            InitAudioDevice(); 
+        }
+        #endif
+        
+        PlaySound(g_ctx->hoversound);
+        TraceLog(LOG_INFO, "AUDIO: PlaySound executed for KEY_B");
+    }
 
     TickEngine::UpdateAnimations(dt);
     if (mousePos.x > g_ctx->sidebarWidth) {
@@ -2136,11 +2215,15 @@ void UpdateDrawFrame() { // rendering
 
 int main(int argc, char* argv[]) {
     SetConfigFlags(FLAG_MSAA_4X_HINT | FLAG_VSYNC_HINT);
-    InitWindow(Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT, "CHESS ARCHITECTURE - PROCEDURAL WOOD & OVERGROWN VINES ENGINE");
-
+    InitWindow(Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT, "chess");
+    InitAudioDevice();
     g_ctx = std::make_unique<GameContext>();
     g_ctx->ResetPromotionButtons();
-
+    if (IsAudioDeviceReady()) {
+        g_ctx->hoversound = LoadSound(hoversoundfilepath);
+        audio_loaded= true;
+        TraceLog(LOG_INFO, "AUDIO: ZA BLUETOOTH DEWICE HAS BEEN CONNECTED");
+    }
 #if defined(PLATFORM_WEB)
     emscripten_set_main_loop(UpdateDrawFrame, 0, 1);
 #else
@@ -2148,6 +2231,8 @@ int main(int argc, char* argv[]) {
     while (g_ctx->isGameRunning) {
         UpdateDrawFrame();
     }
+    //unload sounds but idk how many i will have so if you run this on pc youre cooked
+    CloseAudioDevice();
     CloseWindow();
 #endif
 
