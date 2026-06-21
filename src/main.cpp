@@ -1,7 +1,5 @@
 #include "raylib.h"
-#include "variables.h" 
-#include "main.hpp"
-#include "graphics/vector_renderer.hpp"
+#include "rlgl.h"
 #include <iostream>
 #include <vector>
 #include <string>
@@ -11,13 +9,80 @@
 #include <sstream>
 #include <map>
 #include <utility>
-#include <fstream>
-#include <sstream>
-#include <random>
 
 #if defined(PLATFORM_WEB)
     #include <emscripten/emscripten.h>
 #endif
+
+namespace Config {
+    constexpr int WINDOW_WIDTH = 1280;
+    constexpr int WINDOW_HEIGHT = 720;
+
+    constexpr int TILE_SIZE = 75;                // Size of chessboard squares (75 * 8 = 600px)
+    constexpr int BOARD_OFFSET_X = 180;          // Left buffer
+    constexpr int BOARD_OFFSET_Y = 60;          // Top buffer
+
+    constexpr int PANEL_X = BOARD_OFFSET_X+TILE_SIZE*8+50;                // Sidebar alignment x-coordinate
+    constexpr int PANEL_Y = 60;                 // Sidebar alignment y-coordinate
+    constexpr int PANEL_WIDTH = 380;            // Sidebar width
+    constexpr int PANEL_HEIGHT = TILE_SIZE*8;           // Panel matches board footprint
+    constexpr int ROW_HEIGHT = 35;              // Row spacing for historical lists
+
+    // Aesthetic color schemes matching Board.png
+    const Color COLOR_LIGHT_SQ = Color{ 205, 171, 128, 255 };  
+    const Color COLOR_DARK_SQ  = Color{ 116, 75, 48, 255 };    
+    const Color COLOR_FRAME_DARK = Color{ 48, 28, 16, 255 };   
+    const Color COLOR_FRAME_MID  = Color{ 78, 48, 30, 255 };
+    const Color COLOR_LEAF_DARK  = Color{ 76, 91, 55, 255 }; 
+    const Color COLOR_LEAF_LIGHT = Color{ 151, 163, 69, 255 }; 
+    const Color COLOR_LEAF_VEIN  = Color{ 113, 129, 63, 255 }; 
+    const Color COLOR_GEM_BASE   = Color{ 42, 24, 18, 255 };    
+    const Color COLOR_GEM_GLINT  = Color{ 162, 103, 56, 255 };
+
+    // NEW THEMATIC UI COLORS
+    const Color COLOR_UI_PANEL_BG   = Color{ 36, 22, 14, 255 }; 
+    const Color COLOR_UI_BORDER     = Color{ 78, 48, 30, 255 }; 
+    const Color COLOR_UI_ROW_A      = Color{ 48, 30, 20, 255 }; 
+    const Color COLOR_UI_ROW_B      = Color{ 38, 24, 16, 255 }; 
+    const Color COLOR_UI_TEXT       = Color{ 240, 220, 190, 255 }; 
+    const Color COLOR_UI_TEXT_DIM   = Color{ 180, 150, 120, 255 }; 
+    const Color COLOR_UI_BUTTON     = Color{ 96, 55, 28, 255 };
+    const Color COLOR_UI_BUTTON_HOV = Color{ 120, 75, 40, 255 }; 
+    
+    const Color COLOR_HIGHLIGHT= Color{ 123, 97, 255, 120 };   
+    const Color COLOR_CHECK    = Color{ 230, 90, 90, 220 };    
+    const Color COLOR_DOT      = Color{ 100, 149, 237, 180 }; 
+    const Color COLOR_DOT_RING = Color{ 100, 149, 237, 100 };
+    const Color COLOR_LAST_MOVE= Color{ 246, 235, 120, 100 };  
+    
+    const Color BOARD_MARKINGS_TEXT = Color{ 36, 22, 14, 255 };
+    constexpr float ANIMATION_DURATION = 0.12f;
+}
+
+#define P_WHITE "WHITE"
+#define P_BLACK "BLACK"
+
+enum PieceType {
+    NONE = 0,
+    PAWN,
+    KNIGHT,
+    BISHOP,
+    ROOK,
+    QUEEN,
+    KING
+};
+
+enum GameState {
+    STATE_PLAYING,
+    STATE_PROMOTING,
+    STATE_CHECKMATE,
+    STATE_STALEMATE,
+    STATE_DRAW_REPETITION,
+    STATE_DRAW_50_MOVES,
+    STATE_DRAW_MATERIAL,
+    STATE_RESIGNED,
+    STATE_MUTUAL_DRAW
+};
 
 
 inline void DrawRectangleRoundedLinesCustom(Rectangle rec, float roundness, int segments, float lineThick, Color color) {
@@ -415,8 +480,48 @@ public:
     }
 };
 
-GameContext::GameContext() {
 
+struct GameContext {
+
+    //SOUNDS
+    Sound hoversound;
+
+
+
+    int lastHoveredLeafId = -1;
+    int lastHoveredBoardPieceTile;
+    int genuineHoveredLeafId = -1;  
+    std::unique_ptr<ChessBoard> board;
+    Vector2 mousePosition;
+    int active_turn_id; 
+    float move_log_scroll_ratio;
+    bool isGameRunning;
+    
+    HistoryState historyView;
+    PieceAnimation anim;
+    Texture2D backgroundTexture;
+
+    std::map<std::string, Texture2D> pieceSprites; 
+    bool useSprites = false;
+
+    Font pieceFont;
+    Font uiFont;
+    RenderTexture2D targetScreen; 
+
+    std::vector<std::pair<int, int>> cached_legal_moves;
+
+    std::unique_ptr<Button> btnResign;
+    std::unique_ptr<Button> btnDraw;
+    std::unique_ptr<Button> btnPrev;
+    std::unique_ptr<Button> btnNext;
+    std::unique_ptr<Button> btnLive;
+    std::unique_ptr<Button> btnFirst;
+    std::unique_ptr<Button> btnLast;
+    std::unique_ptr<Button> btnOverlayRematch;
+
+    std::vector<std::unique_ptr<Button>> btnPromotionTrays;
+
+    GameContext() {
         //Sound
         Sound hoversound = LoadSound("assets/sfx/hover.ogg");
 
@@ -425,8 +530,6 @@ GameContext::GameContext() {
         if (backgroundTexture.id == 0) {
             std::cout << "[ERROR] Failed to load background: " << bgPath << std::endl;
         }
-        sidebarhovered = false;
-        Menus active_menu = PLAY;
         board = std::make_unique<ChessBoard>();
         mousePosition = Vector2{ 0, 0 };
         active_turn_id = 0;
@@ -496,69 +599,7 @@ Vector2 MeasureTextSmooth(const char* text, float fontSize) {
     }
 }
 
-void DrawCollapsibleSidebar(Vector2 mousePos) {
-    g_ctx->sidebarhovered = (mousePos.x <= g_ctx->sidebarWidth);
-    
-    float targetWidth = g_ctx->sidebarhovered ? Config::SIDEBAR_MAX_WIDTH : Config::SIDEBAR_MIN_WIDTH;
-    g_ctx->sidebarWidth += (targetWidth - g_ctx->sidebarWidth) * Config::ANIMATION_DURATION*50 * GetFrameTime();
 
-    int currentWidth = (int)g_ctx->sidebarWidth;
-    DrawRectangle(0, 0, currentWidth, Config::WINDOW_HEIGHT, Config::COLOR_UI_PANEL_BG); 
-    DrawRectangle(currentWidth - 2, 0, 2, Config::WINDOW_HEIGHT, Config::COLOR_LEAF_LIGHT);
-
-    bool isFullyOpen = (currentWidth > Config::SIDEBAR_MAX_WIDTH - 20);
-    bool canClickEarly = (g_ctx->sidebarWidth > (float)Config::SIDEBAR_MIN_WIDTH + 15);
-    bool showText = (currentWidth > Config::SIDEBAR_MAX_WIDTH - 40);
-
-    int startY = Config::WINDOW_HEIGHT / 4; 
-    int itemSpacing = 60;
-    int btnHeight = 45;
-    int iconPadding = 15;
-    struct MenuItem { Menus mode; const char* icon; const char* label; };
-    std::vector<MenuItem> items = {
-        { PLAY, " P ", "PLAY"},
-        { GAME, " G ", "GAME" },
-        { OPENINGS, " O ", "OPENINGS" },
-        { PUZZLES, " X ", "PUZZLES" }
-    };
-
-    for (size_t i = 0; i < items.size(); ++i) {
-        int itemY = startY + (i * itemSpacing);
-        Rectangle btnRec = { 5, (float)itemY, (float)(currentWidth - 10), (float)btnHeight };
-        
-        bool isItemHovered = CheckCollisionPointRec(mousePos, btnRec);
-        Color btnColor = (g_ctx->active_menu == items[i].mode) ? Fade(GOLD, 0.3f) :
-                        (isItemHovered && g_ctx->sidebarhovered) ? Fade(WHITE, 0.1f) : BLANK;
-
-        DrawRectangleRec(btnRec, btnColor);
-
-        DrawText(items[i].icon, iconPadding, itemY + 12, 20, RAYWHITE);
-        if (showText) {
-            DrawText(items[i].label, 50, itemY + 14, 16, RAYWHITE);
-        }
-        if (isItemHovered && canClickEarly) {
-            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-                g_ctx->active_menu = items[i].mode;
-            }
-        }
-    }
-    int bottomY = Config::WINDOW_HEIGHT - 70;
-    Rectangle settingsRec = { 5, (float)bottomY, (float)(currentWidth - 10), (float)btnHeight };
-    
-    bool isSettingsHovered = CheckCollisionPointRec(mousePos, settingsRec);
-    Color settingsBtnColor = (g_ctx->active_menu == SETTINGS) ? Fade(GOLD, 0.3f) : 
-                             (isSettingsHovered && g_ctx->sidebarhovered) ? Fade(WHITE, 0.1f) : BLANK;
-
-    DrawRectangleRec(settingsRec, settingsBtnColor);
-    DrawText(" S ", iconPadding, bottomY + 12, 20, RAYWHITE);
-
-    if (isFullyOpen) {
-        DrawText("SETTINGS", 50, bottomY + 14, 16, RAYWHITE);
-        if (isSettingsHovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-            g_ctx->active_menu = SETTINGS;
-        }
-    }
-}
 namespace ChessEngine {
 
     inline bool IsValidCoord(int r, int c) {
@@ -1540,15 +1581,13 @@ namespace CanvasRenderer {
             Vector2 vSize = MeasureTextSmooth(viewStr.c_str(), 14.0f);
             DrawTextSmooth(viewStr.c_str(), (float)Config::PANEL_X + 25 + (Config::PANEL_WIDTH - 50 - vSize.x)/2, warning_info_y+4, 14.0f, Config::COLOR_FRAME_DARK);
         } else {
-            if (g_ctx->fiftymovecounter){
             char stats[128];
             snprintf(stats, sizeof(stats), "50 Move Rule: %d / 50", (int)std::round(g_ctx->board->halfmove_clock/2.1)); //2.1 to avoid rounding up .5
             DrawTextSmooth(stats, (float)Config::PANEL_X + 30, warning_info_y, 14.0f, Config::COLOR_UI_TEXT_DIM);
-            }
-            if (g_ctx->threefoldcounter){
+
             if (repCount == 2) {
                 DrawTextSmooth("[!] 3-Fold Warning (2x Same)", (float)Config::PANEL_X + Config::PANEL_WIDTH-200, warning_info_y, 14.0f, Config::COLOR_GEM_GLINT);
-            }}
+            }
         }
 
         g_ctx->btnFirst->Draw();
@@ -1696,15 +1735,15 @@ namespace CanvasRenderer {
                 Config::TILE_SIZE
             );
         }
-        if (g_ctx->boardmarkings){
-            for (int i = 0; i < 8; ++i) {
-                char fileStr[2] = { (char)('a' + i), '\0' };
-                char rankStr[2] = { (char)('8' - i), '\0' };
 
-                DrawTextSmooth(fileStr, (float)Config::BOARD_OFFSET_X + i * Config::TILE_SIZE + Config::TILE_SIZE-10, (float)Config::BOARD_OFFSET_Y + 8 * Config::TILE_SIZE - 17, 15.0f, Config::BOARD_MARKINGS_TEXT);
-                DrawTextSmooth(rankStr, (float)Config::BOARD_OFFSET_X+3, (float)Config::BOARD_OFFSET_Y + i * Config::TILE_SIZE + 3, 15.0f,Config::BOARD_MARKINGS_TEXT);
-            }
+        for (int i = 0; i < 8; ++i) {
+            char fileStr[2] = { (char)('a' + i), '\0' };
+            char rankStr[2] = { (char)('8' - i), '\0' };
+
+            DrawTextSmooth(fileStr, (float)Config::BOARD_OFFSET_X + i * Config::TILE_SIZE + Config::TILE_SIZE-10, (float)Config::BOARD_OFFSET_Y + 8 * Config::TILE_SIZE - 17, 15.0f, Config::BOARD_MARKINGS_TEXT);
+            DrawTextSmooth(rankStr, (float)Config::BOARD_OFFSET_X+3, (float)Config::BOARD_OFFSET_Y + i * Config::TILE_SIZE + 3, 15.0f,Config::BOARD_MARKINGS_TEXT);
         }
+
         if (g_ctx->board->is_promoting) {
             DrawRectangle(0, 0, Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT, Color{ 10, 5, 2, 180 });
             
@@ -1990,151 +2029,26 @@ namespace TickEngine {
     }
 }
 
-void DrawSettingsCheckbox(const char* label, bool* variablePointer, int x, int y, Vector2 mousePos) {
-    DrawTextSmooth(label, x, y, 20.0f, Color{ 215, 195, 140, 255 });
 
-    int boxX = x + 350; 
-    Rectangle boxRec = { (float)boxX, (float)y - 4, 28.0f, 28.0f };
-    bool isHovered = CheckCollisionPointRec(mousePos, boxRec);
-
-    DrawRectangleRec(boxRec, isHovered ? Color{ 45, 45, 48, 255 } : Color{ 24, 24, 26, 255 });
-    DrawRectangleLinesEx(boxRec, 2, isHovered ? GOLD : Color{ 80, 75, 70, 255 });
-
-    if (*variablePointer == true) {
-        DrawRectangle(boxRec.x + 6, boxRec.y + 6, 16, 16, GOLD);
-    }
-
-    if (isHovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-        *variablePointer = !(*variablePointer); 
-    }
-}
-
-void DrawSettingsMenu(Vector2 mousePos) {
-
-    int paneX = 200;
-    int paneY = 80;
-    int paneWidth = Config::WINDOW_WIDTH - 300;
-    int paneHeight = Config::WINDOW_HEIGHT - 160;
-
-    DrawRectangle(paneX, paneY, paneWidth, paneHeight, Config::COLOR_UI_PANEL_BG);
-    DrawRectangleLinesEx(Rectangle{ (float)paneX, (float)paneY, (float)paneWidth, (float)paneHeight }, 3, Config::COLOR_LEAF_LIGHT);
-    
-    DrawTextSmooth("SETTINGS", paneX + 40, paneY + 30, 32.0f, Color{ 215, 195, 140, 255 }); // Warm Parchment Gold
-    DrawLineEx(Vector2{ (float)paneX + 40, (float)paneY + 75 }, Vector2{ (float)paneX + paneWidth - 40, (float)paneY + 75 }, 2, Config::COLOR_LEAF_LIGHT);
-
-    int startY = paneY + 110;
-    int labelX = paneX + 60;
-    int labelXright = paneX +60+ paneWidth/2;
-    int controlX = paneX + 400;
-
-    float minVal = 0.0f;
-    float maxVal = 1.0f;
-    
-    DrawTextSmooth("Master Volume", labelX, startY, 20.0f, RAYWHITE);
-    
-    int sliderWidth = 300;
-    int sliderHeight = 10;
-    Rectangle sliderBar = { (float)controlX, (float)startY + 6, (float)sliderWidth, (float)sliderHeight };
-    DrawRectangleRec(sliderBar, Color{ 45, 45, 48, 255 }); 
-    DrawRectangleLinesEx(sliderBar, 1, Color{ 90, 85, 80, 255 });
-
-    float currentPercentage = (g_ctx->masterVolume - minVal) / (maxVal - minVal);
-    int handleX = sliderBar.x + (currentPercentage * sliderWidth);
-    Rectangle sliderHandle = { (float)handleX - 8, (float)startY, 16, 22 };
-
-    DrawRectangle(sliderBar.x, sliderBar.y, handleX - sliderBar.x, sliderHeight, Color{ 180, 160, 110, 255 });
-
-    bool sliderHover = CheckCollisionPointRec(mousePos, sliderBar) || CheckCollisionPointRec(mousePos, sliderHandle);
-    DrawRectangleRec(sliderHandle, sliderHover ? Color{ 230, 210, 160, 255 } : Color{ 140, 125, 95, 255 });
-
-    if (sliderHover && IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
-        float mouseXRelative = mousePos.x - sliderBar.x;
-        if (mouseXRelative < 0) mouseXRelative = 0;
-        if (mouseXRelative > sliderWidth) mouseXRelative = sliderWidth;
-        
-        g_ctx->masterVolume = minVal + (mouseXRelative / sliderWidth) * (maxVal - minVal);
-    }
-
-    DrawTextSmooth(TextFormat("%d%%", (int)(g_ctx->masterVolume * 100)), controlX + sliderWidth + 25, startY, 18.0f, Color{ 180, 160, 110, 255 });
-
-    int row2Y = startY + 50;
-    DrawSettingsCheckbox("High Contrast (unimplemented)", &g_ctx->highcontrast, labelX, row2Y, mousePos);
-    DrawSettingsCheckbox("Board Markings", &g_ctx->boardmarkings, labelXright, row2Y, mousePos);
-    std::vector<Color> availableColors = { MAROON, LIME, DARKBLUE, ORANGE, PURPLE };
-    int boxSize = 35;
-    int boxSpacing = 15;
-
-    int row3Y = row2Y + 50;
-    DrawSettingsCheckbox("50 Move Counter", &g_ctx->fiftymovecounter, labelX, row3Y, mousePos);
-    DrawSettingsCheckbox("Three Fold Counter", &g_ctx->threefoldcounter, labelXright, row3Y, mousePos);
-    int row4Y = row3Y + 50;
-    DrawSettingsCheckbox("placeholder", &g_ctx->highcontrast, labelXright, row4Y, mousePos);
-    DrawSettingsCheckbox("placeholder", &g_ctx->highcontrast, labelXright, row4Y, mousePos);
-
-    int btnY = paneY + paneHeight - 75;
-    Rectangle backBtn = { (float)(paneX + (paneWidth / 2) - 100), (float)btnY, 200.0f, 45.0f };
-    bool backHover = CheckCollisionPointRec(mousePos, backBtn);
-
-    DrawRectangleRec(backBtn, backHover ? Color{ 42, 40, 38, 255 } : Color{ 34, 32, 30, 255 });
-    DrawRectangleLinesEx(backBtn, 2, backHover ? GOLD : Color{ 100, 95, 90, 255 });
-    
-    DrawTextSmooth("CONFIRM", backBtn.x + (backBtn.width / 2) - 40, backBtn.y + 12, 18.0f, backHover ? GOLD : Color{ 215, 195, 140, 255 });
-
-    if (backHover && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-        g_ctx->active_menu = GAME; 
-    }
-}
-
-void UpdateDrawFrame() { // rendering
+void UpdateDrawFrame() { //rendering
     float dt = GetFrameTime();
-    Vector2 rawMousePos = GetMousePosition();
-    Vector2 mousePos = {
-        rawMousePos.x * ((float)Config::WINDOW_WIDTH / (float)GetScreenWidth()),
-        rawMousePos.y * ((float)Config::WINDOW_HEIGHT / (float)GetScreenHeight())
-    };
 
     TickEngine::UpdateAnimations(dt);
-    if (mousePos.x > g_ctx->sidebarWidth) {
-        TickEngine::ProcessInput();
-    }
-    
-    BeginTextureMode(g_ctx->targetScreen);
-    ClearBackground(Color{ 18, 12, 10, 255 });
-    DrawTexturePro(
-    g_ctx->backgroundTexture,
-    Rectangle{ 0, 0, (float)g_ctx->backgroundTexture.width, (float)g_ctx->backgroundTexture.height },
-    Rectangle{ 0, 0, (float)Config::WINDOW_WIDTH, (float)Config::WINDOW_HEIGHT },
-    Vector2{ 0, 0 },
-    0.0f,
-    Color{ 255, 255, 255, 90});
-    
+    TickEngine::ProcessInput();
 
-    switch (g_ctx->active_menu) {
-        case PLAY:
-            break;
-        case SETTINGS:
-            DrawRectangle(0, 0, Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT, Fade(BLACK, 0.6f));
-            DrawSettingsMenu(mousePos);
-            break;
-        case PUZZLES:
-            
-            CanvasRenderer::DrawChessboard();
-            DrawTextSmooth("OFFLINE TACTICS / PUZZLES", 250.0f, 200.0f, 32.0f, RAYWHITE);
-            break;
-        case OPENINGS:
-            DrawRectangle(0, 0, Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT, Fade(BLACK, 0.6f));
-            DrawTextSmooth("LOCAL OPENING STUDY BOOK", 250.0f, 200.0f, 32.0f, RAYWHITE);
-            break;
-        case GAME:
-            CanvasRenderer::DrawGameMetrics(); 
-            CanvasRenderer::DrawChessboard();
-            break;
-        default:
-            break;
-    }
-    
-    DrawCollapsibleSidebar(mousePos);
-    DrawTextSmooth(TextFormat("%d", GetFPS()), 25.0f, 20.0f, 24.0f, Config::COLOR_LEAF_LIGHT);
+    BeginTextureMode(g_ctx->targetScreen);
+        DrawTexturePro(
+            g_ctx->backgroundTexture,
+            Rectangle{ 0, 0, (float)g_ctx->backgroundTexture.width, (float)g_ctx->backgroundTexture.height },
+            Rectangle{ 0, 0, (float)Config::WINDOW_WIDTH, (float)Config::WINDOW_HEIGHT },
+            Vector2{ 0, 0 },
+            0.0f,
+            Color{ 255, 255, 255, 90 }
+        );
+        ClearBackground(Color{ 18, 12, 10, 255 });
+        CanvasRenderer::DrawGameMetrics(); 
+        CanvasRenderer::DrawChessboard();
+        DrawTextSmooth(TextFormat("%d", GetFPS()), 25.0f, 20.0f, 24.0f, Config::COLOR_LEAF_LIGHT);
     EndTextureMode();
 
     BeginDrawing();
