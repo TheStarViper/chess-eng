@@ -1,6 +1,5 @@
-
-SRC = src/main.cpp $(wildcard src/graphics/*.cpp)
-
+# mingw32-make
+SRC = $(wildcard src/*.cpp) $(wildcard src/graphics/*.cpp)
 INC = -Isrc -Iinclude -Iinclude/graphics -I"C:/raylib/raylib/src"
 
 

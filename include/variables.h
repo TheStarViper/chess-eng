@@ -92,6 +92,92 @@ enum Menus {
     OPENINGS };
 
 
+    
+struct ChessPiece {
+    PieceType type;
+    std::string color; 
+    bool has_moved;    
+
+    ChessPiece(PieceType t, std::string col) : type(t), color(col), has_moved(false) {}
+};
+
+struct GridData {
+    bool has_piece;
+    std::shared_ptr<ChessPiece> piece;
+
+    GridData() : has_piece(false), piece(nullptr) {}
+    GridData(std::shared_ptr<ChessPiece> p) : has_piece(p != nullptr), piece(p) {}
+};
+
+struct Puzzle{
+    std::string puzzleid;
+    std::string gameid;
+    std::string boardsetup;
+    std::string solution;
+    int rating;
+};
+
+struct BoardState {
+    GridData grid[8][8];
+    std::string turn;
+    
+    bool white_king_side_castle;
+    bool white_queen_side_castle;
+    bool black_king_side_castle;
+    bool black_queen_side_castle;
+    
+    std::pair<int, int> en_passant_square;
+    int halfmove_clock; 
+    int fullmove_number;
+
+    std::pair<int, int> last_move_from{-1, -1};
+    std::pair<int, int> last_move_to{-1, -1};
+    bool in_check = false;
+    std::pair<int, int> check_king_pos{-1, -1};
+    int repetition_count = 1;
+
+    bool operator==(const BoardState& other) const {
+        for (int r = 0; r < 8; ++r) {
+            for (int c = 0; c < 8; ++c) {
+                if (grid[r][c].has_piece != other.grid[r][c].has_piece) return false;
+                if (grid[r][c].has_piece) {
+                    if (grid[r][c].piece->type != other.grid[r][c].piece->type ||
+                        grid[r][c].piece->color != other.grid[r][c].piece->color) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return turn == other.turn &&
+               white_king_side_castle == other.white_king_side_castle &&
+               white_queen_side_castle == other.white_queen_side_castle &&
+               black_king_side_castle == other.black_king_side_castle &&
+               black_queen_side_castle == other.black_queen_side_castle &&
+               en_passant_square == other.en_passant_square;
+    }
+};
+
+struct HistorySnapshot {
+    std::string notation; 
+    BoardState board_state;
+};
+
+struct PieceAnimation {
+    bool active;
+    std::shared_ptr<ChessPiece> piece;
+    Vector2 startPos; 
+    Vector2 currentPos;
+    Vector2 endPos;
+    float elapsedTime;
+    int targetRow;
+    int targetCol;
+};
+
+struct HistoryState {
+    bool useLive;            
+    int viewingIndex;       
+};
+
 //asset file paths
 std::string puzzlefilepath = "assets/puzzles.csv";
 const char * hoversoundfilepath = "assets/sfx/hover.ogg";

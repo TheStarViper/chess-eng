@@ -54,90 +54,6 @@ std::string ResolveAssetPath(const std::string& relativePath) {
 }
 
 
-struct ChessPiece {
-    PieceType type;
-    std::string color; 
-    bool has_moved;    
-
-    ChessPiece(PieceType t, std::string col) : type(t), color(col), has_moved(false) {}
-};
-
-struct GridData {
-    bool has_piece;
-    std::shared_ptr<ChessPiece> piece;
-
-    GridData() : has_piece(false), piece(nullptr) {}
-    GridData(std::shared_ptr<ChessPiece> p) : has_piece(p != nullptr), piece(p) {}
-};
-
-struct Puzzle{
-    std::string puzzleid;
-    std::string gameid;
-    std::string boardsetup;
-    std::string solution;
-    int rating;
-};
-
-struct BoardState {
-    GridData grid[8][8];
-    std::string turn;
-    
-    bool white_king_side_castle;
-    bool white_queen_side_castle;
-    bool black_king_side_castle;
-    bool black_queen_side_castle;
-    
-    std::pair<int, int> en_passant_square;
-    int halfmove_clock; 
-    int fullmove_number;
-
-    std::pair<int, int> last_move_from{-1, -1};
-    std::pair<int, int> last_move_to{-1, -1};
-    bool in_check = false;
-    std::pair<int, int> check_king_pos{-1, -1};
-    int repetition_count = 1;
-
-    bool operator==(const BoardState& other) const {
-        for (int r = 0; r < 8; ++r) {
-            for (int c = 0; c < 8; ++c) {
-                if (grid[r][c].has_piece != other.grid[r][c].has_piece) return false;
-                if (grid[r][c].has_piece) {
-                    if (grid[r][c].piece->type != other.grid[r][c].piece->type ||
-                        grid[r][c].piece->color != other.grid[r][c].piece->color) {
-                        return false;
-                    }
-                }
-            }
-        }
-        return turn == other.turn &&
-               white_king_side_castle == other.white_king_side_castle &&
-               white_queen_side_castle == other.white_queen_side_castle &&
-               black_king_side_castle == other.black_king_side_castle &&
-               black_queen_side_castle == other.black_queen_side_castle &&
-               en_passant_square == other.en_passant_square;
-    }
-};
-
-struct HistorySnapshot {
-    std::string notation; 
-    BoardState board_state;
-};
-
-struct PieceAnimation {
-    bool active;
-    std::shared_ptr<ChessPiece> piece;
-    Vector2 startPos; 
-    Vector2 currentPos;
-    Vector2 endPos;
-    float elapsedTime;
-    int targetRow;
-    int targetCol;
-};
-
-struct HistoryState {
-    bool useLive;            
-    int viewingIndex;       
-};
 
 
 struct GameContext;
@@ -375,6 +291,7 @@ struct GameContext {
     Menus active_menu;
     float sidebarWidth = (float)Config::SIDEBAR_MIN_WIDTH; 
     bool sidebarhovered;
+    Puzzle cachedpuzzle;
     std::vector<std::pair<int, int>> cached_legal_moves;
 
     std::unique_ptr<Button> btnResign;
@@ -1252,6 +1169,66 @@ void DrawChessPiece(PieceType type, std::string color, int x, int y, int size) {
     VectorRenderer::DrawChessPieceVector(type, color, x, y, size); //fallback to vector bad looking if sprites fail to load
 }
 
+BoardState ParseFenToState(const std::string& fen) {
+    BoardState newState;
+    std::stringstream ss(fen);
+    std::string pieces, turn, castling, en_passant;
+    int halfmove = 0, fullmove = 1;
+
+    ss >> pieces >> turn >> castling >> en_passant;
+    if (ss >> halfmove) ss >> fullmove;
+
+    int row = 0;
+    int col = 0; 
+    
+    for (char c : pieces) {
+        if (c == '/') {
+            row++;
+            col = 0;
+        } else if (std::isdigit(c)) {
+            int empty_spaces = c - '0';
+            for (int i = 0; i < empty_spaces; ++i) {
+                newState.grid[row][col] = GridData(); 
+                col++;
+            }
+        } else {
+            bool isWhite = std::isupper(c);
+            char typeChar = std::toupper(c);
+            
+            PieceType type = PieceType::PAWN; 
+            if (typeChar == 'P') type = PieceType::PAWN;
+            else if (typeChar == 'N') type = PieceType::KNIGHT;
+            else if (typeChar == 'B') type = PieceType::BISHOP;
+            else if (typeChar == 'R') type = PieceType::ROOK;
+            else if (typeChar == 'Q') type = PieceType::QUEEN;
+            else if (typeChar == 'K') type = PieceType::KING;
+
+            std::string colorStr = isWhite ? "WHITE" : "BLACK";
+            auto new_piece = std::make_shared<ChessPiece>(type, colorStr);
+
+            newState.grid[row][col] = GridData(new_piece);
+            col++;
+        }
+    }
+    if (turn =="w"){newState.turn="WHITE";} else {newState.turn="BLACK";}
+    newState.white_king_side_castle = (castling.find('K') != std::string::npos);
+    newState.white_queen_side_castle = (castling.find('Q') != std::string::npos);
+    newState.black_king_side_castle = (castling.find('k') != std::string::npos);
+    newState.black_queen_side_castle = (castling.find('q') != std::string::npos);
+
+    if (en_passant == "-") {
+        newState.en_passant_square = {-1, -1};
+    } else {
+        int ep_col = en_passant[0] - 'a';
+        int ep_row = 8 - (en_passant[1] - '0');
+        newState.en_passant_square = {ep_row, ep_col};
+    }
+
+    newState.halfmove_clock = halfmove;
+    newState.fullmove_number = fullmove;
+
+    return newState;
+}
 namespace CanvasRenderer {
 
     void DrawCapturedTrays(BoardState& displayState) {
@@ -1513,6 +1490,18 @@ namespace CanvasRenderer {
 
     }
 
+    void draw_board_markings(){
+        if (g_ctx->boardmarkings){
+            for (int i = 0; i < 8; ++i) {
+                char fileStr[2] = { (char)('a' + i), '\0' };
+                char rankStr[2] = { (char)('8' - i), '\0' };
+
+                DrawTextSmooth(fileStr, (float)Config::BOARD_OFFSET_X + i * Config::TILE_SIZE + Config::TILE_SIZE-10, (float)Config::BOARD_OFFSET_Y + 8 * Config::TILE_SIZE - 17, 15.0f, Config::BOARD_MARKINGS_TEXT);
+                DrawTextSmooth(rankStr, (float)Config::BOARD_OFFSET_X+3, (float)Config::BOARD_OFFSET_Y + i * Config::TILE_SIZE + 3, 15.0f,Config::BOARD_MARKINGS_TEXT);
+            }
+        }
+    }
+
     void DrawChessboard() {
         BoardState displayState;
         if (g_ctx->historyView.useLive) {
@@ -1525,7 +1514,7 @@ namespace CanvasRenderer {
                 displayState = g_ctx->board->CaptureState();
             }
         }
-
+    
         DrawCapturedTrays(displayState);
 
         std::pair<int, int> checkKingSquare = displayState.check_king_pos;
@@ -1633,15 +1622,7 @@ namespace CanvasRenderer {
                 Config::TILE_SIZE
             );
         }
-        if (g_ctx->boardmarkings){
-            for (int i = 0; i < 8; ++i) {
-                char fileStr[2] = { (char)('a' + i), '\0' };
-                char rankStr[2] = { (char)('8' - i), '\0' };
-
-                DrawTextSmooth(fileStr, (float)Config::BOARD_OFFSET_X + i * Config::TILE_SIZE + Config::TILE_SIZE-10, (float)Config::BOARD_OFFSET_Y + 8 * Config::TILE_SIZE - 17, 15.0f, Config::BOARD_MARKINGS_TEXT);
-                DrawTextSmooth(rankStr, (float)Config::BOARD_OFFSET_X+3, (float)Config::BOARD_OFFSET_Y + i * Config::TILE_SIZE + 3, 15.0f,Config::BOARD_MARKINGS_TEXT);
-            }
-        }
+        draw_board_markings();
         if (g_ctx->board->is_promoting) {
             DrawRectangle(0, 0, Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT, Color{ 10, 5, 2, 180 });
             
@@ -1953,7 +1934,7 @@ void DrawSettingsMenu(Vector2 mousePos) {
     DrawRectangle(paneX, paneY, paneWidth, paneHeight, Config::COLOR_UI_PANEL_BG);
     DrawRectangleLinesEx(Rectangle{ (float)paneX, (float)paneY, (float)paneWidth, (float)paneHeight }, 3, Config::COLOR_LEAF_LIGHT);
     
-    DrawTextSmooth("SETTINGS", paneX + 40, paneY + 30, 32.0f, Color{ 215, 195, 140, 255 }); // Warm Parchment Gold
+    DrawTextSmooth("SETTINGS", paneX + 40, paneY + 30, 32.0f, Color{ 215, 195, 140, 255 });
     DrawLineEx(Vector2{ (float)paneX + 40, (float)paneY + 75 }, Vector2{ (float)paneX + paneWidth - 40, (float)paneY + 75 }, 2, Config::COLOR_LEAF_LIGHT);
 
     int startY = paneY + 110;
@@ -2019,6 +2000,9 @@ void DrawSettingsMenu(Vector2 mousePos) {
     }
 }
 
+
+std::vector<unsigned char> g_fileDataBuffer;
+
 void load_puzzles() {
     int dataSize = 0;
     unsigned char *fileData = LoadFileData(puzzlefilepath.c_str(), &dataSize);
@@ -2042,35 +2026,48 @@ void load_puzzles() {
         return;
     }
 
+    g_fileDataBuffer.assign(fileData, fileData + fileSize);
+    UnloadFileData(fileData);
+    
+    TraceLog(LOG_INFO, "CSV_LOADER: Successfully loaded puzzle file into memory.");
+}
+
+Puzzle get_random_puzzle() {
+    Puzzle selectedpuzzle{};
+
+    if (g_fileDataBuffer.empty()) {
+        TraceLog(LOG_ERROR, "CSV_LOADER: Cannot get puzzle. Buffer is empty. Did you call load_puzzles()?");
+        return selectedpuzzle;
+    }
+
+    size_t fileSize = g_fileDataBuffer.size();
     size_t randomOffset = rand() % (fileSize - 250);
 
     size_t startPos = randomOffset;
-    while (startPos < fileSize && fileData[startPos] != '\n') {
+    while (startPos < fileSize && g_fileDataBuffer[startPos] != '\n') {
         startPos++;
     }
     startPos++;
 
     if (startPos >= fileSize - 10) {
         startPos = 0;
-        while (startPos < fileSize && fileData[startPos] != '\n') {
+        while (startPos < fileSize && g_fileDataBuffer[startPos] != '\n') {
             startPos++;
         }
         startPos++;
     }
 
     size_t endPos = startPos;
-    while (endPos < fileSize && fileData[endPos] != '\n') {
+    while (endPos < fileSize && g_fileDataBuffer[endPos] != '\n') {
         endPos++;
     }
 
-    std::string line(reinterpret_cast<char*>(&fileData[startPos]), endPos - startPos);
-    
-    UnloadFileData(fileData);
+    std::string line(reinterpret_cast<char*>(&g_fileDataBuffer[startPos]), endPos - startPos);
 
     line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
     if (line.empty()) {
         TraceLog(LOG_ERROR, "CSV_LOADER: Landed on empty row string slice.");
-        return;
+        return selectedpuzzle;
     }
 
     std::vector<std::string> row;
@@ -2098,7 +2095,6 @@ void load_puzzles() {
     }
 
     if (row.size() == 5) {
-        Puzzle selectedpuzzle;
         selectedpuzzle.puzzleid = row[0];
         selectedpuzzle.gameid = row[1];
         selectedpuzzle.boardsetup = row[2];
@@ -2113,11 +2109,11 @@ void load_puzzles() {
         TraceLog(LOG_INFO, "Setup:     %s", selectedpuzzle.boardsetup.c_str());
         TraceLog(LOG_INFO, "Solution:  %s", selectedpuzzle.solution.c_str());
         TraceLog(LOG_INFO, "Rating:    %d", selectedpuzzle.rating);
- 
-
     } else {
         TraceLog(LOG_ERROR, "CSV_LOADER: Extracted line slice was invalid.");
     }
+
+    return selectedpuzzle;
 }
 
 
@@ -2132,10 +2128,21 @@ void UpdateDrawFrame() { // rendering
     if (!g_puzzlesLoaded) {
         load_puzzles();
         g_puzzlesLoaded = true;
+        g_ctx->cachedpuzzle = get_random_puzzle();
+        BoardState puzzleState = ParseFenToState(g_ctx->cachedpuzzle.boardsetup);
+        
+        g_ctx->board->move_history.clear();
+        for (int r = 0; r < 8; ++r) {
+            for (int c = 0; c < 8; ++c) {
+                g_ctx->board->grid[r][c] = puzzleState.grid[r][c]; 
+            }
+        }
+        g_ctx->active_turn_id = (puzzleState.turn == "WHITE") ? 0 : 1;
+        g_ctx->historyView.useLive = true;
+        g_ctx->historyView.viewingIndex = -1;
     }
     if (audio_loaded && IsKeyPressed(KEY_B)) {
         
-        // WEB SAFEGUARD: Ensure the browser hasn't suspended the audio state
         #if defined(PLATFORM_WEB)
         if (!IsAudioDeviceReady()) {
             InitAudioDevice(); 
@@ -2153,33 +2160,19 @@ void UpdateDrawFrame() { // rendering
     
     BeginTextureMode(g_ctx->targetScreen);
     ClearBackground(Color{ 18, 12, 10, 255 });
-    if (g_ctx->active_menu == SETTINGS){
-        DrawTexturePro(
-        g_ctx->backgroundTexture,
-        Rectangle{ 0, 0, (float)g_ctx->backgroundTexture.width, (float)g_ctx->backgroundTexture.height },
-        Rectangle{ 0, 0, (float)Config::WINDOW_WIDTH, (float)Config::WINDOW_HEIGHT },
-        Vector2{ 0, 0 },
-        0.0f,
-        Color{ 255, 255, 255, 50}
+    DrawTexturePro(
+    g_ctx->backgroundTexture,
+    Rectangle{ 0, 0, (float)g_ctx->backgroundTexture.width, (float)g_ctx->backgroundTexture.height },
+    Rectangle{ 0, 0, (float)Config::WINDOW_WIDTH, (float)Config::WINDOW_HEIGHT },
+    Vector2{ 0, 0 },
+    0.0f,
+    Color{ 255, 255, 255, 90}
     );
-    } else {
-        DrawTexturePro(
-        g_ctx->backgroundTexture,
-        Rectangle{ 0, 0, (float)g_ctx->backgroundTexture.width, (float)g_ctx->backgroundTexture.height },
-        Rectangle{ 0, 0, (float)Config::WINDOW_WIDTH, (float)Config::WINDOW_HEIGHT },
-        Vector2{ 0, 0 },
-        0.0f,
-        Color{ 255, 255, 255, 90}
-    );
-    }
-    
-
-    
-
     switch (g_ctx->active_menu) {
         case PLAY:
             break;
         case SETTINGS:
+            DrawRectangle(0, 0, Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT, Fade(BLACK, 0.2f));
             DrawSettingsMenu(mousePos);
             break;
         case PUZZLES:
