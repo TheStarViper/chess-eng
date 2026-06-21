@@ -1,6 +1,7 @@
 #include "raylib.h"
-#include "rlgl.h"
+#include "variables.h" 
 #include "main.hpp"
+#include "graphics/vector_renderer.hpp"
 #include <iostream>
 #include <vector>
 #include <string>
@@ -10,45 +11,14 @@
 #include <sstream>
 #include <map>
 #include <utility>
-
+#include <fstream>
+#include <sstream>
+#include <random>
 
 #if defined(PLATFORM_WEB)
     #include <emscripten/emscripten.h>
 #endif
 
-
-
-#define P_WHITE "WHITE"
-#define P_BLACK "BLACK"
-
-enum PieceType {
-    NONE = 0,
-    PAWN,
-    KNIGHT,
-    BISHOP,
-    ROOK,
-    QUEEN,
-    KING
-};
-
-enum GameState {
-    STATE_PLAYING,
-    STATE_PROMOTING,
-    STATE_CHECKMATE,
-    STATE_STALEMATE,
-    STATE_DRAW_REPETITION,
-    STATE_DRAW_50_MOVES,
-    STATE_DRAW_MATERIAL,
-    STATE_RESIGNED,
-    STATE_MUTUAL_DRAW
-};
-
-enum Menus { 
-    PLAY,
-    GAME, 
-    SETTINGS, 
-    PUZZLES, 
-    OPENINGS };
 
 inline void DrawRectangleRoundedLinesCustom(Rectangle rec, float roundness, int segments, float lineThick, Color color) {
     DrawRectangleRoundedLines(rec, roundness, segments, color);
@@ -79,6 +49,7 @@ std::string ResolveAssetPath(const std::string& relativePath) {
 }
 
 
+struct GameContext;
 struct ChessPiece {
     PieceType type;
     std::string color; 
@@ -156,9 +127,19 @@ struct HistoryState {
     int viewingIndex;       
 };
 
+struct ChessPuzzle {
+    std::string id;
+    std::string metadata;
+    std::string fen;
+    std::vector<std::string> solutionMoves;
+    int rating;
+    bool isBlackToMove;
+};
 
-struct GameContext;
-static std::unique_ptr<GameContext> g_ctx = nullptr;
+
+
+
+std::unique_ptr<GameContext> g_ctx = nullptr;
 
 void DrawTextSmooth(const char* text, float posX, float posY, float fontSize, Color color);
 Vector2 MeasureTextSmooth(const char* text, float fontSize);
@@ -235,8 +216,84 @@ public:
         DrawTextSmooth(label.c_str(), textX, textY, (float)fontSize, textColor);
     }
 };
+class ChessBoard;
+struct GameContext {
+    std::unique_ptr<ChessBoard> board;
+    //SOUNDS
+    Sound hoversound;
 
 
+
+    int lastHoveredLeafId = -1;
+    int lastHoveredBoardPieceTile;
+    int genuineHoveredLeafId = -1;
+    Vector2 mousePosition;
+    int active_turn_id; 
+    float move_log_scroll_ratio;
+    bool isGameRunning;
+    HistoryState historyView;
+    PieceAnimation anim;
+    Texture2D backgroundTexture;
+    std::vector<ChessPuzzle> g_puzzleDatabase;
+    ChessPuzzle g_currentPuzzle;
+    bool g_isPuzzleActive = false;
+    std::map<std::string, Texture2D> pieceSprites; 
+    bool useSprites = false;
+    
+    Font pieceFont;
+    Font uiFont;
+    RenderTexture2D targetScreen; 
+
+    //settings
+    bool showMoveHighlights = true;
+    bool showBoardCoordinates = true;
+    bool fiftymovecounter = false;
+    bool threefoldcounter = false;
+    bool highcontrast = false;
+    bool boardmarkings = true;
+
+    float masterVolume = 0.75f;
+    Menus active_menu;
+    float sidebarWidth = (float)Config::SIDEBAR_MIN_WIDTH; 
+    bool sidebarhovered;
+    std::vector<std::pair<int, int>> cached_legal_moves;
+
+    std::unique_ptr<Button> btnResign;
+    std::unique_ptr<Button> btnDraw;
+    std::unique_ptr<Button> btnPrev;
+    std::unique_ptr<Button> btnNext;
+    std::unique_ptr<Button> btnLive;
+    std::unique_ptr<Button> btnFirst;
+    std::unique_ptr<Button> btnLast;
+    std::unique_ptr<Button> btnOverlayRematch;
+
+    std::vector<std::unique_ptr<Button>> btnPromotionTrays;
+    GameContext();
+    ~GameContext() {
+        UnloadRenderTexture(targetScreen);
+        if (pieceFont.texture.id > 0) {
+            UnloadFont(pieceFont);
+        }
+        if (uiFont.texture.id > 0) {
+            UnloadFont(uiFont);
+        }
+        for (auto& [name, tex] : pieceSprites) {
+            if (tex.id > 0) UnloadTexture(tex);
+        }
+    }
+
+    void ResetPromotionButtons() {
+        btnPromotionTrays.clear();
+        float btnW = 90;
+        float startX = Config::BOARD_OFFSET_X + 4 * Config::TILE_SIZE - (btnW * 4)/2.0f;
+        float startY = Config::BOARD_OFFSET_Y + 4 * Config::TILE_SIZE - 25;
+
+        btnPromotionTrays.push_back(std::make_unique<Button>(Rectangle{ startX, startY, btnW, 50 }, "QUEEN", Config::COLOR_UI_BUTTON, Config::COLOR_UI_BUTTON_HOV, Config::COLOR_UI_TEXT));
+        btnPromotionTrays.push_back(std::make_unique<Button>(Rectangle{ startX + btnW, startY, btnW, 50 }, "ROOK", Config::COLOR_UI_BUTTON, Config::COLOR_UI_BUTTON_HOV, Config::COLOR_UI_TEXT));
+        btnPromotionTrays.push_back(std::make_unique<Button>(Rectangle{ startX + btnW * 2, startY, btnW, 50 }, "BISHOP", Config::COLOR_UI_BUTTON, Config::COLOR_UI_BUTTON_HOV, Config::COLOR_UI_TEXT));
+        btnPromotionTrays.push_back(std::make_unique<Button>(Rectangle{ startX + btnW * 3, startY, btnW, 50 }, "KNIGHT", Config::COLOR_UI_BUTTON, Config::COLOR_UI_BUTTON_HOV, Config::COLOR_UI_TEXT));
+    }
+};
 class ChessBoard {
 public:
     GridData grid[8][8];
@@ -358,59 +415,8 @@ public:
     }
 };
 
+GameContext::GameContext() {
 
-struct GameContext {
-
-    //SOUNDS
-    Sound hoversound;
-
-
-
-    int lastHoveredLeafId = -1;
-    int lastHoveredBoardPieceTile;
-    int genuineHoveredLeafId = -1;  
-    std::unique_ptr<ChessBoard> board;
-    Vector2 mousePosition;
-    int active_turn_id; 
-    float move_log_scroll_ratio;
-    bool isGameRunning;
-    HistoryState historyView;
-    PieceAnimation anim;
-    Texture2D backgroundTexture;
-
-    std::map<std::string, Texture2D> pieceSprites; 
-    bool useSprites = false;
-    
-    Font pieceFont;
-    Font uiFont;
-    RenderTexture2D targetScreen; 
-
-    //settings
-    bool showMoveHighlights = true;
-    bool showBoardCoordinates = true;
-    bool fiftymovecounter = false;
-    bool threefoldcounter = false;
-    bool highcontrast = false;
-    bool boardmarkings = true;
-
-    float masterVolume = 0.75f;
-    Menus active_menu;
-    float sidebarWidth = (float)Config::SIDEBAR_MIN_WIDTH; 
-    bool sidebarhovered;
-    std::vector<std::pair<int, int>> cached_legal_moves;
-
-    std::unique_ptr<Button> btnResign;
-    std::unique_ptr<Button> btnDraw;
-    std::unique_ptr<Button> btnPrev;
-    std::unique_ptr<Button> btnNext;
-    std::unique_ptr<Button> btnLive;
-    std::unique_ptr<Button> btnFirst;
-    std::unique_ptr<Button> btnLast;
-    std::unique_ptr<Button> btnOverlayRematch;
-
-    std::vector<std::unique_ptr<Button>> btnPromotionTrays;
-
-    GameContext() {
         //Sound
         Sound hoversound = LoadSound("assets/sfx/hover.ogg");
 
@@ -472,34 +478,8 @@ struct GameContext {
         btnOverlayRematch = std::make_unique<Button>(Rectangle{ overlayCenterX - 125, Config::BOARD_OFFSET_Y + (Config::TILE_SIZE * 8) / 2.0f + 25, 250, 50 }, "REMATCH", Config::COLOR_LEAF_DARK, Config::COLOR_LEAF_LIGHT, Config::COLOR_UI_TEXT);
 
         ResetPromotionButtons();
-    }
 
-    ~GameContext() {
-        UnloadRenderTexture(targetScreen);
-        if (pieceFont.texture.id > 0) {
-            UnloadFont(pieceFont);
-        }
-        if (uiFont.texture.id > 0) {
-            UnloadFont(uiFont);
-        }
-        for (auto& [name, tex] : pieceSprites) {
-            if (tex.id > 0) UnloadTexture(tex);
-        }
-    }
-
-    void ResetPromotionButtons() {
-        btnPromotionTrays.clear();
-        float btnW = 90;
-        float startX = Config::BOARD_OFFSET_X + 4 * Config::TILE_SIZE - (btnW * 4)/2.0f;
-        float startY = Config::BOARD_OFFSET_Y + 4 * Config::TILE_SIZE - 25;
-
-        btnPromotionTrays.push_back(std::make_unique<Button>(Rectangle{ startX, startY, btnW, 50 }, "QUEEN", Config::COLOR_UI_BUTTON, Config::COLOR_UI_BUTTON_HOV, Config::COLOR_UI_TEXT));
-        btnPromotionTrays.push_back(std::make_unique<Button>(Rectangle{ startX + btnW, startY, btnW, 50 }, "ROOK", Config::COLOR_UI_BUTTON, Config::COLOR_UI_BUTTON_HOV, Config::COLOR_UI_TEXT));
-        btnPromotionTrays.push_back(std::make_unique<Button>(Rectangle{ startX + btnW * 2, startY, btnW, 50 }, "BISHOP", Config::COLOR_UI_BUTTON, Config::COLOR_UI_BUTTON_HOV, Config::COLOR_UI_TEXT));
-        btnPromotionTrays.push_back(std::make_unique<Button>(Rectangle{ startX + btnW * 3, startY, btnW, 50 }, "KNIGHT", Config::COLOR_UI_BUTTON, Config::COLOR_UI_BUTTON_HOV, Config::COLOR_UI_TEXT));
-    }
-};
-
+}
 void DrawTextSmooth(const char* text, float posX, float posY, float fontSize, Color color) {
     if (g_ctx && g_ctx->uiFont.texture.id > 0) {
         DrawTextEx(g_ctx->uiFont, text, Vector2{ posX, posY }, fontSize, 1.0f, color);
@@ -1009,290 +989,290 @@ namespace ChessEngine {
 }
 
 
-namespace VectorRenderer {
+// namespace VectorRenderer {
 
-    void DrawLeaf(float x, float y, float size, float angleDegrees) {
-        rlPushMatrix();
-        rlTranslatef(x, y, 0.0f);
-        rlRotatef(angleDegrees, 0.0f, 0.0f, 1.0f);
+//     void DrawLeaf(float x, float y, float size, float angleDegrees) {
+//         rlPushMatrix();
+//         rlTranslatef(x, y, 0.0f);
+//         rlRotatef(angleDegrees, 0.0f, 0.0f, 1.0f);
 
-        DrawEllipse(0, 0, size * 1.1f, size * 0.55f, Config::COLOR_LEAF_DARK);
-        DrawEllipse(-1, -1, size, size * 0.5f, Config::COLOR_LEAF_LIGHT);
-        DrawLineEx(Vector2{ -size * 0.8f, 0 }, Vector2{ size * 0.8f, 0 }, 1.5f, Config::COLOR_LEAF_VEIN);
+//         DrawEllipse(0, 0, size * 1.1f, size * 0.55f, Config::COLOR_LEAF_DARK);
+//         DrawEllipse(-1, -1, size, size * 0.5f, Config::COLOR_LEAF_LIGHT);
+//         DrawLineEx(Vector2{ -size * 0.8f, 0 }, Vector2{ size * 0.8f, 0 }, 1.5f, Config::COLOR_LEAF_VEIN);
         
-        rlPopMatrix();
-    }
+//         rlPopMatrix();
+//     }
 
-    void DrawTileWoodGrain(float x, float y, float w, float h, bool isDark) {
-        Color grainColor = isDark ? Color{ 96, 55, 28, 60 } : Color{ 185, 149, 105, 75 };
+//     void DrawTileWoodGrain(float x, float y, float w, float h, bool isDark) {
+//         Color grainColor = isDark ? Color{ 96, 55, 28, 60 } : Color{ 185, 149, 105, 75 };
     
-        float offset1 = w * 0.25f;
-        float offset2 = w * 0.65f;
-        float offset3 = w * 0.80f;
+//         float offset1 = w * 0.25f;
+//         float offset2 = w * 0.65f;
+//         float offset3 = w * 0.80f;
 
-        DrawLineEx(Vector2{ x + offset1, y + 2 }, Vector2{ x + offset1, y + h - 2 }, 1.2f, grainColor);
-        DrawLineEx(Vector2{ x + offset2, y + 4 }, Vector2{ x + offset2, y + h - 4 }, 1.0f, grainColor);
-        DrawLineEx(Vector2{ x + offset3, y + 3 }, Vector2{ x + offset3, y + h - 3 }, 1.1f, grainColor);
-    }
+//         DrawLineEx(Vector2{ x + offset1, y + 2 }, Vector2{ x + offset1, y + h - 2 }, 1.2f, grainColor);
+//         DrawLineEx(Vector2{ x + offset2, y + 4 }, Vector2{ x + offset2, y + h - 4 }, 1.0f, grainColor);
+//         DrawLineEx(Vector2{ x + offset3, y + 3 }, Vector2{ x + offset3, y + h - 3 }, 1.1f, grainColor);
+//     }
 
-    void DrawOvergrownVines(int boardX, int boardY, float boardSize) {
-        Vector2 mousePos = GetMousePosition();
-        int currentLeafId = 0;
-        int hoveredLeafThisFrame = -1;
+//     void DrawOvergrownVines(int boardX, int boardY, float boardSize) {
+//         Vector2 mousePos = GetMousePosition();
+//         int currentLeafId = 0;
+//         int hoveredLeafThisFrame = -1;
 
-        auto UpdateAndDrawLeaf = [&](float x, float y, float size, float angleDegrees) {
-            int id = currentLeafId++;
-            float finalSize = size;
+//         auto UpdateAndDrawLeaf = [&](float x, float y, float size, float angleDegrees) {
+//             int id = currentLeafId++;
+//             float finalSize = size;
 
-            float hoverRadius = size * 1.2f; 
-            bool isHovered = CheckCollisionPointCircle(mousePos, Vector2{ x, y }, hoverRadius);
+//             float hoverRadius = size * 1.2f; 
+//             bool isHovered = CheckCollisionPointCircle(mousePos, Vector2{ x, y }, hoverRadius);
 
-            if (isHovered) {
-                hoveredLeafThisFrame = id;
-                finalSize = size * 1.30f;
+//             if (isHovered) {
+//                 hoveredLeafThisFrame = id;
+//                 finalSize = size * 1.30f;
 
-                if (g_ctx->lastHoveredLeafId != id) {
-                    PlaySound(g_ctx->hoversound);
-                }
-            }
+//                 if (g_ctx->lastHoveredLeafId != id) {
+//                     PlaySound(g_ctx->hoversound);
+//                 }
+//             }
 
-            DrawLeaf(x, y, finalSize, angleDegrees);
-        };
+//             DrawLeaf(x, y, finalSize, angleDegrees);
+//         };
 
-        //TOP
-        // --- BOARD TOP LEAVES ---
-        UpdateAndDrawLeaf((float)boardX + 75,  (float)boardY - 6,  14, -15);
-        UpdateAndDrawLeaf((float)boardX + 95,  (float)boardY - 12, 17, 10);
-        UpdateAndDrawLeaf((float)boardX + 115, (float)boardY - 5,  13, 35);
-        UpdateAndDrawLeaf((float)boardX + 135, (float)boardY - 9,  15, -10);
-        UpdateAndDrawLeaf((float)boardX + 160, (float)boardY - 6,  12, 45);
+//         //TOP
+//       // --- BOARD TOP LEAVES ---
+//         UpdateAndDrawLeaf((float)boardX + 75,  (float)boardY - 6,  14, -15);
+//         UpdateAndDrawLeaf((float)boardX + 95,  (float)boardY - 12, 17, 10);
+//         UpdateAndDrawLeaf((float)boardX + 115, (float)boardY - 5,  13, 35);
+//         UpdateAndDrawLeaf((float)boardX + 135, (float)boardY - 9,  15, -10);
+//         UpdateAndDrawLeaf((float)boardX + 160, (float)boardY - 6,  12, 45);
 
-        // --- Board Top Grouping (Spread across mid-to-right) ---
-        UpdateAndDrawLeaf((float)boardX + 380, (float)boardY - 10, 15, -25);
-        UpdateAndDrawLeaf((float)boardX + 405, (float)boardY - 6,  13, 5);
-        UpdateAndDrawLeaf((float)boardX + 430, (float)boardY - 13, 18, 20);
-        UpdateAndDrawLeaf((float)boardX + 455, (float)boardY - 5,  14, -15);
-        UpdateAndDrawLeaf((float)boardX + 480, (float)boardY + 2,  16, 55);
+//         // --- Board Top Grouping (Spread across mid-to-right) ---
+//         UpdateAndDrawLeaf((float)boardX + 380, (float)boardY - 10, 15, -25);
+//         UpdateAndDrawLeaf((float)boardX + 405, (float)boardY - 6,  13, 5);
+//         UpdateAndDrawLeaf((float)boardX + 430, (float)boardY - 13, 18, 20);
+//         UpdateAndDrawLeaf((float)boardX + 455, (float)boardY - 5,  14, -15);
+//         UpdateAndDrawLeaf((float)boardX + 480, (float)boardY + 2,  16, 55);
 
-        // --- Board Bottom Grouping (Spread left-to-mid) ---
-        UpdateAndDrawLeaf((float)boardX + 65,  (float)boardY + boardSize + 6,  14, 160);
-        UpdateAndDrawLeaf((float)boardX + 90,  (float)boardY + boardSize + 12, 18, 195);
-        UpdateAndDrawLeaf((float)boardX + 115, (float)boardY + boardSize + 4,  13, 140);
-        UpdateAndDrawLeaf((float)boardX + 140, (float)boardY + boardSize + 9,  15, 175);
+//         // --- Board Bottom Grouping (Spread left-to-mid) ---
+//         UpdateAndDrawLeaf((float)boardX + 65,  (float)boardY + boardSize + 6,  14, 160);
+//         UpdateAndDrawLeaf((float)boardX + 90,  (float)boardY + boardSize + 12, 18, 195);
+//         UpdateAndDrawLeaf((float)boardX + 115, (float)boardY + boardSize + 4,  13, 140);
+//         UpdateAndDrawLeaf((float)boardX + 140, (float)boardY + boardSize + 9,  15, 175);
 
-        // --- Board Bottom Grouping (Spread mid-to-right) ---
-        UpdateAndDrawLeaf((float)boardX + 420, (float)boardY + boardSize + 5,  13, 150);
-        UpdateAndDrawLeaf((float)boardX + 445, (float)boardY + boardSize + 11, 17, 215);
-        UpdateAndDrawLeaf((float)boardX + 470, (float)boardY + boardSize + 4,  14, 135);
-        UpdateAndDrawLeaf((float)boardX + 495, (float)boardY + boardSize + 8,  16, 185);
+//         // --- Board Bottom Grouping (Spread mid-to-right) ---
+//         UpdateAndDrawLeaf((float)boardX + 420, (float)boardY + boardSize + 5,  13, 150);
+//         UpdateAndDrawLeaf((float)boardX + 445, (float)boardY + boardSize + 11, 17, 215);
+//         UpdateAndDrawLeaf((float)boardX + 470, (float)boardY + boardSize + 4,  14, 135);
+//         UpdateAndDrawLeaf((float)boardX + 495, (float)boardY + boardSize + 8,  16, 185);
 
-        // --- Board Left Side Grouping (Spread vertically down) ---
-        UpdateAndDrawLeaf((float)boardX - 6,   (float)boardY + 210, 14, -75);
-        UpdateAndDrawLeaf((float)boardX - 10,  (float)boardY + 235, 16, -100);
-        UpdateAndDrawLeaf((float)boardX - 13,  (float)boardY + 260, 18, -120);
-        UpdateAndDrawLeaf((float)boardX - 8,   (float)boardY + 285, 13, -60);
-        UpdateAndDrawLeaf((float)boardX - 5,   (float)boardY + 310, 15, -85);
+//         // --- Board Left Side Grouping (Spread vertically down) ---
+//         UpdateAndDrawLeaf((float)boardX - 6,   (float)boardY + 210, 14, -75);
+//         UpdateAndDrawLeaf((float)boardX - 10,  (float)boardY + 235, 16, -100);
+//         UpdateAndDrawLeaf((float)boardX - 13,  (float)boardY + 260, 18, -120);
+//         UpdateAndDrawLeaf((float)boardX - 8,   (float)boardY + 285, 13, -60);
+//         UpdateAndDrawLeaf((float)boardX - 5,   (float)boardY + 310, 15, -85);
 
-        // --- Board Right Side Grouping (Spread vertically down) ---
-        UpdateAndDrawLeaf((float)boardX + boardSize + 6,  (float)boardY + 310, 13, 65);
-        UpdateAndDrawLeaf((float)boardX + boardSize + 11, (float)boardY + 335, 17, 90);
-        UpdateAndDrawLeaf((float)boardX + boardSize + 14, (float)boardY + 360, 19, 120);
-        UpdateAndDrawLeaf((float)boardX + boardSize + 9,  (float)boardY + 385, 14, 55);
-        UpdateAndDrawLeaf((float)boardX + boardSize + 7,  (float)boardY + 410, 15, 100);
+//         // --- Board Right Side Grouping (Spread vertically down) ---
+//         UpdateAndDrawLeaf((float)boardX + boardSize + 6,  (float)boardY + 310, 13, 65);
+//         UpdateAndDrawLeaf((float)boardX + boardSize + 11, (float)boardY + 335, 17, 90);
+//         UpdateAndDrawLeaf((float)boardX + boardSize + 14, (float)boardY + 360, 19, 120);
+//         UpdateAndDrawLeaf((float)boardX + boardSize + 9,  (float)boardY + 385, 14, 55);
+//         UpdateAndDrawLeaf((float)boardX + boardSize + 7,  (float)boardY + 410, 15, 100);
 
         
-        // --- Move Log Top Border (Spanning left half) ---
-        UpdateAndDrawLeaf((float)Config::PANEL_X + 10,  (float)Config::PANEL_Y + 6,   13, -45);
-        UpdateAndDrawLeaf((float)Config::PANEL_X + 30,  (float)Config::PANEL_Y + 1,   16, 10);
-        UpdateAndDrawLeaf((float)Config::PANEL_X + 50,  (float)Config::PANEL_Y + 4,   12, -20);
-        UpdateAndDrawLeaf((float)Config::PANEL_X + 70,  (float)Config::PANEL_Y + 1,   15, 30);
-        UpdateAndDrawLeaf((float)Config::PANEL_X + 90,  (float)Config::PANEL_Y + 5,   13, -10);
+//         // --- Move Log Top Border (Spanning left half) ---
+//         UpdateAndDrawLeaf((float)Config::PANEL_X + 10,  (float)Config::PANEL_Y + 6,   13, -45);
+//         UpdateAndDrawLeaf((float)Config::PANEL_X + 30,  (float)Config::PANEL_Y + 1,   16, 10);
+//         UpdateAndDrawLeaf((float)Config::PANEL_X + 50,  (float)Config::PANEL_Y + 4,   12, -20);
+//         UpdateAndDrawLeaf((float)Config::PANEL_X + 70,  (float)Config::PANEL_Y + 1,   15, 30);
+//         UpdateAndDrawLeaf((float)Config::PANEL_X + 90,  (float)Config::PANEL_Y + 5,   13, -10);
 
-        // --- Move Log Top Border (Spanning right half) ---
-        UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 100, (float)Config::PANEL_Y + 4,   14, -15);
-        UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 80,  (float)Config::PANEL_Y + 1,   15, 35);
-        UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 60,  (float)Config::PANEL_Y + 6,   12, 10);
-        UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 40,  (float)Config::PANEL_Y + 2,   17, 75);
-        UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 15,  (float)Config::PANEL_Y + 8,   13, 115);
+//         // --- Move Log Top Border (Spanning right half) ---
+//         UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 100, (float)Config::PANEL_Y + 4,   14, -15);
+//         UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 80,  (float)Config::PANEL_Y + 1,   15, 35);
+//         UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 60,  (float)Config::PANEL_Y + 6,   12, 10);
+//         UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 40,  (float)Config::PANEL_Y + 2,   17, 75);
+//         UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 15,  (float)Config::PANEL_Y + 8,   13, 115);
 
-        // --- Move Log Left Side (Cascading down the edge) ---
-        UpdateAndDrawLeaf((float)Config::PANEL_X+3,   (float)Config::PANEL_Y + 120, 13, -80);
-        UpdateAndDrawLeaf((float)Config::PANEL_X+2,   (float)Config::PANEL_Y + 145, 16, -110);
-        UpdateAndDrawLeaf((float)Config::PANEL_X+4,  (float)Config::PANEL_Y + 170, 15, -70);
-        UpdateAndDrawLeaf((float)Config::PANEL_X+2,   (float)Config::PANEL_Y + 195, 14, -95);
-        UpdateAndDrawLeaf((float)Config::PANEL_X+1,   (float)Config::PANEL_Y + 220, 12, -120);
+//         // --- Move Log Left Side (Cascading down the edge) ---
+//         UpdateAndDrawLeaf((float)Config::PANEL_X+3,   (float)Config::PANEL_Y + 120, 13, -80);
+//         UpdateAndDrawLeaf((float)Config::PANEL_X+2,   (float)Config::PANEL_Y + 145, 16, -110);
+//         UpdateAndDrawLeaf((float)Config::PANEL_X+4,  (float)Config::PANEL_Y + 170, 15, -70);
+//         UpdateAndDrawLeaf((float)Config::PANEL_X+2,   (float)Config::PANEL_Y + 195, 14, -95);
+//         UpdateAndDrawLeaf((float)Config::PANEL_X+1,   (float)Config::PANEL_Y + 220, 12, -120);
 
-        // --- Move Log Right Side (Cascading down the edge) ---
-        UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH + 1, (float)Config::PANEL_Y + 140, 12, 60);
-        UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH + 1, (float)Config::PANEL_Y + 165, 15, 95);
-        UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH + 2, (float)Config::PANEL_Y + 190, 17, 115);
-        UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH + 1, (float)Config::PANEL_Y + 215, 13, 50);
-        UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH + 2, (float)Config::PANEL_Y + 240, 14, 85);
+//         // --- Move Log Right Side (Cascading down the edge) ---
+//         UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH + 1, (float)Config::PANEL_Y + 140, 12, 60);
+//         UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH + 1, (float)Config::PANEL_Y + 165, 15, 95);
+//         UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH + 2, (float)Config::PANEL_Y + 190, 17, 115);
+//         UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH + 1, (float)Config::PANEL_Y + 215, 13, 50);
+//         UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH + 2, (float)Config::PANEL_Y + 240, 14, 85);
 
-        // --- Move Log Bottom Border (Spanning along the base) ---
-        UpdateAndDrawLeaf((float)Config::PANEL_X + 12,  (float)Config::PANEL_Y + Config::PANEL_HEIGHT + 3, 14, -135);
-        UpdateAndDrawLeaf((float)Config::PANEL_X + 37,  (float)Config::PANEL_Y + Config::PANEL_HEIGHT + 2,  16, 185);
-        UpdateAndDrawLeaf((float)Config::PANEL_X + 62,  (float)Config::PANEL_Y + Config::PANEL_HEIGHT + 5, 13, 150);
+//         // --- Move Log Bottom Border (Spanning along the base) ---
+//         UpdateAndDrawLeaf((float)Config::PANEL_X + 12,  (float)Config::PANEL_Y + Config::PANEL_HEIGHT + 3, 14, -135);
+//         UpdateAndDrawLeaf((float)Config::PANEL_X + 37,  (float)Config::PANEL_Y + Config::PANEL_HEIGHT + 2,  16, 185);
+//         UpdateAndDrawLeaf((float)Config::PANEL_X + 62,  (float)Config::PANEL_Y + Config::PANEL_HEIGHT + 5, 13, 150);
         
-        UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 75, (float)Config::PANEL_Y + Config::PANEL_HEIGHT +2, 14, 210);
-        UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 50, (float)Config::PANEL_Y + Config::PANEL_HEIGHT +3, 15, 145);
-        UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 20, (float)Config::PANEL_Y + Config::PANEL_HEIGHT+1,  13, 70);
+//         UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 75, (float)Config::PANEL_Y + Config::PANEL_HEIGHT +2, 14, 210);
+//         UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 50, (float)Config::PANEL_Y + Config::PANEL_HEIGHT +3, 15, 145);
+//         UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 20, (float)Config::PANEL_Y + Config::PANEL_HEIGHT+1,  13, 70);
         
-        g_ctx->lastHoveredLeafId = hoveredLeafThisFrame;
-    }
+//         g_ctx->lastHoveredLeafId = hoveredLeafThisFrame;
+//     }
 
-    void DrawBoardOrnateFrame(int x, int y, int size) {
-        int borderSize = 20;
-        DrawRectangle(x - borderSize, y - borderSize, size + (borderSize * 2), size + (borderSize * 2), Config::COLOR_FRAME_DARK);
-        DrawRectangleLinesEx(Rectangle{ (float)x - 4, (float)y - 4, (float)size + 8, (float)size + 8 }, 3.0f, Config::COLOR_FRAME_MID);
-    }
+//     void DrawBoardOrnateFrame(int x, int y, int size) {
+//         int borderSize = 20;
+//         DrawRectangle(x - borderSize, y - borderSize, size + (borderSize * 2), size + (borderSize * 2), Config::COLOR_FRAME_DARK);
+//         DrawRectangleLinesEx(Rectangle{ (float)x - 4, (float)y - 4, (float)size + 8, (float)size + 8 }, 3.0f, Config::COLOR_FRAME_MID);
+//     }
 
 
-    //fallback function if sprites fail to load
-    void DrawChessPieceVector(PieceType type, std::string color, int x, int y, int size) { 
-        float fX = (float)x;
-        float fY = (float)y;
-        float fS = (float)size;
+//     //fallback function if sprites fail to load
+//     void DrawChessPieceVector(PieceType type, std::string color, int x, int y, int size) { 
+//         float fX = (float)x;
+//         float fY = (float)y;
+//         float fS = (float)size;
 
-        if (g_ctx && g_ctx->pieceFont.texture.id > 0) {
-            char c = ' ';
-            switch (type) {
-                case PAWN:   c = 'O'; break;
-                case KNIGHT: c = 'J'; break;
-                case BISHOP: c = 'N'; break;
-                case ROOK:   c = 'T'; break;
-                case QUEEN:  c = 'W'; break;
-                case KING:   c = 'L'; break;
-                case NONE:   return;
-            }
-            if (color == P_BLACK) {
-                c = tolower(c);
-            }
-            char codepointStr[2] = { c, '\0' };
+//         if (g_ctx && g_ctx->pieceFont.texture.id > 0) {
+//             char c = ' ';
+//             switch (type) {
+//                 case PAWN:   c = 'O'; break;
+//                 case KNIGHT: c = 'J'; break;
+//                 case BISHOP: c = 'N'; break;
+//                 case ROOK:   c = 'T'; break;
+//                 case QUEEN:  c = 'W'; break;
+//                 case KING:   c = 'L'; break;
+//                 case NONE:   return;
+//             }
+//             if (color == P_BLACK) {
+//                 c = tolower(c);
+//             }
+//             char codepointStr[2] = { c, '\0' };
 
-            Vector2 sizeVec = MeasureTextEx(g_ctx->pieceFont, codepointStr, (float)size, 0.0f);
-            float drawX = fX + (fS - sizeVec.x) / 2.0f;
-            float drawY = fY + (fS - sizeVec.y) / 2.0f;
+//             Vector2 sizeVec = MeasureTextEx(g_ctx->pieceFont, codepointStr, (float)size, 0.0f);
+//             float drawX = fX + (fS - sizeVec.x) / 2.0f;
+//             float drawY = fY + (fS - sizeVec.y) / 2.0f;
 
-            Color tintColor = (color == P_WHITE) ? Color{ 255, 255, 255, 255 } : Color{ 35, 35, 40, 255 };
+//             Color tintColor = (color == P_WHITE) ? Color{ 255, 255, 255, 255 } : Color{ 35, 35, 40, 255 };
 
-            DrawTextEx(g_ctx->pieceFont, codepointStr, Vector2{ drawX + 2, drawY + 2 }, (float)size, 0.0f, Color{ 0, 0, 0, 60 });
-            DrawTextEx(g_ctx->pieceFont, codepointStr, Vector2{ drawX, drawY }, (float)size, 0.0f, tintColor);
-            return;
-        }
+//             DrawTextEx(g_ctx->pieceFont, codepointStr, Vector2{ drawX + 2, drawY + 2 }, (float)size, 0.0f, Color{ 0, 0, 0, 60 });
+//             DrawTextEx(g_ctx->pieceFont, codepointStr, Vector2{ drawX, drawY }, (float)size, 0.0f, tintColor);
+//             return;
+//         }
 
-        Color fill = (color == P_WHITE) ? Color{ 255, 255, 255, 255 } : Color{ 55, 55, 60, 255 };
-        Color stroke = (color == P_WHITE) ? Color{ 140, 140, 145, 255 } : Color{ 225, 225, 230, 255 };
-        float thick = 3.0f;
+//         Color fill = (color == P_WHITE) ? Color{ 255, 255, 255, 255 } : Color{ 55, 55, 60, 255 };
+//         Color stroke = (color == P_WHITE) ? Color{ 140, 140, 145, 255 } : Color{ 225, 225, 230, 255 };
+//         float thick = 3.0f;
 
-        float cx = fX + fS / 2.0f;
-        float cy = fY + fS / 2.0f;
+//         float cx = fX + fS / 2.0f;
+//         float cy = fY + fS / 2.0f;
 
-        switch (type) {
-            case PAWN: {
-                DrawRectangleRounded(Rectangle{ cx - fS*0.22f, cy + fS*0.24f, fS*0.44f, fS*0.08f }, 0.4f, 4, fill);
-                DrawRectangleRoundedLinesCustom(Rectangle{ cx - fS*0.22f, cy + fS*0.24f, fS*0.44f, fS*0.08f }, 0.4f, 4, thick, stroke);
+//         switch (type) {
+//             case PAWN: {
+//                 DrawRectangleRounded(Rectangle{ cx - fS*0.22f, cy + fS*0.24f, fS*0.44f, fS*0.08f }, 0.4f, 4, fill);
+//                 DrawRectangleRoundedLinesCustom(Rectangle{ cx - fS*0.22f, cy + fS*0.24f, fS*0.44f, fS*0.08f }, 0.4f, 4, thick, stroke);
 
-                Vector2 p1 = Vector2{ cx, cy - fS * 0.10f };
-                Vector2 p2 = Vector2{ cx - fS * 0.14f, cy + fS * 0.24f };
-                Vector2 p3 = Vector2{ cx + fS * 0.14f, cy + fS * 0.24f };
-                DrawTriangle(p1, p2, p3, fill);
-                DrawLineEx(p1, p2, thick, stroke);
-                DrawLineEx(p1, p3, thick, stroke);
+//                 Vector2 p1 = Vector2{ cx, cy - fS * 0.10f };
+//                 Vector2 p2 = Vector2{ cx - fS * 0.14f, cy + fS * 0.24f };
+//                 Vector2 p3 = Vector2{ cx + fS * 0.14f, cy + fS * 0.24f };
+//                 DrawTriangle(p1, p2, p3, fill);
+//                 DrawLineEx(p1, p2, thick, stroke);
+//                 DrawLineEx(p1, p3, thick, stroke);
 
-                DrawCircle((int)cx, (int)(cy - fS * 0.12f), fS * 0.14f, fill);
-                DrawCircleLines((int)cx, (int)(cy - fS * 0.12f), fS * 0.14f, stroke);
-                break;
-            }
-            case KNIGHT: {
-                DrawRectangleRounded(Rectangle{ cx - fS*0.25f, cy + fS*0.24f, fS*0.5f, fS*0.08f }, 0.4f, 4, fill);
-                DrawRectangleRoundedLinesCustom(Rectangle{ cx - fS*0.25f, cy + fS*0.24f, fS*0.5f, fS*0.08f }, 0.4f, 4, thick, stroke);
+//                 DrawCircle((int)cx, (int)(cy - fS * 0.12f), fS * 0.14f, fill);
+//                 DrawCircleLines((int)cx, (int)(cy - fS * 0.12f), fS * 0.14f, stroke);
+//                 break;
+//             }
+//             case KNIGHT: {
+//                 DrawRectangleRounded(Rectangle{ cx - fS*0.25f, cy + fS*0.24f, fS*0.5f, fS*0.08f }, 0.4f, 4, fill);
+//                 DrawRectangleRoundedLinesCustom(Rectangle{ cx - fS*0.25f, cy + fS*0.24f, fS*0.5f, fS*0.08f }, 0.4f, 4, thick, stroke);
 
-                Vector2 top = Vector2{ cx - fS*0.18f, cy + fS*0.24f };
-                Vector2 snout = Vector2{ cx - fS*0.28f, cy - fS*0.08f };
-                Vector2 head = Vector2{ cx + fS*0.12f, cy - fS*0.28f };
-                Vector2 back = Vector2{ cx + fS*0.18f, cy + fS*0.24f };
+//                 Vector2 top = Vector2{ cx - fS*0.18f, cy + fS*0.24f };
+//                 Vector2 snout = Vector2{ cx - fS*0.28f, cy - fS*0.08f };
+//                 Vector2 head = Vector2{ cx + fS*0.12f, cy - fS*0.28f };
+//                 Vector2 back = Vector2{ cx + fS*0.18f, cy + fS*0.24f };
 
-                DrawTriangle(top, snout, head, fill);
-                DrawTriangle(top, head, back, fill);
+//                 DrawTriangle(top, snout, head, fill);
+//                 DrawTriangle(top, head, back, fill);
 
-                DrawLineEx(top, snout, thick, stroke);
-                DrawLineEx(snout, head, thick, stroke);
-                DrawLineEx(head, back, thick, stroke);
+//                 DrawLineEx(top, snout, thick, stroke);
+//                 DrawLineEx(snout, head, thick, stroke);
+//                 DrawLineEx(head, back, thick, stroke);
 
-                Color eyeColor = (color == P_WHITE) ? Color{ 40, 40, 40, 255 } : WHITE;
-                DrawCircle((int)(cx - fS*0.08f), (int)(cy - fS*0.13f), fS*0.035f, eyeColor);
-                break;
-            }
-            case BISHOP: {
-                DrawRectangleRounded(Rectangle{ cx - fS*0.24f, cy + fS*0.24f, fS*0.48f, fS*0.08f }, 0.4f, 4, fill);
-                DrawRectangleRoundedLinesCustom(Rectangle{ cx - fS*0.24f, cy + fS*0.24f, fS*0.48f, fS*0.08f }, 0.4f, 4, thick, stroke);
+//                 Color eyeColor = (color == P_WHITE) ? Color{ 40, 40, 40, 255 } : WHITE;
+//                 DrawCircle((int)(cx - fS*0.08f), (int)(cy - fS*0.13f), fS*0.035f, eyeColor);
+//                 break;
+//             }
+//             case BISHOP: {
+//                 DrawRectangleRounded(Rectangle{ cx - fS*0.24f, cy + fS*0.24f, fS*0.48f, fS*0.08f }, 0.4f, 4, fill);
+//                 DrawRectangleRoundedLinesCustom(Rectangle{ cx - fS*0.24f, cy + fS*0.24f, fS*0.48f, fS*0.08f }, 0.4f, 4, thick, stroke);
                 
-                DrawCircle((int)cx, (int)cy, fS*0.20f, fill);
-                DrawCircleLines((int)cx, (int)cy, fS*0.20f, stroke);
+//                 DrawCircle((int)cx, (int)cy, fS*0.20f, fill);
+//                 DrawCircleLines((int)cx, (int)cy, fS*0.20f, stroke);
 
-                DrawCircle((int)cx, (int)(cy - fS*0.25f), fS*0.06f, fill);
-                DrawCircleLines((int)cx, (int)(cy - fS*0.25f), fS*0.06f, stroke);
+//                 DrawCircle((int)cx, (int)(cy - fS*0.25f), fS*0.06f, fill);
+//                 DrawCircleLines((int)cx, (int)(cy - fS*0.25f), fS*0.06f, stroke);
 
-                DrawLineEx(Vector2{ cx - fS*0.08f, cy - fS*0.08f }, Vector2{ cx + fS*0.08f, cy + fS*0.08f }, thick + 0.5f, stroke);
-                break;
-            }
-            case ROOK: {
-                DrawRectangleRounded(Rectangle{ cx - fS*0.24f, cy + fS*0.24f, fS*0.48f, fS*0.08f }, 0.4f, 4, fill);
-                DrawRectangleRoundedLinesCustom(Rectangle{ cx - fS*0.24f, cy + fS*0.24f, fS*0.48f, fS*0.08f }, 0.4f, 4, thick, stroke);
+//                 DrawLineEx(Vector2{ cx - fS*0.08f, cy - fS*0.08f }, Vector2{ cx + fS*0.08f, cy + fS*0.08f }, thick + 0.5f, stroke);
+//                 break;
+//             }
+//             case ROOK: {
+//                 DrawRectangleRounded(Rectangle{ cx - fS*0.24f, cy + fS*0.24f, fS*0.48f, fS*0.08f }, 0.4f, 4, fill);
+//                 DrawRectangleRoundedLinesCustom(Rectangle{ cx - fS*0.24f, cy + fS*0.24f, fS*0.48f, fS*0.08f }, 0.4f, 4, thick, stroke);
 
-                DrawRectangleRounded(Rectangle{ cx - fS*0.20f, cy - fS*0.16f, fS*0.40f, fS*0.40f }, 0.1f, 4, fill);
-                DrawRectangleRoundedLinesCustom(Rectangle{ cx - fS*0.20f, cy - fS*0.16f, fS*0.40f, fS*0.40f }, 0.1f, 4, thick, stroke);
+//                 DrawRectangleRounded(Rectangle{ cx - fS*0.20f, cy - fS*0.16f, fS*0.40f, fS*0.40f }, 0.1f, 4, fill);
+//                 DrawRectangleRoundedLinesCustom(Rectangle{ cx - fS*0.20f, cy - fS*0.16f, fS*0.40f, fS*0.40f }, 0.1f, 4, thick, stroke);
 
-                float batW = fS * 0.10f;
-                DrawRectangleRec(Rectangle{ cx - fS*0.20f, cy - fS*0.26f, batW, fS*0.10f }, fill);
-                DrawRectangleLinesEx(Rectangle{ cx - fS*0.20f, cy - fS*0.26f, batW, fS*0.10f }, thick, stroke);
+//                 float batW = fS * 0.10f;
+//                 DrawRectangleRec(Rectangle{ cx - fS*0.20f, cy - fS*0.26f, batW, fS*0.10f }, fill);
+//                 DrawRectangleLinesEx(Rectangle{ cx - fS*0.20f, cy - fS*0.26f, batW, fS*0.10f }, thick, stroke);
 
-                DrawRectangleRec(Rectangle{ cx - batW/2.0f, cy - fS*0.26f, batW, fS*0.10f }, fill);
-                DrawRectangleLinesEx(Rectangle{ cx - batW/2.0f, cy - fS*0.26f, batW, fS*0.10f }, thick, stroke);
+//                 DrawRectangleRec(Rectangle{ cx - batW/2.0f, cy - fS*0.26f, batW, fS*0.10f }, fill);
+//                 DrawRectangleLinesEx(Rectangle{ cx - batW/2.0f, cy - fS*0.26f, batW, fS*0.10f }, thick, stroke);
 
-                DrawRectangleRec(Rectangle{ cx + fS*0.20f - batW, cy - fS*0.26f, batW, fS*0.10f }, fill);
-                DrawRectangleLinesEx(Rectangle{ cx + fS*0.20f - batW, cy - fS*0.26f, batW, fS*0.10f }, thick, stroke);
-                break;
-            }
-            case QUEEN: {
-                DrawRectangleRounded(Rectangle{ cx - fS*0.28f, cy + fS*0.24f, fS*0.56f, fS*0.08f }, 0.4f, 4, fill);
-                DrawRectangleRoundedLinesCustom(Rectangle{ cx - fS*0.28f, cy + fS*0.24f, fS*0.56f, fS*0.08f }, 0.4f, 4, thick, stroke);
+//                 DrawRectangleRec(Rectangle{ cx + fS*0.20f - batW, cy - fS*0.26f, batW, fS*0.10f }, fill);
+//                 DrawRectangleLinesEx(Rectangle{ cx + fS*0.20f - batW, cy - fS*0.26f, batW, fS*0.10f }, thick, stroke);
+//                 break;
+//             }
+//             case QUEEN: {
+//                 DrawRectangleRounded(Rectangle{ cx - fS*0.28f, cy + fS*0.24f, fS*0.56f, fS*0.08f }, 0.4f, 4, fill);
+//                 DrawRectangleRoundedLinesCustom(Rectangle{ cx - fS*0.28f, cy + fS*0.24f, fS*0.56f, fS*0.08f }, 0.4f, 4, thick, stroke);
 
-                Vector2 pLeft = Vector2{ cx - fS*0.26f, cy + fS*0.24f };
-                Vector2 pMid = Vector2{ cx, cy - fS*0.22f };
-                Vector2 pRight = Vector2{ cx + fS*0.26f, cy + fS*0.24f };
+//                 Vector2 pLeft = Vector2{ cx - fS*0.26f, cy + fS*0.24f };
+//                 Vector2 pMid = Vector2{ cx, cy - fS*0.22f };
+//                 Vector2 pRight = Vector2{ cx + fS*0.26f, cy + fS*0.24f };
 
-                DrawTriangle(pLeft, pMid, pRight, fill);
-                DrawLineEx(pLeft, pMid, thick, stroke);
-                DrawLineEx(pMid, pRight, thick, stroke);
+//                 DrawTriangle(pLeft, pMid, pRight, fill);
+//                 DrawLineEx(pLeft, pMid, thick, stroke);
+//                 DrawLineEx(pMid, pRight, thick, stroke);
 
-                DrawCircle((int)(cx - fS*0.22f), (int)(cy - fS*0.02f), fS*0.05f, fill);
-                DrawCircleLines((int)(cx - fS*0.22f), (int)(cy - fS*0.02f), fS*0.05f, stroke);
+//                 DrawCircle((int)(cx - fS*0.22f), (int)(cy - fS*0.02f), fS*0.05f, fill);
+//                 DrawCircleLines((int)(cx - fS*0.22f), (int)(cy - fS*0.02f), fS*0.05f, stroke);
 
-                DrawCircle((int)(cx + fS*0.22f), (int)(cy - fS*0.02f), fS*0.05f, fill);
-                DrawCircleLines((int)(cx + fS*0.22f), (int)(cy - fS*0.02f), fS*0.05f, stroke);
+//                 DrawCircle((int)(cx + fS*0.22f), (int)(cy - fS*0.02f), fS*0.05f, fill);
+//                 DrawCircleLines((int)(cx + fS*0.22f), (int)(cy - fS*0.02f), fS*0.05f, stroke);
 
-                DrawCircle((int)cx, (int)(cy - fS*0.22f), fS*0.07f, fill);
-                DrawCircleLines((int)cx, (int)(cy - fS*0.22f), fS*0.07f, stroke);
-                break;
-            }
-            case KING: {
-                DrawRectangleRounded(Rectangle{ cx - fS*0.28f, cy + fS*0.24f, fS*0.56f, fS*0.08f }, 0.4f, 4, fill);
-                DrawRectangleRoundedLinesCustom(Rectangle{ cx - fS*0.28f, cy + fS*0.24f, fS*0.56f, fS*0.08f }, 0.4f, 4, thick, stroke);
+//                 DrawCircle((int)cx, (int)(cy - fS*0.22f), fS*0.07f, fill);
+//                 DrawCircleLines((int)cx, (int)(cy - fS*0.22f), fS*0.07f, stroke);
+//                 break;
+//             }
+//             case KING: {
+//                 DrawRectangleRounded(Rectangle{ cx - fS*0.28f, cy + fS*0.24f, fS*0.56f, fS*0.08f }, 0.4f, 4, fill);
+//                 DrawRectangleRoundedLinesCustom(Rectangle{ cx - fS*0.28f, cy + fS*0.24f, fS*0.56f, fS*0.08f }, 0.4f, 4, thick, stroke);
 
-                DrawRectangleRounded(Rectangle{ cx - fS*0.18f, cy - fS*0.14f, fS*0.36f, fS*0.38f }, 0.15f, 4, fill);
-                DrawRectangleRoundedLinesCustom(Rectangle{ cx - fS*0.18f, cy - fS*0.14f, fS*0.36f, fS*0.38f }, 0.15f, 4, thick, stroke);
+//                 DrawRectangleRounded(Rectangle{ cx - fS*0.18f, cy - fS*0.14f, fS*0.36f, fS*0.38f }, 0.15f, 4, fill);
+//                 DrawRectangleRoundedLinesCustom(Rectangle{ cx - fS*0.18f, cy - fS*0.14f, fS*0.36f, fS*0.38f }, 0.15f, 4, thick, stroke);
 
-                float crossThick = 4.0f;
-                DrawLineEx(Vector2{ cx, cy - fS*0.18f }, Vector2{ cx, cy - fS*0.36f }, crossThick, stroke);
-                DrawLineEx(Vector2{ cx - fS*0.09f, cy - fS*0.27f }, Vector2{ cx + fS*0.09f, cy - fS*0.27f }, crossThick, stroke);
-                break;
-            }
-            case NONE: break;
-        }
-    }
-}
+//                 float crossThick = 4.0f;
+//                 DrawLineEx(Vector2{ cx, cy - fS*0.18f }, Vector2{ cx, cy - fS*0.36f }, crossThick, stroke);
+//                 DrawLineEx(Vector2{ cx - fS*0.09f, cy - fS*0.27f }, Vector2{ cx + fS*0.09f, cy - fS*0.27f }, crossThick, stroke);
+//                 break;
+//             }
+//             case NONE: break;
+//         }
+//     }
+// }
 
 
 void DrawChessPiece(PieceType type, std::string color, int x, int y, int size) {
@@ -1583,6 +1563,21 @@ namespace CanvasRenderer {
 
     void DrawChessboard() {
         BoardState displayState;
+    
+        if (g_ctx->active_menu == PUZZLES) { 
+            displayState = g_ctx->board->CaptureState();
+        } else {
+            if (g_ctx->historyView.useLive) {
+                displayState = g_ctx->board->CaptureState();
+            } else {
+                int idx = g_ctx->historyView.viewingIndex;
+                if (idx >= 0 && idx < (int)g_ctx->board->move_history.size()) {
+                    displayState = g_ctx->board->move_history[idx].board_state;
+                } else {
+                    displayState = g_ctx->board->CaptureState();
+                }
+            }
+        }
         if (g_ctx->historyView.useLive) {
             displayState = g_ctx->board->CaptureState();
         } else {
@@ -1747,6 +1742,9 @@ namespace CanvasRenderer {
     }
 }
 
+namespace Puzzle{
+    void test(){}
+}
 
 namespace TickEngine {
 
@@ -2102,37 +2100,25 @@ void UpdateDrawFrame() { // rendering
     
     BeginTextureMode(g_ctx->targetScreen);
     ClearBackground(Color{ 18, 12, 10, 255 });
-    if (g_ctx->active_menu == SETTINGS){
-        DrawTexturePro(
-        g_ctx->backgroundTexture,
-        Rectangle{ 0, 0, (float)g_ctx->backgroundTexture.width, (float)g_ctx->backgroundTexture.height },
-        Rectangle{ 0, 0, (float)Config::WINDOW_WIDTH, (float)Config::WINDOW_HEIGHT },
-        Vector2{ 0, 0 },
-        0.0f,
-        Color{ 255, 255, 255, 50}
-    );
-    } else {
-        DrawTexturePro(
-        g_ctx->backgroundTexture,
-        Rectangle{ 0, 0, (float)g_ctx->backgroundTexture.width, (float)g_ctx->backgroundTexture.height },
-        Rectangle{ 0, 0, (float)Config::WINDOW_WIDTH, (float)Config::WINDOW_HEIGHT },
-        Vector2{ 0, 0 },
-        0.0f,
-        Color{ 255, 255, 255, 90}
-    );
-    }
-    
-
+    DrawTexturePro(
+    g_ctx->backgroundTexture,
+    Rectangle{ 0, 0, (float)g_ctx->backgroundTexture.width, (float)g_ctx->backgroundTexture.height },
+    Rectangle{ 0, 0, (float)Config::WINDOW_WIDTH, (float)Config::WINDOW_HEIGHT },
+    Vector2{ 0, 0 },
+    0.0f,
+    Color{ 255, 255, 255, 90});
     
 
     switch (g_ctx->active_menu) {
         case PLAY:
             break;
         case SETTINGS:
+            DrawRectangle(0, 0, Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT, Fade(BLACK, 0.6f));
             DrawSettingsMenu(mousePos);
             break;
         case PUZZLES:
-            DrawRectangle(0, 0, Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT, Fade(BLACK, 0.6f));
+            
+            CanvasRenderer::DrawChessboard();
             DrawTextSmooth("OFFLINE TACTICS / PUZZLES", 250.0f, 200.0f, 32.0f, RAYWHITE);
             break;
         case OPENINGS:
@@ -2146,6 +2132,7 @@ void UpdateDrawFrame() { // rendering
         default:
             break;
     }
+    
     DrawCollapsibleSidebar(mousePos);
     DrawTextSmooth(TextFormat("%d", GetFPS()), 25.0f, 20.0f, 24.0f, Config::COLOR_LEAF_LIGHT);
     EndTextureMode();

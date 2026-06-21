@@ -71,7 +71,7 @@ var ENVIRONMENT_IS_SHELL = !ENVIRONMENT_IS_WEB && !ENVIRONMENT_IS_NODE && !ENVIR
 
 // --pre-jses are emitted after the Module integration code, so that they can
 // refer to Module (if they choose; they can also define Module)
-// include: C:\Users\andre\AppData\Local\Temp\tmp8nvep4od.js
+// include: C:\Users\andre\AppData\Local\Temp\tmpg7ktpbqr.js
 
   if (!Module['expectedDataFileDownloads']) Module['expectedDataFileDownloads'] = 0;
   Module['expectedDataFileDownloads']++;
@@ -204,25 +204,25 @@ Module['FS_createPath']("/assets", "sfx", true, true);
     }
 
     }
-    loadPackage({"files": [{"filename": "/assets/fonts/Audiowide-Regular.ttf", "start": 0, "end": 47676}, {"filename": "/assets/fonts/pieces.ttf", "start": 47676, "end": 76256}, {"filename": "/assets/images/bg.png", "start": 76256, "end": 134111}, {"filename": "/assets/images/draw.png", "start": 134111, "end": 155738}, {"filename": "/assets/images/resign.png", "start": 155738, "end": 163298}, {"filename": "/assets/images/set/BlackBishop.png", "start": 163298, "end": 164217}, {"filename": "/assets/images/set/BlackKing.png", "start": 164217, "end": 165207}, {"filename": "/assets/images/set/BlackKnight.png", "start": 165207, "end": 166249}, {"filename": "/assets/images/set/BlackPawn.png", "start": 166249, "end": 167061}, {"filename": "/assets/images/set/BlackQueen.png", "start": 167061, "end": 168059}, {"filename": "/assets/images/set/BlackRook.png", "start": 168059, "end": 168973}, {"filename": "/assets/images/set/Board.png", "start": 168973, "end": 180778}, {"filename": "/assets/images/set/WhiteBishop.png", "start": 180778, "end": 181691}, {"filename": "/assets/images/set/WhiteKing.png", "start": 181691, "end": 182709}, {"filename": "/assets/images/set/WhiteKnight.png", "start": 182709, "end": 183744}, {"filename": "/assets/images/set/WhitePawn.png", "start": 183744, "end": 184524}, {"filename": "/assets/images/set/WhiteQueen.png", "start": 184524, "end": 185491}, {"filename": "/assets/images/set/WhiteRook.png", "start": 185491, "end": 186390}, {"filename": "/assets/sfx/click.ogg", "start": 186390, "end": 191727}, {"filename": "/assets/sfx/draw.ogg", "start": 191727, "end": 201928}, {"filename": "/assets/sfx/hover.ogg", "start": 201928, "end": 206703}, {"filename": "/assets/sfx/loss.ogg", "start": 206703, "end": 225840}, {"filename": "/assets/sfx/move.ogg", "start": 225840, "end": 232837}, {"filename": "/assets/sfx/win.ogg", "start": 232837, "end": 246841}], "remote_package_size": 246841});
+    loadPackage({"files": [{"filename": "/assets/fonts/Audiowide-Regular.ttf", "start": 0, "end": 47676}, {"filename": "/assets/fonts/pieces.ttf", "start": 47676, "end": 76256}, {"filename": "/assets/images/bg.png", "start": 76256, "end": 134111}, {"filename": "/assets/images/draw.png", "start": 134111, "end": 155738}, {"filename": "/assets/images/resign.png", "start": 155738, "end": 163298}, {"filename": "/assets/images/set/BlackBishop.png", "start": 163298, "end": 164217}, {"filename": "/assets/images/set/BlackKing.png", "start": 164217, "end": 165207}, {"filename": "/assets/images/set/BlackKnight.png", "start": 165207, "end": 166249}, {"filename": "/assets/images/set/BlackPawn.png", "start": 166249, "end": 167061}, {"filename": "/assets/images/set/BlackQueen.png", "start": 167061, "end": 168059}, {"filename": "/assets/images/set/BlackRook.png", "start": 168059, "end": 168973}, {"filename": "/assets/images/set/Board.png", "start": 168973, "end": 180778}, {"filename": "/assets/images/set/WhiteBishop.png", "start": 180778, "end": 181691}, {"filename": "/assets/images/set/WhiteKing.png", "start": 181691, "end": 182709}, {"filename": "/assets/images/set/WhiteKnight.png", "start": 182709, "end": 183744}, {"filename": "/assets/images/set/WhitePawn.png", "start": 183744, "end": 184524}, {"filename": "/assets/images/set/WhiteQueen.png", "start": 184524, "end": 185491}, {"filename": "/assets/images/set/WhiteRook.png", "start": 185491, "end": 186390}, {"filename": "/assets/openings.csv", "start": 186390, "end": 215238}, {"filename": "/assets/puzzles.csv", "start": 215238, "end": 10659303}, {"filename": "/assets/sfx/click.ogg", "start": 10659303, "end": 10664640}, {"filename": "/assets/sfx/draw.ogg", "start": 10664640, "end": 10674841}, {"filename": "/assets/sfx/hover.ogg", "start": 10674841, "end": 10679616}, {"filename": "/assets/sfx/loss.ogg", "start": 10679616, "end": 10698753}, {"filename": "/assets/sfx/move.ogg", "start": 10698753, "end": 10705750}, {"filename": "/assets/sfx/win.ogg", "start": 10705750, "end": 10719754}], "remote_package_size": 10719754});
 
   })();
 
-// end include: C:\Users\andre\AppData\Local\Temp\tmp8nvep4od.js
-// include: C:\Users\andre\AppData\Local\Temp\tmpjjg9pnxs.js
+// end include: C:\Users\andre\AppData\Local\Temp\tmpg7ktpbqr.js
+// include: C:\Users\andre\AppData\Local\Temp\tmpiq3we7yk.js
 
     // All the pre-js content up to here must remain later on, we need to run
     // it.
     if ((typeof ENVIRONMENT_IS_WASM_WORKER != 'undefined' && ENVIRONMENT_IS_WASM_WORKER) || (typeof ENVIRONMENT_IS_PTHREAD != 'undefined' && ENVIRONMENT_IS_PTHREAD) || (typeof ENVIRONMENT_IS_AUDIO_WORKLET != 'undefined' && ENVIRONMENT_IS_AUDIO_WORKLET)) Module['preRun'] = [];
     var necessaryPreJSTasks = Module['preRun'].slice();
-  // end include: C:\Users\andre\AppData\Local\Temp\tmpjjg9pnxs.js
-// include: C:\Users\andre\AppData\Local\Temp\tmpjn2j33d4.js
+  // end include: C:\Users\andre\AppData\Local\Temp\tmpiq3we7yk.js
+// include: C:\Users\andre\AppData\Local\Temp\tmpmtnvsnvj.js
 
     if (!Module['preRun']) throw 'Module.preRun should exist because file support used it; did a pre-js delete it?';
     necessaryPreJSTasks.forEach((task) => {
       if (Module['preRun'].indexOf(task) < 0) throw 'All preRun tasks that exist before user pre-js code should remain after; did you replace Module or modify Module.preRun?';
     });
-  // end include: C:\Users\andre\AppData\Local\Temp\tmpjn2j33d4.js
+  // end include: C:\Users\andre\AppData\Local\Temp\tmpmtnvsnvj.js
 
 
 var programArgs = [];
@@ -9874,48 +9874,48 @@ function checkIncomingModuleAPI() {
   ignoredModuleProp('onSbrkGrow');
 }
 var ASM_CONSTS = {
-  142992: () => { if (document.fullscreenElement) return 1; },  
- 143038: () => { return document.getElementById('canvas').width; },  
- 143090: () => { return parseInt(document.getElementById('canvas').style.width); },  
- 143158: () => { document.exitFullscreen(); },  
- 143185: () => { setTimeout(function() { Module.requestFullscreen(false, false); }, 100); },  
- 143258: () => { if (document.fullscreenElement) return 1; },  
- 143304: () => { return document.getElementById('canvas').width; },  
- 143356: () => { return screen.width; },  
- 143381: () => { document.exitFullscreen(); },  
- 143408: () => { setTimeout(function() { Module.requestFullscreen(false, true); setTimeout(function() { canvas.style.width="unset"; }, 100); }, 100); },  
- 143541: () => { return window.innerWidth; },  
- 143567: () => { return window.innerHeight; },  
- 143594: () => { if (document.fullscreenElement) return 1; },  
- 143640: () => { return document.getElementById('canvas').width; },  
- 143692: () => { return parseInt(document.getElementById('canvas').style.width); },  
- 143760: () => { if (document.fullscreenElement) return 1; },  
- 143806: () => { return document.getElementById('canvas').width; },  
- 143858: () => { return screen.width; },  
- 143883: () => { return window.innerWidth; },  
- 143909: () => { return window.innerHeight; },  
- 143936: () => { if (document.fullscreenElement) return 1; },  
- 143982: () => { return document.getElementById('canvas').width; },  
- 144034: () => { return screen.width; },  
- 144059: () => { document.exitFullscreen(); },  
- 144086: () => { if (document.fullscreenElement) return 1; },  
- 144132: () => { return document.getElementById('canvas').width; },  
- 144184: () => { return parseInt(document.getElementById('canvas').style.width); },  
- 144252: () => { document.exitFullscreen(); },  
- 144279: ($0) => { document.getElementById('canvas').style.opacity = $0; },  
- 144337: () => { return screen.width; },  
- 144362: () => { return screen.height; },  
- 144388: () => { return window.screenX; },  
- 144415: () => { return window.screenY; },  
- 144442: ($0) => { navigator.clipboard.writeText(UTF8ToString($0)); },  
- 144495: ($0) => { document.getElementById("canvas").style.cursor = UTF8ToString($0); },  
- 144566: () => { document.getElementById('canvas').style.cursor = 'none'; },  
- 144623: ($0, $1, $2, $3) => { try { navigator.getGamepads()[$0].vibrationActuator.playEffect('dual-rumble', { startDelay: 0, duration: $3, weakMagnitude: $1, strongMagnitude: $2 }); } catch (e) { try { navigator.getGamepads()[$0].hapticActuators[0].pulse($2, $3); } catch (e) { } } },  
- 144879: ($0) => { document.getElementById('canvas').style.cursor = UTF8ToString($0); },  
- 144950: () => { if (document.fullscreenElement) return 1; },  
- 144996: () => { return window.innerWidth; },  
- 145022: () => { return window.innerHeight; },  
- 145049: () => { if (document.pointerLockElement) return 1; }
+  142976: () => { if (document.fullscreenElement) return 1; },  
+ 143022: () => { return document.getElementById('canvas').width; },  
+ 143074: () => { return parseInt(document.getElementById('canvas').style.width); },  
+ 143142: () => { document.exitFullscreen(); },  
+ 143169: () => { setTimeout(function() { Module.requestFullscreen(false, false); }, 100); },  
+ 143242: () => { if (document.fullscreenElement) return 1; },  
+ 143288: () => { return document.getElementById('canvas').width; },  
+ 143340: () => { return screen.width; },  
+ 143365: () => { document.exitFullscreen(); },  
+ 143392: () => { setTimeout(function() { Module.requestFullscreen(false, true); setTimeout(function() { canvas.style.width="unset"; }, 100); }, 100); },  
+ 143525: () => { return window.innerWidth; },  
+ 143551: () => { return window.innerHeight; },  
+ 143578: () => { if (document.fullscreenElement) return 1; },  
+ 143624: () => { return document.getElementById('canvas').width; },  
+ 143676: () => { return parseInt(document.getElementById('canvas').style.width); },  
+ 143744: () => { if (document.fullscreenElement) return 1; },  
+ 143790: () => { return document.getElementById('canvas').width; },  
+ 143842: () => { return screen.width; },  
+ 143867: () => { return window.innerWidth; },  
+ 143893: () => { return window.innerHeight; },  
+ 143920: () => { if (document.fullscreenElement) return 1; },  
+ 143966: () => { return document.getElementById('canvas').width; },  
+ 144018: () => { return screen.width; },  
+ 144043: () => { document.exitFullscreen(); },  
+ 144070: () => { if (document.fullscreenElement) return 1; },  
+ 144116: () => { return document.getElementById('canvas').width; },  
+ 144168: () => { return parseInt(document.getElementById('canvas').style.width); },  
+ 144236: () => { document.exitFullscreen(); },  
+ 144263: ($0) => { document.getElementById('canvas').style.opacity = $0; },  
+ 144321: () => { return screen.width; },  
+ 144346: () => { return screen.height; },  
+ 144372: () => { return window.screenX; },  
+ 144399: () => { return window.screenY; },  
+ 144426: ($0) => { navigator.clipboard.writeText(UTF8ToString($0)); },  
+ 144479: ($0) => { document.getElementById("canvas").style.cursor = UTF8ToString($0); },  
+ 144550: () => { document.getElementById('canvas').style.cursor = 'none'; },  
+ 144607: ($0, $1, $2, $3) => { try { navigator.getGamepads()[$0].vibrationActuator.playEffect('dual-rumble', { startDelay: 0, duration: $3, weakMagnitude: $1, strongMagnitude: $2 }); } catch (e) { try { navigator.getGamepads()[$0].hapticActuators[0].pulse($2, $3); } catch (e) { } } },  
+ 144863: ($0) => { document.getElementById('canvas').style.cursor = UTF8ToString($0); },  
+ 144934: () => { if (document.fullscreenElement) return 1; },  
+ 144980: () => { return window.innerWidth; },  
+ 145006: () => { return window.innerHeight; },  
+ 145033: () => { if (document.pointerLockElement) return 1; }
 };
 
 // Imports from the Wasm binary.
@@ -9937,8 +9937,8 @@ var __emscripten_stack_restore = makeInvalidEarlyAccess('__emscripten_stack_rest
 var __emscripten_stack_alloc = makeInvalidEarlyAccess('__emscripten_stack_alloc');
 var _emscripten_stack_get_current = makeInvalidEarlyAccess('_emscripten_stack_get_current');
 var dynCall_vi = makeInvalidEarlyAccess('dynCall_vi');
-var dynCall_v = makeInvalidEarlyAccess('dynCall_v');
 var dynCall_ii = makeInvalidEarlyAccess('dynCall_ii');
+var dynCall_v = makeInvalidEarlyAccess('dynCall_v');
 var dynCall_iii = makeInvalidEarlyAccess('dynCall_iii');
 var dynCall_vii = makeInvalidEarlyAccess('dynCall_vii');
 var dynCall_viii = makeInvalidEarlyAccess('dynCall_viii');
@@ -10002,8 +10002,8 @@ function assignWasmExports(wasmExports) {
   assert(typeof wasmExports['_emscripten_stack_alloc'] != 'undefined', 'missing Wasm export: _emscripten_stack_alloc');
   assert(typeof wasmExports['emscripten_stack_get_current'] != 'undefined', 'missing Wasm export: emscripten_stack_get_current');
   assert(typeof wasmExports['dynCall_vi'] != 'undefined', 'missing Wasm export: dynCall_vi');
-  assert(typeof wasmExports['dynCall_v'] != 'undefined', 'missing Wasm export: dynCall_v');
   assert(typeof wasmExports['dynCall_ii'] != 'undefined', 'missing Wasm export: dynCall_ii');
+  assert(typeof wasmExports['dynCall_v'] != 'undefined', 'missing Wasm export: dynCall_v');
   assert(typeof wasmExports['dynCall_iii'] != 'undefined', 'missing Wasm export: dynCall_iii');
   assert(typeof wasmExports['dynCall_vii'] != 'undefined', 'missing Wasm export: dynCall_vii');
   assert(typeof wasmExports['dynCall_viii'] != 'undefined', 'missing Wasm export: dynCall_viii');
@@ -10064,8 +10064,8 @@ function assignWasmExports(wasmExports) {
   __emscripten_stack_alloc = wasmExports['_emscripten_stack_alloc'];
   _emscripten_stack_get_current = wasmExports['emscripten_stack_get_current'];
   dynCall_vi = dynCalls['vi'] = createExportWrapper('dynCall_vi', 2);
-  dynCall_v = dynCalls['v'] = createExportWrapper('dynCall_v', 1);
   dynCall_ii = dynCalls['ii'] = createExportWrapper('dynCall_ii', 2);
+  dynCall_v = dynCalls['v'] = createExportWrapper('dynCall_v', 1);
   dynCall_iii = dynCalls['iii'] = createExportWrapper('dynCall_iii', 3);
   dynCall_vii = dynCalls['vii'] = createExportWrapper('dynCall_vii', 3);
   dynCall_viii = dynCalls['viii'] = createExportWrapper('dynCall_viii', 4);

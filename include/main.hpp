@@ -1,6 +1,2 @@
-#ifndef MAIN_HPP
-#define MAIN_HPP
+#pragma once
 
-#include "variables.h" 
-
-#endif

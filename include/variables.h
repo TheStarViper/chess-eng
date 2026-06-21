@@ -1,5 +1,8 @@
-#ifndef VARIABLES_H
-#define VARIABLES_H
+#pragma once
+#include <memory>
+#include "raylib.h"
+#define P_WHITE "WHITE"
+#define P_BLACK "BLACK"
 
 namespace Config {
     constexpr int WINDOW_WIDTH = 1280;
@@ -54,4 +57,35 @@ namespace Config {
     inline const int SIDEBAR_MIN_WIDTH = 60;
 }
 
-#endif
+enum PieceType {
+    NONE = 0,
+    PAWN,
+    KNIGHT,
+    BISHOP,
+    ROOK,
+    QUEEN,
+    KING
+};
+
+enum GameState {
+    STATE_PLAYING,
+    STATE_PROMOTING,
+    STATE_CHECKMATE,
+    STATE_STALEMATE,
+    STATE_DRAW_REPETITION,
+    STATE_DRAW_50_MOVES,
+    STATE_DRAW_MATERIAL,
+    STATE_RESIGNED,
+    STATE_MUTUAL_DRAW
+};
+
+enum Menus { 
+    PLAY,
+    GAME, 
+    SETTINGS, 
+    PUZZLES, 
+    OPENINGS };
+
+struct GameContext; 
+extern std::unique_ptr<GameContext> g_ctx;
+
