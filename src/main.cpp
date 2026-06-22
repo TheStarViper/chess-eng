@@ -1501,27 +1501,7 @@ namespace CanvasRenderer {
             }
         }
     }
-
-    void DrawChessboard() {
-        BoardState displayState;
-        if (g_ctx->historyView.useLive) {
-            displayState = g_ctx->board->CaptureState();
-        } else {
-            int idx = g_ctx->historyView.viewingIndex;
-            if (idx >= 0 && idx < (int)g_ctx->board->move_history.size()) {
-                displayState = g_ctx->board->move_history[idx].board_state;
-            } else {
-                displayState = g_ctx->board->CaptureState();
-            }
-        }
-    
-        DrawCapturedTrays(displayState);
-
-        std::pair<int, int> checkKingSquare = displayState.check_king_pos;
-        int boardSize = Config::TILE_SIZE * 8;
-
-        VectorRenderer::DrawBoardOrnateFrame(Config::BOARD_OFFSET_X, Config::BOARD_OFFSET_Y, boardSize);
-
+    void draw_board_tiles(BoardState& displayState, std::pair<int, int> checkKingSquare){
         for (int r = 0; r < 8; ++r) {
             for (int c = 0; c < 8; ++c) {
                 int drawX = Config::BOARD_OFFSET_X + c * Config::TILE_SIZE;
@@ -1530,7 +1510,6 @@ namespace CanvasRenderer {
                 bool isDark = ((r + c) % 2 != 0);
                 Color sqColor = isDark ? Config::COLOR_DARK_SQ : Config::COLOR_LIGHT_SQ;
                 DrawRectangle(drawX, drawY, Config::TILE_SIZE, Config::TILE_SIZE, sqColor);
-
                 VectorRenderer::DrawTileWoodGrain((float)drawX, (float)drawY, (float)Config::TILE_SIZE, (float)Config::TILE_SIZE, isDark);
 
                 if ((r == displayState.last_move_from.first && c == displayState.last_move_from.second) ||
@@ -1549,9 +1528,9 @@ namespace CanvasRenderer {
                 }
             }
         }
+    }
 
-        VectorRenderer::DrawOvergrownVines(Config::BOARD_OFFSET_X, Config::BOARD_OFFSET_Y, boardSize);
-
+    void draw_legal_moves(){
         if (g_ctx->board->has_selection && g_ctx->historyView.useLive) {
             Vector2 mousePos = GetMousePosition(); 
 
@@ -1591,7 +1570,9 @@ namespace CanvasRenderer {
                 }
             }
         }
-        
+    }
+
+    void draw_static_pieces(BoardState& displayState){
         for (int r = 0; r < 8; ++r) {
             for (int c = 0; c < 8; ++c) {
                 const auto& cell = displayState.grid[r][c];
@@ -1612,17 +1593,9 @@ namespace CanvasRenderer {
                 }
             }
         }
+    }
 
-        if (g_ctx->anim.active) {
-            DrawChessPiece(
-                g_ctx->anim.piece->type, 
-                g_ctx->anim.piece->color, 
-                (int)g_ctx->anim.currentPos.x, 
-                (int)g_ctx->anim.currentPos.y, 
-                Config::TILE_SIZE
-            );
-        }
-        draw_board_markings();
+    void draw_promotion_panel(){
         if (g_ctx->board->is_promoting) {
             DrawRectangle(0, 0, Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT, Color{ 10, 5, 2, 180 });
             
@@ -1640,7 +1613,9 @@ namespace CanvasRenderer {
                 btn->Draw();
             }
         }
+    }
 
+    void draw_game_over(){
         if (g_ctx->board->state != STATE_PLAYING && g_ctx->historyView.useLive) {
             DrawRectangle(Config::BOARD_OFFSET_X, Config::BOARD_OFFSET_Y, Config::TILE_SIZE * 8, Config::TILE_SIZE * 8, Color{ 20, 10, 5, 160 });
             
@@ -1657,6 +1632,47 @@ namespace CanvasRenderer {
             
             g_ctx->btnOverlayRematch->Draw();
         }
+    }
+
+    void DrawChessboard() {
+        if (g_ctx->active_menu==PUZZLES){
+            return;
+        }
+        BoardState displayState;
+        if (g_ctx->historyView.useLive) {
+            displayState = g_ctx->board->CaptureState();
+        } else {
+            int idx = g_ctx->historyView.viewingIndex;
+            if (idx >= 0 && idx < (int)g_ctx->board->move_history.size()) {
+                displayState = g_ctx->board->move_history[idx].board_state;
+            } else {
+                displayState = g_ctx->board->CaptureState();
+            }
+        }
+    
+        DrawCapturedTrays(displayState);
+
+        std::pair<int, int> checkKingSquare = displayState.check_king_pos;
+        int boardSize = Config::TILE_SIZE * 8;
+        VectorRenderer::DrawBoardOrnateFrame(Config::BOARD_OFFSET_X, Config::BOARD_OFFSET_Y, boardSize);
+        draw_board_tiles(displayState,checkKingSquare);
+        VectorRenderer::DrawOvergrownVines(Config::BOARD_OFFSET_X, Config::BOARD_OFFSET_Y, boardSize);
+        draw_legal_moves();
+        draw_static_pieces(displayState);
+        
+
+        if (g_ctx->anim.active) {
+            DrawChessPiece(
+                g_ctx->anim.piece->type, 
+                g_ctx->anim.piece->color, 
+                (int)g_ctx->anim.currentPos.x, 
+                (int)g_ctx->anim.currentPos.y, 
+                Config::TILE_SIZE
+            );
+        }
+        draw_board_markings();
+        draw_promotion_panel();
+        draw_game_over();
     }
 }
 
@@ -2177,6 +2193,7 @@ void UpdateDrawFrame() { // rendering
             break;
         case PUZZLES:
             DrawRectangle(0, 0, Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT, Fade(BLACK, 0.6f));
+            CanvasRenderer::DrawChessboard();
             DrawTextSmooth("OFFLINE TACTICS / PUZZLES", 250.0f, 200.0f, 32.0f, RAYWHITE);
             break;
         case OPENINGS:
@@ -2190,7 +2207,7 @@ void UpdateDrawFrame() { // rendering
         default:
             break;
     }
-    DrawCollapsibleSidebar(mousePos);
+    DrawCollapsibleSidebar(mousePos); 
     DrawTextSmooth(TextFormat("%d", GetFPS()), 25.0f, 20.0f, 24.0f, Config::COLOR_LEAF_LIGHT);
     EndTextureMode();
 
@@ -2216,7 +2233,7 @@ int main(int argc, char* argv[]) {
         g_ctx->hoversound = LoadSound(hoversoundfilepath);
         audio_loaded= true;
         TraceLog(LOG_INFO, "AUDIO: ZA BLUETOOTH DEWICE HAS BEEN CONNECTED");
-    }
+    } 
 #if defined(PLATFORM_WEB)
     emscripten_set_main_loop(UpdateDrawFrame, 0, 1);
 #else
