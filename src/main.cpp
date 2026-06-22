@@ -1,6 +1,7 @@
 #include "raylib.h"
 #include "rlgl.h"
 #include "main.hpp"
+#include "leaves.hpp"
 #include <iostream>
 #include <vector>
 #include <string>
@@ -262,6 +263,9 @@ struct GameContext {
     Sound hoversound;
     BoardState savedGameState;
     BoardState savedPuzzleState;
+    int puzzleMoveIndex = 0;
+    bool puzzleFailed = false;
+    bool puzzleSuccess = false;
     bool hasSavedGame = false;
     bool hasSavedPuzzle = false;
     std::vector<HistorySnapshot> savedGameHistory;
@@ -939,88 +943,98 @@ namespace VectorRenderer {
             DrawLeaf(x, y, finalSize, angleDegrees);
         };
 
+        float boardLeaves[][4] = {
+            // --- Board Top Grouping (Left-to-mid) ---
+            { (float)boardX + 75,  (float)boardY - 6,  14, -15 },
+            { (float)boardX + 95,  (float)boardY - 12, 17, 10 },
+            { (float)boardX + 115, (float)boardY - 5,  13, 35 },
+            { (float)boardX + 135, (float)boardY - 9,  15, -10 },
+            { (float)boardX + 160, (float)boardY - 6,  12, 45 },
+
+            // --- Board Top Grouping (Spread across mid-to-right) ---
+            { (float)boardX + 380, (float)boardY - 10, 15, -25 },
+            { (float)boardX + 405, (float)boardY - 6,  13, 5 },
+            { (float)boardX + 430, (float)boardY - 13, 18, 20 },
+            { (float)boardX + 455, (float)boardY - 5,  14, -15 },
+            { (float)boardX + 480, (float)boardY + 2,  16, 55 },
+
+            // --- Board Bottom Grouping (Spread left-to-mid) ---
+            { (float)boardX + 65,  (float)boardY + boardSize + 6,  14, 160 },
+            { (float)boardX + 90,  (float)boardY + boardSize + 12, 18, 195 },
+            { (float)boardX + 115, (float)boardY + boardSize + 4,  13, 140 },
+            { (float)boardX + 140, (float)boardY + boardSize + 9,  15, 175 },
+
+            // --- Board Bottom Grouping (Spread mid-to-right) ---
+            { (float)boardX + 420, (float)boardY + boardSize + 5,  13, 150 },
+            { (float)boardX + 445, (float)boardY + boardSize + 11, 17, 215 },
+            { (float)boardX + 470, (float)boardY + boardSize + 4,  14, 135 },
+            { (float)boardX + 495, (float)boardY + boardSize + 8,  16, 185 },
+
+            // --- Board Left Side Grouping (Spread vertically down) ---
+            { (float)boardX - 6,   (float)boardY + 210, 14, -75 },
+            { (float)boardX - 10,  (float)boardY + 235, 16, -100 },
+            { (float)boardX - 13,  (float)boardY + 260, 18, -120 },
+            { (float)boardX - 8,   (float)boardY + 285, 13, -60 },
+            { (float)boardX - 5,   (float)boardY + 310, 15, -85 },
+
+            // --- Board Right Side Grouping (Spread vertically down) ---
+            { (float)boardX + boardSize + 6,  (float)boardY + 310, 13, 65 },
+            { (float)boardX + boardSize + 11, (float)boardY + 335, 17, 90 },
+            { (float)boardX + boardSize + 14, (float)boardY + 360, 19, 120 },
+            { (float)boardX + boardSize + 9,  (float)boardY + 385, 14, 55 },
+            { (float)boardX + boardSize + 7,  (float)boardY + 410, 15, 100 }
+        };
+
+        float panelLeaves[][4] = {
+            // --- Move Log Top Border (Spanning left half) ---
+            { (float)Config::PANEL_X + 10,  (float)Config::PANEL_Y + 6, 13, -45 },
+            { (float)Config::PANEL_X + 30,  (float)Config::PANEL_Y + 1, 16, 10 },
+            { (float)Config::PANEL_X + 50,  (float)Config::PANEL_Y + 4, 12, -20 },
+            { (float)Config::PANEL_X + 70,  (float)Config::PANEL_Y + 1, 15, 30 },
+            { (float)Config::PANEL_X + 90,  (float)Config::PANEL_Y + 5, 13, -10 },
+
+            // --- Move Log Top Border (Spanning right half) ---
+            { (float)Config::PANEL_X + Config::PANEL_WIDTH - 100, (float)Config::PANEL_Y + 4, 14, -15 },
+            { (float)Config::PANEL_X + Config::PANEL_WIDTH - 80,  (float)Config::PANEL_Y + 1, 15, 35 },
+            { (float)Config::PANEL_X + Config::PANEL_WIDTH - 60,  (float)Config::PANEL_Y + 6, 12, 10 },
+            { (float)Config::PANEL_X + Config::PANEL_WIDTH - 40,  (float)Config::PANEL_Y + 2, 17, 75 },
+            { (float)Config::PANEL_X + Config::PANEL_WIDTH - 15,  (float)Config::PANEL_Y + 8, 13, 115 },
+
+            // --- Move Log Left Side (Cascading down the edge) ---
+            { (float)Config::PANEL_X + 3,  (float)Config::PANEL_Y + 120, 13, -80 },
+            { (float)Config::PANEL_X + 2,  (float)Config::PANEL_Y + 145, 16, -110 },
+            { (float)Config::PANEL_X + 4,  (float)Config::PANEL_Y + 170, 15, -70 },
+            { (float)Config::PANEL_X + 2,  (float)Config::PANEL_Y + 195, 14, -95 },
+            { (float)Config::PANEL_X + 1,  (float)Config::PANEL_Y + 220, 12, -120 },
+
+            // --- Move Log Right Side (Cascading down the edge) ---
+            { (float)Config::PANEL_X + Config::PANEL_WIDTH + 1, (float)Config::PANEL_Y + 140, 12, 60 },
+            { (float)Config::PANEL_X + Config::PANEL_WIDTH + 1, (float)Config::PANEL_Y + 165, 15, 95 },
+            { (float)Config::PANEL_X + Config::PANEL_WIDTH + 2, (float)Config::PANEL_Y + 190, 17, 115 },
+            { (float)Config::PANEL_X + Config::PANEL_WIDTH + 1, (float)Config::PANEL_Y + 215, 13, 50 },
+            { (float)Config::PANEL_X + Config::PANEL_WIDTH + 2, (float)Config::PANEL_Y + 240, 14, 85 },
+
+            // --- Move Log Bottom Border (Spanning along the base) ---
+            { (float)Config::PANEL_X + 12, (float)Config::PANEL_Y + Config::PANEL_HEIGHT + 3, 14, -135 },
+            { (float)Config::PANEL_X + 37, (float)Config::PANEL_Y + Config::PANEL_HEIGHT + 2, 16, 185 },
+            { (float)Config::PANEL_X + 62, (float)Config::PANEL_Y + Config::PANEL_HEIGHT + 5, 13, 150 },
+            
+            { (float)Config::PANEL_X + Config::PANEL_WIDTH - 75, (float)Config::PANEL_Y + Config::PANEL_HEIGHT + 2, 14, 210 },
+            { (float)Config::PANEL_X + Config::PANEL_WIDTH - 50, (float)Config::PANEL_Y + Config::PANEL_HEIGHT + 3, 15, 145 },
+            { (float)Config::PANEL_X + Config::PANEL_WIDTH - 20, (float)Config::PANEL_Y + Config::PANEL_HEIGHT + 1, 13, 70 }
+        };
         switch (id){
             case 1:
-                //TOP
-                // --- BOARD TOP LEAVES ---
-                UpdateAndDrawLeaf((float)boardX + 75,  (float)boardY - 6,  14, -15);
-                UpdateAndDrawLeaf((float)boardX + 95,  (float)boardY - 12, 17, 10);
-                UpdateAndDrawLeaf((float)boardX + 115, (float)boardY - 5,  13, 35);
-                UpdateAndDrawLeaf((float)boardX + 135, (float)boardY - 9,  15, -10);
-                UpdateAndDrawLeaf((float)boardX + 160, (float)boardY - 6,  12, 45);
-
-                // --- Board Top Grouping (Spread across mid-to-right) ---
-                UpdateAndDrawLeaf((float)boardX + 380, (float)boardY - 10, 15, -25);
-                UpdateAndDrawLeaf((float)boardX + 405, (float)boardY - 6,  13, 5);
-                UpdateAndDrawLeaf((float)boardX + 430, (float)boardY - 13, 18, 20);
-                UpdateAndDrawLeaf((float)boardX + 455, (float)boardY - 5,  14, -15);
-                UpdateAndDrawLeaf((float)boardX + 480, (float)boardY + 2,  16, 55);
-
-                // --- Board Bottom Grouping (Spread left-to-mid) ---
-                UpdateAndDrawLeaf((float)boardX + 65,  (float)boardY + boardSize + 6,  14, 160);
-                UpdateAndDrawLeaf((float)boardX + 90,  (float)boardY + boardSize + 12, 18, 195);
-                UpdateAndDrawLeaf((float)boardX + 115, (float)boardY + boardSize + 4,  13, 140);
-                UpdateAndDrawLeaf((float)boardX + 140, (float)boardY + boardSize + 9,  15, 175);
-
-                // --- Board Bottom Grouping (Spread mid-to-right) ---
-                UpdateAndDrawLeaf((float)boardX + 420, (float)boardY + boardSize + 5,  13, 150);
-                UpdateAndDrawLeaf((float)boardX + 445, (float)boardY + boardSize + 11, 17, 215);
-                UpdateAndDrawLeaf((float)boardX + 470, (float)boardY + boardSize + 4,  14, 135);
-                UpdateAndDrawLeaf((float)boardX + 495, (float)boardY + boardSize + 8,  16, 185);
-
-                // --- Board Left Side Grouping (Spread vertically down) ---
-                UpdateAndDrawLeaf((float)boardX - 6,   (float)boardY + 210, 14, -75);
-                UpdateAndDrawLeaf((float)boardX - 10,  (float)boardY + 235, 16, -100);
-                UpdateAndDrawLeaf((float)boardX - 13,  (float)boardY + 260, 18, -120);
-                UpdateAndDrawLeaf((float)boardX - 8,   (float)boardY + 285, 13, -60);
-                UpdateAndDrawLeaf((float)boardX - 5,   (float)boardY + 310, 15, -85);
-
-                // --- Board Right Side Grouping (Spread vertically down) ---
-                UpdateAndDrawLeaf((float)boardX + boardSize + 6,  (float)boardY + 310, 13, 65);
-                UpdateAndDrawLeaf((float)boardX + boardSize + 11, (float)boardY + 335, 17, 90);
-                UpdateAndDrawLeaf((float)boardX + boardSize + 14, (float)boardY + 360, 19, 120);
-                UpdateAndDrawLeaf((float)boardX + boardSize + 9,  (float)boardY + 385, 14, 55);
-                UpdateAndDrawLeaf((float)boardX + boardSize + 7,  (float)boardY + 410, 15, 100);
-                break;
-            case 2:
-                // --- Move Log Top Border (Spanning left half) ---
-                UpdateAndDrawLeaf((float)Config::PANEL_X + 10,  (float)Config::PANEL_Y + 6,   13, -45);
-                UpdateAndDrawLeaf((float)Config::PANEL_X + 30,  (float)Config::PANEL_Y + 1,   16, 10);
-                UpdateAndDrawLeaf((float)Config::PANEL_X + 50,  (float)Config::PANEL_Y + 4,   12, -20);
-                UpdateAndDrawLeaf((float)Config::PANEL_X + 70,  (float)Config::PANEL_Y + 1,   15, 30);
-                UpdateAndDrawLeaf((float)Config::PANEL_X + 90,  (float)Config::PANEL_Y + 5,   13, -10);
-
-                // --- Move Log Top Border (Spanning right half) ---
-                UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 100, (float)Config::PANEL_Y + 4,   14, -15);
-                UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 80,  (float)Config::PANEL_Y + 1,   15, 35);
-                UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 60,  (float)Config::PANEL_Y + 6,   12, 10);
-                UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 40,  (float)Config::PANEL_Y + 2,   17, 75);
-                UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 15,  (float)Config::PANEL_Y + 8,   13, 115);
-
-                // --- Move Log Left Side (Cascading down the edge) ---
-                UpdateAndDrawLeaf((float)Config::PANEL_X+3,   (float)Config::PANEL_Y + 120, 13, -80);
-                UpdateAndDrawLeaf((float)Config::PANEL_X+2,   (float)Config::PANEL_Y + 145, 16, -110);
-                UpdateAndDrawLeaf((float)Config::PANEL_X+4,  (float)Config::PANEL_Y + 170, 15, -70);
-                UpdateAndDrawLeaf((float)Config::PANEL_X+2,   (float)Config::PANEL_Y + 195, 14, -95);
-                UpdateAndDrawLeaf((float)Config::PANEL_X+1,   (float)Config::PANEL_Y + 220, 12, -120);
-
-                // --- Move Log Right Side (Cascading down the edge) ---
-                UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH + 1, (float)Config::PANEL_Y + 140, 12, 60);
-                UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH + 1, (float)Config::PANEL_Y + 165, 15, 95);
-                UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH + 2, (float)Config::PANEL_Y + 190, 17, 115);
-                UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH + 1, (float)Config::PANEL_Y + 215, 13, 50);
-                UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH + 2, (float)Config::PANEL_Y + 240, 14, 85);
-
-                // --- Move Log Bottom Border (Spanning along the base) ---
-                UpdateAndDrawLeaf((float)Config::PANEL_X + 12,  (float)Config::PANEL_Y + Config::PANEL_HEIGHT + 3, 14, -135);
-                UpdateAndDrawLeaf((float)Config::PANEL_X + 37,  (float)Config::PANEL_Y + Config::PANEL_HEIGHT + 2,  16, 185);
-                UpdateAndDrawLeaf((float)Config::PANEL_X + 62,  (float)Config::PANEL_Y + Config::PANEL_HEIGHT + 5, 13, 150);
-                
-                UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 75, (float)Config::PANEL_Y + Config::PANEL_HEIGHT +2, 14, 210);
-                UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 50, (float)Config::PANEL_Y + Config::PANEL_HEIGHT +3, 15, 145);
-                UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 20, (float)Config::PANEL_Y + Config::PANEL_HEIGHT+1,  13, 70); 
-                break;
-        }       
+            for (const auto& leaf : boardLeaves) {
+                UpdateAndDrawLeaf((float)leaf[0], (float)leaf[1], (float)leaf[2], (float)leaf[3]);
+            }
+            break;
+        case 2:
+            for (const auto& leaf : panelLeaves) {
+                UpdateAndDrawLeaf((float)leaf[0], (float)leaf[1], (float)leaf[2], (float)leaf[3]);
+            }
+            break;
+        }
         
 
         
@@ -1243,6 +1257,31 @@ BoardState ParseFenToState(const std::string& fen) {
 
     return newState;
 }
+
+std::vector<std::string> SplitMoveString(const std::string& movesStr) {
+    std::vector<std::string> moves;
+    std::stringstream ss(movesStr);
+    std::string move;
+    while (ss >> move) {
+        moves.push_back(move);
+    }
+    return moves;
+}
+
+std::string ConvertToUci(int fromRow, int fromCol, int toRow, int toCol) { //universal chess interface
+    char fromFile = 'a' + fromCol;
+    char fromRank = '8' - fromRow;
+    char toFile = 'a' + toCol;
+    char toRank = '8' - toRow;
+    
+    std::string uci = "";
+    uci += fromFile;
+    uci += fromRank;
+    uci += toFile;
+    uci += toRank;
+    return uci;
+}
+
 namespace CanvasRenderer {
 
     void DrawCapturedTrays(BoardState& displayState) {
@@ -1711,7 +1750,7 @@ namespace TickEngine {
         int gridX = (int)((g_ctx->mousePosition.x - Config::BOARD_OFFSET_X) / Config::TILE_SIZE);
         int gridY = (int)((g_ctx->mousePosition.y - Config::BOARD_OFFSET_Y) / Config::TILE_SIZE);
         bool isMouseOnBoard = (gridX >= 0 && gridX < 8 && gridY >= 0 && gridY < 8);
-
+        
         g_ctx->mousePosition = GetMousePosition();
 
         g_ctx->btnResign->Update(g_ctx->mousePosition);
@@ -1846,6 +1885,35 @@ namespace TickEngine {
                         g_ctx->board->promotion_square.second, 
                         choice
                     );
+
+                    if (g_ctx->active_menu == PUZZLES && !g_ctx->puzzleSuccess && !g_ctx->puzzleFailed) {
+                        std::vector<std::string> solutionMoves = SplitMoveString(g_ctx->cachedpuzzle.solution);
+                        
+                        std::string playerMoveUci = ConvertToUci(g_ctx->board->promotion_source.first, g_ctx->board->promotion_source.second, g_ctx->board->promotion_square.first, g_ctx->board->promotion_square.second);
+                        if (choice == QUEEN) playerMoveUci += "q";
+                        else if (choice == ROOK) playerMoveUci += "r";
+                        else if (choice == BISHOP) playerMoveUci += "b";
+                        else if (choice == KNIGHT) playerMoveUci += "n";
+
+                        if (g_ctx->puzzleMoveIndex < (int)solutionMoves.size() && playerMoveUci == solutionMoves[g_ctx->puzzleMoveIndex]) {
+                            g_ctx->puzzleMoveIndex++;
+                            if (g_ctx->puzzleMoveIndex >= (int)solutionMoves.size()) {
+                                g_ctx->puzzleSuccess = true;
+                            } else {
+                                std::string opponentMoveUci = solutionMoves[g_ctx->puzzleMoveIndex];
+                                int opFromCol = opponentMoveUci[0] - 'a', opFromRow = '8' - opponentMoveUci[1];
+                                int opToCol   = opponentMoveUci[2] - 'a', opToRow   = '8' - opponentMoveUci[3];
+                                g_ctx->board->grid[opToRow][opToCol] = g_ctx->board->grid[opFromRow][opFromCol];
+                                g_ctx->board->grid[opFromRow][opFromCol] = GridData();
+                                g_ctx->board->turn = (g_ctx->board->turn == P_WHITE) ? P_BLACK : P_WHITE;
+                                g_ctx->puzzleMoveIndex++;
+                            }
+                        } else {
+                            g_ctx->puzzleFailed = true;
+                            g_ctx->board->LoadState(g_ctx->savedPuzzleState); 
+                        }
+                    }
+
                     return;
                 }
             }
@@ -1903,7 +1971,31 @@ namespace TickEngine {
                         g_ctx->anim.elapsedTime = 0.0f;
                         g_ctx->anim.targetRow = gridY;
                         g_ctx->anim.targetCol = gridX;
-
+                        if (g_ctx->active_menu == PUZZLES && !g_ctx->puzzleSuccess && !g_ctx->puzzleFailed) {
+                            std::vector<std::string> solutionMoves = SplitMoveString(g_ctx->cachedpuzzle.solution);
+                            std::string playerMoveUci = ConvertToUci(srcR, srcC, gridY, gridX);
+                            
+                            if (g_ctx->puzzleMoveIndex < (int)solutionMoves.size() && playerMoveUci == solutionMoves[g_ctx->puzzleMoveIndex]) {
+                                g_ctx->puzzleMoveIndex++;
+                                
+                                if (g_ctx->puzzleMoveIndex >= (int)solutionMoves.size()) {
+                                    g_ctx->puzzleSuccess = true;
+                                } else {
+                                    std::string opponentMoveUci = solutionMoves[g_ctx->puzzleMoveIndex];
+                                    int opFromCol = opponentMoveUci[0] - 'a', opFromRow = '8' - opponentMoveUci[1];
+                                    int opToCol   = opponentMoveUci[2] - 'a', opToRow   = '8' - opponentMoveUci[3];
+                                    
+                                    g_ctx->board->grid[opToRow][opToCol] = g_ctx->board->grid[opFromRow][opFromCol];
+                                    g_ctx->board->grid[opFromRow][opFromCol] = GridData();
+                                    
+                                    g_ctx->board->turn = (g_ctx->board->turn == P_WHITE) ? P_BLACK : P_WHITE;
+                                    g_ctx->puzzleMoveIndex++;
+                                }
+                            } else {
+                                g_ctx->puzzleFailed = true;
+                                g_ctx->board->LoadState(g_ctx->savedPuzzleState); 
+                            }
+                        }
                     } else {
                         const auto& nextPiece = g_ctx->board->grid[gridY][gridX].piece;
                         if (nextPiece && nextPiece->color == g_ctx->board->turn) {
@@ -2061,7 +2153,17 @@ Puzzle get_random_puzzle() {
     }
 
     size_t fileSize = g_fileDataBuffer.size();
-    size_t randomOffset = rand() % (fileSize - 250);
+
+    if (fileSize <= 250) {
+        TraceLog(LOG_ERROR, "CSV_LOADER: File buffer is too small to safely pick a random offset.");
+        return selectedpuzzle;
+    }
+
+    static std::random_device rd;
+    static std::mt19937 gen(rd()); 
+
+    std::uniform_int_distribution<size_t> distr(0, fileSize - 250);
+    size_t randomOffset = distr(gen);
 
     size_t startPos = randomOffset;
     while (startPos < fileSize && g_fileDataBuffer[startPos] != '\n') {
@@ -2151,28 +2253,33 @@ void UpdateDrawFrame() { // rendering
     }
     static Menus last_menu = PLAY; 
     BoardState puzzleState;
+
     if (load_new_puzzle) {
         g_ctx->cachedpuzzle = get_random_puzzle();
         g_ctx->savedPuzzleState = ParseFenToState(g_ctx->cachedpuzzle.boardsetup);
         g_ctx->savedPuzzleHistory.clear(); 
         g_ctx->hasSavedPuzzle = true;
+        
+        g_ctx->puzzleMoveIndex = 0;
+        g_ctx->puzzleFailed = false;
+        g_ctx->puzzleSuccess = false;
+
         if (g_ctx->active_menu == PUZZLES) {
             g_ctx->board->LoadState(g_ctx->savedPuzzleState);
             g_ctx->board->move_history.clear();
-            g_ctx->active_turn_id = (g_ctx->board->turn == P_WHITE) ? 0 : 1;
         }
         
         g_ctx->historyView.useLive = true;
         g_ctx->historyView.viewingIndex = -1;
         load_new_puzzle = false;
     } 
+
     if (g_ctx->active_menu != last_menu) {
         if (last_menu == PUZZLES) {
             g_ctx->savedPuzzleState = g_ctx->board->CaptureState();
             g_ctx->savedPuzzleHistory = g_ctx->board->move_history;
             g_ctx->hasSavedPuzzle = true;
-        } 
-        else if (last_menu == GAME) {
+        } else if (last_menu == GAME) {
             g_ctx->savedGameState = g_ctx->board->CaptureState();
             g_ctx->savedGameHistory = g_ctx->board->move_history;
             g_ctx->hasSavedGame = true;
@@ -2180,14 +2287,14 @@ void UpdateDrawFrame() { // rendering
 
         if (g_ctx->active_menu == PUZZLES) {
             if (!g_ctx->hasSavedPuzzle) {
-                g_ctx->savedPuzzleState = ParseFenToState(g_ctx->cachedpuzzle.boardsetup.empty() ? "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" : g_ctx->cachedpuzzle.boardsetup);
+                std::string defaultFen = g_ctx->cachedpuzzle.boardsetup.empty() ? 
+                    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" : g_ctx->cachedpuzzle.boardsetup;
+                g_ctx->savedPuzzleState = ParseFenToState(defaultFen);
                 g_ctx->savedPuzzleHistory.clear();
                 g_ctx->hasSavedPuzzle = true;
             }
-            
             g_ctx->board->LoadState(g_ctx->savedPuzzleState);
             g_ctx->board->move_history = g_ctx->savedPuzzleHistory;
-            g_ctx->active_turn_id = (g_ctx->board->turn == P_WHITE) ? 0 : 1;
         } 
         else if (g_ctx->active_menu == GAME) {
             if (!g_ctx->hasSavedGame) {
@@ -2199,16 +2306,16 @@ void UpdateDrawFrame() { // rendering
                 g_ctx->board->LoadState(g_ctx->savedGameState);
                 g_ctx->board->move_history = g_ctx->savedGameHistory;
             }
-            g_ctx->active_turn_id = (g_ctx->board->turn == P_WHITE) ? 0 : 1;
         }
 
+        g_ctx->active_turn_id = (g_ctx->board->turn == P_WHITE) ? 0 : 1;
         last_menu = g_ctx->active_menu;
         g_ctx->historyView.useLive = true;
         g_ctx->historyView.viewingIndex = -1;
     }
-    if (g_ctx->active_menu == PUZZLES) {
-        puzzleState = g_ctx->board->CaptureState();
-    }
+    BoardState displayState;
+    displayState = g_ctx->board->CaptureState();
+    g_ctx->active_turn_id = (g_ctx->board->turn == P_WHITE) ? 0 : 1;
 
 
 
@@ -2241,7 +2348,7 @@ void UpdateDrawFrame() { // rendering
     );
     
     
-    BoardState displayState;
+    
     if (g_ctx->historyView.useLive) {
         displayState = g_ctx->board->CaptureState();
     } else {
@@ -2254,6 +2361,8 @@ void UpdateDrawFrame() { // rendering
     }
     switch (g_ctx->active_menu) {
         case PLAY:
+            DrawRectangle(0, 0, Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT, Fade(BLACK, 0.6f));
+            DrawTextSmooth("TO BE ADDED", 250.0f, 200.0f, 32.0f, RAYWHITE);
             break;
         case SETTINGS:
             DrawRectangle(0, 0, Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT, Fade(BLACK, 0.2f));
@@ -2261,10 +2370,18 @@ void UpdateDrawFrame() { // rendering
             break;
         case PUZZLES:
             CanvasRenderer::DrawChessboard(displayState);
+            if (g_ctx->puzzleSuccess) {
+                DrawRectangle(0, 0, Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT, Fade(GREEN, 0.3f));
+                DrawTextSmooth("SUCCESS! PUZZLE SOLVED", 300.0f, 400.0f, 40.0f, GREEN);
+            } 
+            else if (g_ctx->puzzleFailed) {
+                DrawRectangle(0, 0, Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT, Fade(RED, 0.15f));
+                DrawTextSmooth("WRONG MOVE. TRY AGAIN!", 300.0f, 400.0f, 40.0f, RED);
+            }
             break;
         case OPENINGS:
             DrawRectangle(0, 0, Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT, Fade(BLACK, 0.6f));
-            DrawTextSmooth("LOCAL OPENING STUDY BOOK", 250.0f, 200.0f, 32.0f, RAYWHITE);
+            DrawTextSmooth("TO BE ADDED", 250.0f, 200.0f, 32.0f, RAYWHITE);
             break;
         case GAME:
             CanvasRenderer::DrawGameMetrics();
