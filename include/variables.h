@@ -8,6 +8,7 @@
 //security checks
 bool g_puzzlesLoaded = false;
 bool audio_loaded = false;
+bool load_new_puzzle = true;
 
 namespace Config {
     constexpr int WINDOW_WIDTH = 1280;

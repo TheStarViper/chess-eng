@@ -260,7 +260,12 @@ public:
 struct GameContext {
     //Sounds
     Sound hoversound;
-
+    BoardState savedGameState;
+    BoardState savedPuzzleState;
+    bool hasSavedGame = false;
+    bool hasSavedPuzzle = false;
+    std::vector<HistorySnapshot> savedGameHistory;
+    std::vector<HistorySnapshot> savedPuzzleHistory;
     int lastHoveredLeafId = -1;
     int lastHoveredBoardPieceTile;
     int genuineHoveredLeafId = -1;  
@@ -910,7 +915,7 @@ namespace VectorRenderer {
         DrawLineEx(Vector2{ x + offset3, y + 3 }, Vector2{ x + offset3, y + h - 3 }, 1.1f, grainColor);
     }
 
-    void DrawOvergrownVines(int boardX, int boardY, float boardSize) {
+    void DrawOvergrownVines(int boardX, int boardY, float boardSize, int id) {
         Vector2 mousePos = GetMousePosition();
         int currentLeafId = 0;
         int hoveredLeafThisFrame = -1;
@@ -934,84 +939,92 @@ namespace VectorRenderer {
             DrawLeaf(x, y, finalSize, angleDegrees);
         };
 
-        //TOP
-        // --- BOARD TOP LEAVES ---
-        UpdateAndDrawLeaf((float)boardX + 75,  (float)boardY - 6,  14, -15);
-        UpdateAndDrawLeaf((float)boardX + 95,  (float)boardY - 12, 17, 10);
-        UpdateAndDrawLeaf((float)boardX + 115, (float)boardY - 5,  13, 35);
-        UpdateAndDrawLeaf((float)boardX + 135, (float)boardY - 9,  15, -10);
-        UpdateAndDrawLeaf((float)boardX + 160, (float)boardY - 6,  12, 45);
+        switch (id){
+            case 1:
+                //TOP
+                // --- BOARD TOP LEAVES ---
+                UpdateAndDrawLeaf((float)boardX + 75,  (float)boardY - 6,  14, -15);
+                UpdateAndDrawLeaf((float)boardX + 95,  (float)boardY - 12, 17, 10);
+                UpdateAndDrawLeaf((float)boardX + 115, (float)boardY - 5,  13, 35);
+                UpdateAndDrawLeaf((float)boardX + 135, (float)boardY - 9,  15, -10);
+                UpdateAndDrawLeaf((float)boardX + 160, (float)boardY - 6,  12, 45);
 
-        // --- Board Top Grouping (Spread across mid-to-right) ---
-        UpdateAndDrawLeaf((float)boardX + 380, (float)boardY - 10, 15, -25);
-        UpdateAndDrawLeaf((float)boardX + 405, (float)boardY - 6,  13, 5);
-        UpdateAndDrawLeaf((float)boardX + 430, (float)boardY - 13, 18, 20);
-        UpdateAndDrawLeaf((float)boardX + 455, (float)boardY - 5,  14, -15);
-        UpdateAndDrawLeaf((float)boardX + 480, (float)boardY + 2,  16, 55);
+                // --- Board Top Grouping (Spread across mid-to-right) ---
+                UpdateAndDrawLeaf((float)boardX + 380, (float)boardY - 10, 15, -25);
+                UpdateAndDrawLeaf((float)boardX + 405, (float)boardY - 6,  13, 5);
+                UpdateAndDrawLeaf((float)boardX + 430, (float)boardY - 13, 18, 20);
+                UpdateAndDrawLeaf((float)boardX + 455, (float)boardY - 5,  14, -15);
+                UpdateAndDrawLeaf((float)boardX + 480, (float)boardY + 2,  16, 55);
 
-        // --- Board Bottom Grouping (Spread left-to-mid) ---
-        UpdateAndDrawLeaf((float)boardX + 65,  (float)boardY + boardSize + 6,  14, 160);
-        UpdateAndDrawLeaf((float)boardX + 90,  (float)boardY + boardSize + 12, 18, 195);
-        UpdateAndDrawLeaf((float)boardX + 115, (float)boardY + boardSize + 4,  13, 140);
-        UpdateAndDrawLeaf((float)boardX + 140, (float)boardY + boardSize + 9,  15, 175);
+                // --- Board Bottom Grouping (Spread left-to-mid) ---
+                UpdateAndDrawLeaf((float)boardX + 65,  (float)boardY + boardSize + 6,  14, 160);
+                UpdateAndDrawLeaf((float)boardX + 90,  (float)boardY + boardSize + 12, 18, 195);
+                UpdateAndDrawLeaf((float)boardX + 115, (float)boardY + boardSize + 4,  13, 140);
+                UpdateAndDrawLeaf((float)boardX + 140, (float)boardY + boardSize + 9,  15, 175);
 
-        // --- Board Bottom Grouping (Spread mid-to-right) ---
-        UpdateAndDrawLeaf((float)boardX + 420, (float)boardY + boardSize + 5,  13, 150);
-        UpdateAndDrawLeaf((float)boardX + 445, (float)boardY + boardSize + 11, 17, 215);
-        UpdateAndDrawLeaf((float)boardX + 470, (float)boardY + boardSize + 4,  14, 135);
-        UpdateAndDrawLeaf((float)boardX + 495, (float)boardY + boardSize + 8,  16, 185);
+                // --- Board Bottom Grouping (Spread mid-to-right) ---
+                UpdateAndDrawLeaf((float)boardX + 420, (float)boardY + boardSize + 5,  13, 150);
+                UpdateAndDrawLeaf((float)boardX + 445, (float)boardY + boardSize + 11, 17, 215);
+                UpdateAndDrawLeaf((float)boardX + 470, (float)boardY + boardSize + 4,  14, 135);
+                UpdateAndDrawLeaf((float)boardX + 495, (float)boardY + boardSize + 8,  16, 185);
 
-        // --- Board Left Side Grouping (Spread vertically down) ---
-        UpdateAndDrawLeaf((float)boardX - 6,   (float)boardY + 210, 14, -75);
-        UpdateAndDrawLeaf((float)boardX - 10,  (float)boardY + 235, 16, -100);
-        UpdateAndDrawLeaf((float)boardX - 13,  (float)boardY + 260, 18, -120);
-        UpdateAndDrawLeaf((float)boardX - 8,   (float)boardY + 285, 13, -60);
-        UpdateAndDrawLeaf((float)boardX - 5,   (float)boardY + 310, 15, -85);
+                // --- Board Left Side Grouping (Spread vertically down) ---
+                UpdateAndDrawLeaf((float)boardX - 6,   (float)boardY + 210, 14, -75);
+                UpdateAndDrawLeaf((float)boardX - 10,  (float)boardY + 235, 16, -100);
+                UpdateAndDrawLeaf((float)boardX - 13,  (float)boardY + 260, 18, -120);
+                UpdateAndDrawLeaf((float)boardX - 8,   (float)boardY + 285, 13, -60);
+                UpdateAndDrawLeaf((float)boardX - 5,   (float)boardY + 310, 15, -85);
 
-        // --- Board Right Side Grouping (Spread vertically down) ---
-        UpdateAndDrawLeaf((float)boardX + boardSize + 6,  (float)boardY + 310, 13, 65);
-        UpdateAndDrawLeaf((float)boardX + boardSize + 11, (float)boardY + 335, 17, 90);
-        UpdateAndDrawLeaf((float)boardX + boardSize + 14, (float)boardY + 360, 19, 120);
-        UpdateAndDrawLeaf((float)boardX + boardSize + 9,  (float)boardY + 385, 14, 55);
-        UpdateAndDrawLeaf((float)boardX + boardSize + 7,  (float)boardY + 410, 15, 100);
+                // --- Board Right Side Grouping (Spread vertically down) ---
+                UpdateAndDrawLeaf((float)boardX + boardSize + 6,  (float)boardY + 310, 13, 65);
+                UpdateAndDrawLeaf((float)boardX + boardSize + 11, (float)boardY + 335, 17, 90);
+                UpdateAndDrawLeaf((float)boardX + boardSize + 14, (float)boardY + 360, 19, 120);
+                UpdateAndDrawLeaf((float)boardX + boardSize + 9,  (float)boardY + 385, 14, 55);
+                UpdateAndDrawLeaf((float)boardX + boardSize + 7,  (float)boardY + 410, 15, 100);
+                break;
+            case 2:
+                // --- Move Log Top Border (Spanning left half) ---
+                UpdateAndDrawLeaf((float)Config::PANEL_X + 10,  (float)Config::PANEL_Y + 6,   13, -45);
+                UpdateAndDrawLeaf((float)Config::PANEL_X + 30,  (float)Config::PANEL_Y + 1,   16, 10);
+                UpdateAndDrawLeaf((float)Config::PANEL_X + 50,  (float)Config::PANEL_Y + 4,   12, -20);
+                UpdateAndDrawLeaf((float)Config::PANEL_X + 70,  (float)Config::PANEL_Y + 1,   15, 30);
+                UpdateAndDrawLeaf((float)Config::PANEL_X + 90,  (float)Config::PANEL_Y + 5,   13, -10);
+
+                // --- Move Log Top Border (Spanning right half) ---
+                UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 100, (float)Config::PANEL_Y + 4,   14, -15);
+                UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 80,  (float)Config::PANEL_Y + 1,   15, 35);
+                UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 60,  (float)Config::PANEL_Y + 6,   12, 10);
+                UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 40,  (float)Config::PANEL_Y + 2,   17, 75);
+                UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 15,  (float)Config::PANEL_Y + 8,   13, 115);
+
+                // --- Move Log Left Side (Cascading down the edge) ---
+                UpdateAndDrawLeaf((float)Config::PANEL_X+3,   (float)Config::PANEL_Y + 120, 13, -80);
+                UpdateAndDrawLeaf((float)Config::PANEL_X+2,   (float)Config::PANEL_Y + 145, 16, -110);
+                UpdateAndDrawLeaf((float)Config::PANEL_X+4,  (float)Config::PANEL_Y + 170, 15, -70);
+                UpdateAndDrawLeaf((float)Config::PANEL_X+2,   (float)Config::PANEL_Y + 195, 14, -95);
+                UpdateAndDrawLeaf((float)Config::PANEL_X+1,   (float)Config::PANEL_Y + 220, 12, -120);
+
+                // --- Move Log Right Side (Cascading down the edge) ---
+                UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH + 1, (float)Config::PANEL_Y + 140, 12, 60);
+                UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH + 1, (float)Config::PANEL_Y + 165, 15, 95);
+                UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH + 2, (float)Config::PANEL_Y + 190, 17, 115);
+                UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH + 1, (float)Config::PANEL_Y + 215, 13, 50);
+                UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH + 2, (float)Config::PANEL_Y + 240, 14, 85);
+
+                // --- Move Log Bottom Border (Spanning along the base) ---
+                UpdateAndDrawLeaf((float)Config::PANEL_X + 12,  (float)Config::PANEL_Y + Config::PANEL_HEIGHT + 3, 14, -135);
+                UpdateAndDrawLeaf((float)Config::PANEL_X + 37,  (float)Config::PANEL_Y + Config::PANEL_HEIGHT + 2,  16, 185);
+                UpdateAndDrawLeaf((float)Config::PANEL_X + 62,  (float)Config::PANEL_Y + Config::PANEL_HEIGHT + 5, 13, 150);
+                
+                UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 75, (float)Config::PANEL_Y + Config::PANEL_HEIGHT +2, 14, 210);
+                UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 50, (float)Config::PANEL_Y + Config::PANEL_HEIGHT +3, 15, 145);
+                UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 20, (float)Config::PANEL_Y + Config::PANEL_HEIGHT+1,  13, 70); 
+                break;
+        }       
+        
 
         
-        // --- Move Log Top Border (Spanning left half) ---
-        UpdateAndDrawLeaf((float)Config::PANEL_X + 10,  (float)Config::PANEL_Y + 6,   13, -45);
-        UpdateAndDrawLeaf((float)Config::PANEL_X + 30,  (float)Config::PANEL_Y + 1,   16, 10);
-        UpdateAndDrawLeaf((float)Config::PANEL_X + 50,  (float)Config::PANEL_Y + 4,   12, -20);
-        UpdateAndDrawLeaf((float)Config::PANEL_X + 70,  (float)Config::PANEL_Y + 1,   15, 30);
-        UpdateAndDrawLeaf((float)Config::PANEL_X + 90,  (float)Config::PANEL_Y + 5,   13, -10);
-
-        // --- Move Log Top Border (Spanning right half) ---
-        UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 100, (float)Config::PANEL_Y + 4,   14, -15);
-        UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 80,  (float)Config::PANEL_Y + 1,   15, 35);
-        UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 60,  (float)Config::PANEL_Y + 6,   12, 10);
-        UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 40,  (float)Config::PANEL_Y + 2,   17, 75);
-        UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 15,  (float)Config::PANEL_Y + 8,   13, 115);
-
-        // --- Move Log Left Side (Cascading down the edge) ---
-        UpdateAndDrawLeaf((float)Config::PANEL_X+3,   (float)Config::PANEL_Y + 120, 13, -80);
-        UpdateAndDrawLeaf((float)Config::PANEL_X+2,   (float)Config::PANEL_Y + 145, 16, -110);
-        UpdateAndDrawLeaf((float)Config::PANEL_X+4,  (float)Config::PANEL_Y + 170, 15, -70);
-        UpdateAndDrawLeaf((float)Config::PANEL_X+2,   (float)Config::PANEL_Y + 195, 14, -95);
-        UpdateAndDrawLeaf((float)Config::PANEL_X+1,   (float)Config::PANEL_Y + 220, 12, -120);
-
-        // --- Move Log Right Side (Cascading down the edge) ---
-        UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH + 1, (float)Config::PANEL_Y + 140, 12, 60);
-        UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH + 1, (float)Config::PANEL_Y + 165, 15, 95);
-        UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH + 2, (float)Config::PANEL_Y + 190, 17, 115);
-        UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH + 1, (float)Config::PANEL_Y + 215, 13, 50);
-        UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH + 2, (float)Config::PANEL_Y + 240, 14, 85);
-
-        // --- Move Log Bottom Border (Spanning along the base) ---
-        UpdateAndDrawLeaf((float)Config::PANEL_X + 12,  (float)Config::PANEL_Y + Config::PANEL_HEIGHT + 3, 14, -135);
-        UpdateAndDrawLeaf((float)Config::PANEL_X + 37,  (float)Config::PANEL_Y + Config::PANEL_HEIGHT + 2,  16, 185);
-        UpdateAndDrawLeaf((float)Config::PANEL_X + 62,  (float)Config::PANEL_Y + Config::PANEL_HEIGHT + 5, 13, 150);
         
-        UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 75, (float)Config::PANEL_Y + Config::PANEL_HEIGHT +2, 14, 210);
-        UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 50, (float)Config::PANEL_Y + Config::PANEL_HEIGHT +3, 15, 145);
-        UpdateAndDrawLeaf((float)Config::PANEL_X + Config::PANEL_WIDTH - 20, (float)Config::PANEL_Y + Config::PANEL_HEIGHT+1,  13, 70);
         
         g_ctx->lastHoveredLeafId = hoveredLeafThisFrame;
     }
@@ -1203,14 +1216,15 @@ BoardState ParseFenToState(const std::string& fen) {
             else if (typeChar == 'Q') type = PieceType::QUEEN;
             else if (typeChar == 'K') type = PieceType::KING;
 
-            std::string colorStr = isWhite ? "WHITE" : "BLACK";
+            std::string colorStr = isWhite ? P_WHITE : P_BLACK;
             auto new_piece = std::make_shared<ChessPiece>(type, colorStr);
 
             newState.grid[row][col] = GridData(new_piece);
+
             col++;
         }
     }
-    if (turn =="w"){newState.turn="WHITE";} else {newState.turn="BLACK";}
+    newState.turn = (turn == "w") ? P_WHITE : P_BLACK;
     newState.white_king_side_castle = (castling.find('K') != std::string::npos);
     newState.white_queen_side_castle = (castling.find('Q') != std::string::npos);
     newState.black_king_side_castle = (castling.find('k') != std::string::npos);
@@ -1406,6 +1420,7 @@ namespace CanvasRenderer {
 
         float handleY = scrollbarY + (g_ctx->move_log_scroll_ratio * (scrollbarH - handleH));
         DrawRectangleRounded(Rectangle{ scrollbarX - 1, handleY, 8, handleH }, 0.5f, 4, Config::COLOR_GEM_GLINT);
+        VectorRenderer::DrawOvergrownVines(Config::BOARD_OFFSET_X, Config::BOARD_OFFSET_Y, Config::TILE_SIZE*8 ,2);
     }
 
     void DrawGameMetrics() {
@@ -1634,29 +1649,18 @@ namespace CanvasRenderer {
         }
     }
 
-    void DrawChessboard() {
-        if (g_ctx->active_menu==PUZZLES){
-            return;
+    void DrawChessboard(BoardState displayState) {
+        if (g_ctx->active_menu==GAME){
+            DrawCapturedTrays(displayState);
         }
-        BoardState displayState;
-        if (g_ctx->historyView.useLive) {
-            displayState = g_ctx->board->CaptureState();
-        } else {
-            int idx = g_ctx->historyView.viewingIndex;
-            if (idx >= 0 && idx < (int)g_ctx->board->move_history.size()) {
-                displayState = g_ctx->board->move_history[idx].board_state;
-            } else {
-                displayState = g_ctx->board->CaptureState();
-            }
-        }
-    
-        DrawCapturedTrays(displayState);
+
+        
 
         std::pair<int, int> checkKingSquare = displayState.check_king_pos;
         int boardSize = Config::TILE_SIZE * 8;
         VectorRenderer::DrawBoardOrnateFrame(Config::BOARD_OFFSET_X, Config::BOARD_OFFSET_Y, boardSize);
         draw_board_tiles(displayState,checkKingSquare);
-        VectorRenderer::DrawOvergrownVines(Config::BOARD_OFFSET_X, Config::BOARD_OFFSET_Y, boardSize);
+        VectorRenderer::DrawOvergrownVines(Config::BOARD_OFFSET_X, Config::BOARD_OFFSET_Y, boardSize,1);
         draw_legal_moves();
         draw_static_pieces(displayState);
         
@@ -2144,19 +2148,70 @@ void UpdateDrawFrame() { // rendering
     if (!g_puzzlesLoaded) {
         load_puzzles();
         g_puzzlesLoaded = true;
+    }
+    static Menus last_menu = PLAY; 
+    BoardState puzzleState;
+    if (load_new_puzzle) {
         g_ctx->cachedpuzzle = get_random_puzzle();
-        BoardState puzzleState = ParseFenToState(g_ctx->cachedpuzzle.boardsetup);
-        
-        g_ctx->board->move_history.clear();
-        for (int r = 0; r < 8; ++r) {
-            for (int c = 0; c < 8; ++c) {
-                g_ctx->board->grid[r][c] = puzzleState.grid[r][c]; 
-            }
+        g_ctx->savedPuzzleState = ParseFenToState(g_ctx->cachedpuzzle.boardsetup);
+        g_ctx->savedPuzzleHistory.clear(); 
+        g_ctx->hasSavedPuzzle = true;
+        if (g_ctx->active_menu == PUZZLES) {
+            g_ctx->board->LoadState(g_ctx->savedPuzzleState);
+            g_ctx->board->move_history.clear();
+            g_ctx->active_turn_id = (g_ctx->board->turn == P_WHITE) ? 0 : 1;
         }
-        g_ctx->active_turn_id = (puzzleState.turn == "WHITE") ? 0 : 1;
+        
+        g_ctx->historyView.useLive = true;
+        g_ctx->historyView.viewingIndex = -1;
+        load_new_puzzle = false;
+    } 
+    if (g_ctx->active_menu != last_menu) {
+        if (last_menu == PUZZLES) {
+            g_ctx->savedPuzzleState = g_ctx->board->CaptureState();
+            g_ctx->savedPuzzleHistory = g_ctx->board->move_history;
+            g_ctx->hasSavedPuzzle = true;
+        } 
+        else if (last_menu == GAME) {
+            g_ctx->savedGameState = g_ctx->board->CaptureState();
+            g_ctx->savedGameHistory = g_ctx->board->move_history;
+            g_ctx->hasSavedGame = true;
+        }
+
+        if (g_ctx->active_menu == PUZZLES) {
+            if (!g_ctx->hasSavedPuzzle) {
+                g_ctx->savedPuzzleState = ParseFenToState(g_ctx->cachedpuzzle.boardsetup.empty() ? "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" : g_ctx->cachedpuzzle.boardsetup);
+                g_ctx->savedPuzzleHistory.clear();
+                g_ctx->hasSavedPuzzle = true;
+            }
+            
+            g_ctx->board->LoadState(g_ctx->savedPuzzleState);
+            g_ctx->board->move_history = g_ctx->savedPuzzleHistory;
+            g_ctx->active_turn_id = (g_ctx->board->turn == P_WHITE) ? 0 : 1;
+        } 
+        else if (g_ctx->active_menu == GAME) {
+            if (!g_ctx->hasSavedGame) {
+                g_ctx->board->Reset(); 
+                g_ctx->savedGameState = g_ctx->board->CaptureState();
+                g_ctx->savedGameHistory.clear();
+                g_ctx->hasSavedGame = true;
+            } else {
+                g_ctx->board->LoadState(g_ctx->savedGameState);
+                g_ctx->board->move_history = g_ctx->savedGameHistory;
+            }
+            g_ctx->active_turn_id = (g_ctx->board->turn == P_WHITE) ? 0 : 1;
+        }
+
+        last_menu = g_ctx->active_menu;
         g_ctx->historyView.useLive = true;
         g_ctx->historyView.viewingIndex = -1;
     }
+    if (g_ctx->active_menu == PUZZLES) {
+        puzzleState = g_ctx->board->CaptureState();
+    }
+
+
+
     if (audio_loaded && IsKeyPressed(KEY_B)) {
         
         #if defined(PLATFORM_WEB)
@@ -2170,7 +2225,7 @@ void UpdateDrawFrame() { // rendering
     }
 
     TickEngine::UpdateAnimations(dt);
-    if (mousePos.x > g_ctx->sidebarWidth) {
+    if ((g_ctx->active_menu == GAME || g_ctx->active_menu == PUZZLES) && mousePos.x > g_ctx->sidebarWidth) {
         TickEngine::ProcessInput();
     }
     
@@ -2184,6 +2239,19 @@ void UpdateDrawFrame() { // rendering
     0.0f,
     Color{ 255, 255, 255, 90}
     );
+    
+    
+    BoardState displayState;
+    if (g_ctx->historyView.useLive) {
+        displayState = g_ctx->board->CaptureState();
+    } else {
+        int idx = g_ctx->historyView.viewingIndex;
+        if (idx >= 0 && idx < (int)g_ctx->board->move_history.size()) {
+            displayState = g_ctx->board->move_history[idx].board_state;
+        } else {
+            displayState = g_ctx->board->CaptureState();
+        }
+    }
     switch (g_ctx->active_menu) {
         case PLAY:
             break;
@@ -2192,17 +2260,15 @@ void UpdateDrawFrame() { // rendering
             DrawSettingsMenu(mousePos);
             break;
         case PUZZLES:
-            DrawRectangle(0, 0, Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT, Fade(BLACK, 0.6f));
-            CanvasRenderer::DrawChessboard();
-            DrawTextSmooth("OFFLINE TACTICS / PUZZLES", 250.0f, 200.0f, 32.0f, RAYWHITE);
+            CanvasRenderer::DrawChessboard(displayState);
             break;
         case OPENINGS:
             DrawRectangle(0, 0, Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT, Fade(BLACK, 0.6f));
             DrawTextSmooth("LOCAL OPENING STUDY BOOK", 250.0f, 200.0f, 32.0f, RAYWHITE);
             break;
         case GAME:
-            CanvasRenderer::DrawGameMetrics(); 
-            CanvasRenderer::DrawChessboard();
+            CanvasRenderer::DrawGameMetrics();
+            CanvasRenderer::DrawChessboard(displayState);
             break;
         default:
             break;
