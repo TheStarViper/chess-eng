@@ -263,6 +263,7 @@ struct GameContext {
     Sound hoversound;
     BoardState savedGameState;
     BoardState savedPuzzleState;
+    float puzzleOpponentTimer = -1.0f;
     int puzzleMoveIndex = 0;
     bool puzzleFailed = false;
     bool puzzleSuccess = false;
@@ -882,9 +883,9 @@ namespace ChessEngine {
             } else {
                 b.state = STATE_STALEMATE;
             }
-        } else if (b.halfmove_clock >= 100) { 
+        } else if (b.halfmove_clock >= 100&&g_ctx->active_menu != PUZZLES) { 
             b.state = STATE_DRAW_50_MOVES;
-        } else if (b.current_repetition_count >= 3) {
+        } else if (b.current_repetition_count >= 3&&g_ctx->active_menu != PUZZLES) {
             b.state = STATE_DRAW_REPETITION;
         } else if (CheckInsufficientMaterial(b)) {
             b.state = STATE_DRAW_MATERIAL;
@@ -1930,10 +1931,9 @@ namespace TickEngine {
                     if (piece && piece->color == g_ctx->board->turn) {
                         g_ctx->board->selected_square = { gridY, gridX };
                         g_ctx->board->has_selection = true;
-                        
                         ChessEngine::CacheLegalMoves(*g_ctx->board, gridY, gridX);
                     }
-                } else {
+                } else { 
                     int srcR = g_ctx->board->selected_square.first;
                     int srcC = g_ctx->board->selected_square.second;
 
@@ -1971,6 +1971,7 @@ namespace TickEngine {
                         g_ctx->anim.elapsedTime = 0.0f;
                         g_ctx->anim.targetRow = gridY;
                         g_ctx->anim.targetCol = gridX;
+
                         if (g_ctx->active_menu == PUZZLES && !g_ctx->puzzleSuccess && !g_ctx->puzzleFailed) {
                             std::vector<std::string> solutionMoves = SplitMoveString(g_ctx->cachedpuzzle.solution);
                             std::string playerMoveUci = ConvertToUci(srcR, srcC, gridY, gridX);
@@ -1981,19 +1982,10 @@ namespace TickEngine {
                                 if (g_ctx->puzzleMoveIndex >= (int)solutionMoves.size()) {
                                     g_ctx->puzzleSuccess = true;
                                 } else {
-                                    std::string opponentMoveUci = solutionMoves[g_ctx->puzzleMoveIndex];
-                                    int opFromCol = opponentMoveUci[0] - 'a', opFromRow = '8' - opponentMoveUci[1];
-                                    int opToCol   = opponentMoveUci[2] - 'a', opToRow   = '8' - opponentMoveUci[3];
-                                    
-                                    g_ctx->board->grid[opToRow][opToCol] = g_ctx->board->grid[opFromRow][opFromCol];
-                                    g_ctx->board->grid[opFromRow][opFromCol] = GridData();
-                                    
-                                    g_ctx->board->turn = (g_ctx->board->turn == P_WHITE) ? P_BLACK : P_WHITE;
-                                    g_ctx->puzzleMoveIndex++;
+                                    g_ctx->puzzleOpponentTimer = 0.5f; 
                                 }
                             } else {
                                 g_ctx->puzzleFailed = true;
-                                g_ctx->board->LoadState(g_ctx->savedPuzzleState); 
                             }
                         }
                     } else {
@@ -2263,7 +2255,7 @@ void UpdateDrawFrame() { // rendering
         g_ctx->puzzleMoveIndex = 0;
         g_ctx->puzzleFailed = false;
         g_ctx->puzzleSuccess = false;
-
+        g_ctx->puzzleOpponentTimer = 0.5f;
         if (g_ctx->active_menu == PUZZLES) {
             g_ctx->board->LoadState(g_ctx->savedPuzzleState);
             g_ctx->board->move_history.clear();
@@ -2332,6 +2324,66 @@ void UpdateDrawFrame() { // rendering
     }
 
     TickEngine::UpdateAnimations(dt);
+
+    if (g_ctx->active_menu == PUZZLES) {
+        
+        if (g_ctx->puzzleOpponentTimer > 0.0f) {
+            g_ctx->puzzleOpponentTimer -= dt;
+            
+            if (g_ctx->puzzleOpponentTimer <= 0.0f) {
+                std::vector<std::string> solutionMoves = SplitMoveString(g_ctx->cachedpuzzle.solution);
+                std::string opponentMoveUci = solutionMoves[g_ctx->puzzleMoveIndex];
+                
+                int opFromCol = opponentMoveUci[0] - 'a', opFromRow = '8' - opponentMoveUci[1];
+                int opToCol   = opponentMoveUci[2] - 'a', opToRow   = '8' - opponentMoveUci[3];
+                
+                auto p = g_ctx->board->grid[opFromRow][opFromCol].piece;
+                
+                g_ctx->anim.active = true;
+                g_ctx->anim.piece = p;
+                g_ctx->anim.startPos = { 
+                    (float)Config::BOARD_OFFSET_X + opFromCol * Config::TILE_SIZE, 
+                    (float)Config::BOARD_OFFSET_Y + opFromRow * Config::TILE_SIZE 
+                };
+                g_ctx->anim.currentPos = g_ctx->anim.startPos;
+                g_ctx->anim.endPos = { 
+                    (float)Config::BOARD_OFFSET_X + opToCol * Config::TILE_SIZE, 
+                    (float)Config::BOARD_OFFSET_Y + opToRow * Config::TILE_SIZE 
+                };
+                g_ctx->anim.elapsedTime = 0.0f;
+                g_ctx->anim.targetRow = opToRow;
+                g_ctx->anim.targetCol = opToCol;
+
+                g_ctx->board->grid[opToRow][opToCol] = g_ctx->board->grid[opFromRow][opFromCol];
+                g_ctx->board->grid[opFromRow][opFromCol] = GridData();
+                
+                g_ctx->board->turn = (g_ctx->board->turn == P_WHITE) ? P_BLACK : P_WHITE;
+                g_ctx->active_turn_id = (g_ctx->board->turn == P_WHITE) ? 0 : 1;
+                
+                g_ctx->puzzleMoveIndex++;  
+                if (g_ctx->savedPuzzleState.turn == P_WHITE) {
+                    g_ctx->board->turn = P_BLACK;
+                    g_ctx->active_turn_id = 1;
+                } else {
+                    g_ctx->board->turn = P_WHITE;
+                    g_ctx->active_turn_id = 0;
+                }
+                g_ctx->puzzleOpponentTimer = -1.0f; 
+            }
+        }
+        
+        if (g_ctx->puzzleFailed && !g_ctx->anim.active) {
+            g_ctx->board->LoadState(g_ctx->savedPuzzleState);
+            g_ctx->board->move_history.clear(); 
+            g_ctx->board->current_repetition_count = 1;
+            g_ctx->puzzleMoveIndex = 0;
+            g_ctx->board->turn = g_ctx->savedPuzzleState.turn;
+            g_ctx->active_turn_id = (g_ctx->board->turn == P_WHITE) ? 0 : 1;
+            
+            g_ctx->puzzleOpponentTimer = 0.4f; // Trigger bot re-play
+            g_ctx->puzzleFailed = false;
+        }
+    }
     if ((g_ctx->active_menu == GAME || g_ctx->active_menu == PUZZLES) && mousePos.x > g_ctx->sidebarWidth) {
         TickEngine::ProcessInput();
     }
@@ -2393,7 +2445,6 @@ void UpdateDrawFrame() { // rendering
     DrawCollapsibleSidebar(mousePos); 
     DrawTextSmooth(TextFormat("%d", GetFPS()), 25.0f, 20.0f, 24.0f, Config::COLOR_LEAF_LIGHT);
     EndTextureMode();
-
     BeginDrawing();
         ClearBackground(BLACK);
         Rectangle srcRec = { 0, 0, (float)g_ctx->targetScreen.texture.width, -(float)g_ctx->targetScreen.texture.height };
@@ -2416,7 +2467,7 @@ int main(int argc, char* argv[]) {
         g_ctx->hoversound = LoadSound(hoversoundfilepath);
         audio_loaded= true;
         TraceLog(LOG_INFO, "AUDIO: ZA BLUETOOTH DEWICE HAS BEEN CONNECTED");
-    } 
+    }
 #if defined(PLATFORM_WEB)
     emscripten_set_main_loop(UpdateDrawFrame, 0, 1);
 #else
@@ -2428,7 +2479,5 @@ int main(int argc, char* argv[]) {
     CloseAudioDevice();
     CloseWindow();
 #endif
-
     return 0;
 }
-
