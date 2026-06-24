@@ -269,6 +269,7 @@ struct GameContext {
     bool puzzleSuccess = false;
     bool hasSavedGame = false;
     bool hasSavedPuzzle = false;
+    bool won_puzzle;
     std::vector<HistorySnapshot> savedGameHistory;
     std::vector<HistorySnapshot> savedPuzzleHistory;
     int lastHoveredLeafId = -1;
@@ -289,6 +290,11 @@ struct GameContext {
     Font uiFont;
     RenderTexture2D targetScreen; 
 
+    int puzzle_win_count = 0;
+    int puzzle_fail_count = 0;
+    int puzzle_streak = 0;
+    bool hintActive = false;
+    std::string currentHintUci = "";
     //settings
     bool showMoveHighlights = true;
     bool showBoardCoordinates = true;
@@ -313,6 +319,9 @@ struct GameContext {
     std::unique_ptr<Button> btnLast;
     std::unique_ptr<Button> btnOverlayRematch;
 
+    std::unique_ptr<Button> btnpuzzlehint;
+    std::unique_ptr<Button> btnpuzzlenext;
+    std::unique_ptr<Button> btnpuzzleretry;
     std::vector<std::unique_ptr<Button>> btnPromotionTrays;
 
     GameContext() {
@@ -364,6 +373,10 @@ struct GameContext {
 
         btnResign  = std::make_unique<Button>(Rectangle{ (float)Config::PANEL_X + 25, (float)Config::PANEL_Y + 550, (Config::PANEL_WIDTH-50)/2-10, 40 }, "Resign", Color{ 120, 35, 35, 255 }, Color{ 150, 45, 45, 255 }, Config::COLOR_UI_TEXT, 1);
         btnDraw    = std::make_unique<Button>(Rectangle{ (float)Config::PANEL_X + (Config::PANEL_WIDTH-50)/2+25+10, (float)Config::PANEL_Y + 550, (Config::PANEL_WIDTH-50)/2-10, 40 }, "Offer Draw", Color{ 55, 60, 45, 255 }, Color{ 75, 80, 55, 255 }, Config::COLOR_UI_TEXT, 2);
+        
+        btnpuzzlehint = std::make_unique<Button>(Rectangle{ (float)Config::PANEL_X + 25, (float)Config::PANEL_Y + 500, (Config::PANEL_WIDTH-50), 40 }, "Hint", Color{ 55, 60, 45, 255 }, Color{ 75, 80, 55, 255 }, Config::COLOR_UI_TEXT, 2);
+        btnpuzzleretry = std::make_unique<Button>(Rectangle{ (float)Config::PANEL_X + 25, (float)Config::PANEL_Y + 550, (Config::PANEL_WIDTH-50)/2-10, 40 }, "Retry", Color{ 120, 35, 35, 255 }, Color{ 150, 45, 45, 255 }, Config::COLOR_UI_TEXT, 1);
+        btnpuzzlenext = std::make_unique<Button>(Rectangle{ (float)Config::PANEL_X + (Config::PANEL_WIDTH-50)/2+25+10, (float)Config::PANEL_Y + 550, (Config::PANEL_WIDTH-50)/2-10, 40 }, "Next Puzzle", Color{ 55, 60, 45, 255 }, Color{ 75, 80, 55, 255 }, Config::COLOR_UI_TEXT, 2);
         
         float overlayCenterX = Config::BOARD_OFFSET_X + (Config::TILE_SIZE * 8) / 2.0f;
         btnOverlayRematch = std::make_unique<Button>(Rectangle{ overlayCenterX - 125, Config::BOARD_OFFSET_Y + (Config::TILE_SIZE * 8) / 2.0f + 25, 250, 50 }, "REMATCH", Config::COLOR_LEAF_DARK, Config::COLOR_LEAF_LIGHT, Config::COLOR_UI_TEXT);
@@ -443,7 +456,19 @@ void DrawCollapsibleSidebar(Vector2 mousePos) {
         }
         if (isItemHovered && canClickEarly) {
             if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+                if (g_ctx->active_menu == PUZZLES && g_ctx->anim.active && g_ctx->anim.piece != GridData().piece) {
+                    if (g_ctx->anim.targetRow >= 0 && g_ctx->anim.targetRow < 8 &&
+                        g_ctx->anim.targetCol >= 0 && g_ctx->anim.targetCol < 8) {
+                        
+                        g_ctx->board->grid[g_ctx->anim.targetRow][g_ctx->anim.targetCol] = GridData(g_ctx->anim.piece);
+                    }
+                }
+
                 g_ctx->active_menu = items[i].mode;
+                g_ctx->anim.active = false;
+                g_ctx->anim.piece = GridData().piece; 
+                g_ctx->anim.targetRow = -1;
+                g_ctx->anim.targetCol = -1;
             }
         }
     }
@@ -877,15 +902,16 @@ namespace ChessEngine {
         g_ctx->cached_legal_moves.clear(); 
 
         std::string activePlayer = b.turn;
+        if (g_ctx->active_menu == PUZZLES){return;}
         if (!HasAnyLegalMoves(b, activePlayer)) {
             if (IsKingInCheck(b, activePlayer)) {
                 b.state = STATE_CHECKMATE;
             } else {
                 b.state = STATE_STALEMATE;
             }
-        } else if (b.halfmove_clock >= 100&&g_ctx->active_menu != PUZZLES) { 
+        } else if (b.halfmove_clock >= 100) { 
             b.state = STATE_DRAW_50_MOVES;
-        } else if (b.current_repetition_count >= 3&&g_ctx->active_menu != PUZZLES) {
+        } else if (b.current_repetition_count >= 3) {
             b.state = STATE_DRAW_REPETITION;
         } else if (CheckInsufficientMaterial(b)) {
             b.state = STATE_DRAW_MATERIAL;
@@ -929,16 +955,15 @@ namespace VectorRenderer {
             int id = currentLeafId++;
             float finalSize = size;
 
-            float hoverRadius = size * 1.2f; 
+            float enterRadius = size * 1.2f;
+            float exitRadius = size * 1.6f;
+            float hoverRadius = (g_ctx->lastHoveredLeafId == id) ? exitRadius : enterRadius;
+
             bool isHovered = CheckCollisionPointCircle(mousePos, Vector2{ x, y }, hoverRadius);
 
             if (isHovered) {
                 hoveredLeafThisFrame = id;
                 finalSize = size * 1.30f;
-
-                if (g_ctx->lastHoveredLeafId != id) {
-                    PlaySound(g_ctx->hoversound);
-                }
             }
 
             DrawLeaf(x, y, finalSize, angleDegrees);
@@ -1022,7 +1047,7 @@ namespace VectorRenderer {
             
             { (float)Config::PANEL_X + Config::PANEL_WIDTH - 75, (float)Config::PANEL_Y + Config::PANEL_HEIGHT + 2, 14, 210 },
             { (float)Config::PANEL_X + Config::PANEL_WIDTH - 50, (float)Config::PANEL_Y + Config::PANEL_HEIGHT + 3, 15, 145 },
-            { (float)Config::PANEL_X + Config::PANEL_WIDTH - 20, (float)Config::PANEL_Y + Config::PANEL_HEIGHT + 1, 13, 70 }
+            { (float)Config::PANEL_X + Config::PANEL_WIDTH - 20, (float)Config::PANEL_Y + Config::PANEL_HEIGHT + 1, 13, 36 }
         };
         switch (id){
             case 1:
@@ -1037,10 +1062,19 @@ namespace VectorRenderer {
             break;
         }
         
+        
+        static int lastPlayedIds[2] = { -1, -1 };
+        int slotIndex = (id == 2) ? 1 : 0;
 
-        
-        
-        
+        if (hoveredLeafThisFrame != -1) {
+            if (hoveredLeafThisFrame != lastPlayedIds[slotIndex]) {
+                PlaySound(g_ctx->hoversound);
+                lastPlayedIds[slotIndex] = hoveredLeafThisFrame;    
+            }
+        } else {
+            lastPlayedIds[slotIndex] = -1;
+        }
+
         g_ctx->lastHoveredLeafId = hoveredLeafThisFrame;
     }
 
@@ -1352,7 +1386,8 @@ namespace CanvasRenderer {
     if (capturedBlackVal > capturedWhiteVal) {
         DrawTextSmooth(TextFormat("+%d", capturedBlackVal - capturedWhiteVal), (float)curX + 10, (float)bottomY + 10, 16.0f, Config::COLOR_LEAF_LIGHT);
     }
-}
+}   
+
 
     void DrawMoveLog() {
         int logContainerX = Config::PANEL_X + 25;
@@ -1460,16 +1495,18 @@ namespace CanvasRenderer {
 
         float handleY = scrollbarY + (g_ctx->move_log_scroll_ratio * (scrollbarH - handleH));
         DrawRectangleRounded(Rectangle{ scrollbarX - 1, handleY, 8, handleH }, 0.5f, 4, Config::COLOR_GEM_GLINT);
+    }
+
+    void draw_right_side(std::string title){
+        DrawRectangleRounded(Rectangle{ (float)Config::PANEL_X, (float)Config::PANEL_Y, (float)Config::PANEL_WIDTH, (float)Config::PANEL_HEIGHT }, 0.03f, 4, Config::COLOR_UI_PANEL_BG);
+        DrawRectangleRoundedLinesCustom(Rectangle{ (float)Config::PANEL_X, (float)Config::PANEL_Y, (float)Config::PANEL_WIDTH, (float)Config::PANEL_HEIGHT }, 0.03f, 4, 3.0f, Config::COLOR_UI_BORDER);
+        DrawRectangleRoundedLinesCustom(Rectangle{ (float)Config::PANEL_X + 6, (float)Config::PANEL_Y + 6, (float)Config::PANEL_WIDTH - 12, (float)Config::PANEL_HEIGHT - 12 }, 0.03f, 4, 1.0f, Config::COLOR_FRAME_DARK);
+        DrawTextSmooth(title.c_str(), (float)Config::PANEL_X + 25, (float)Config::PANEL_Y + 25, 36.0f, Config::COLOR_UI_TEXT);
         VectorRenderer::DrawOvergrownVines(Config::BOARD_OFFSET_X, Config::BOARD_OFFSET_Y, Config::TILE_SIZE*8 ,2);
     }
 
     void DrawGameMetrics() {
-        DrawRectangleRounded(Rectangle{ (float)Config::PANEL_X, (float)Config::PANEL_Y, (float)Config::PANEL_WIDTH, (float)Config::PANEL_HEIGHT }, 0.03f, 4, Config::COLOR_UI_PANEL_BG);
-        DrawRectangleRoundedLinesCustom(Rectangle{ (float)Config::PANEL_X, (float)Config::PANEL_Y, (float)Config::PANEL_WIDTH, (float)Config::PANEL_HEIGHT }, 0.03f, 4, 3.0f, Config::COLOR_UI_BORDER);
-        DrawRectangleRoundedLinesCustom(Rectangle{ (float)Config::PANEL_X + 6, (float)Config::PANEL_Y + 6, (float)Config::PANEL_WIDTH - 12, (float)Config::PANEL_HEIGHT - 12 }, 0.03f, 4, 1.0f, Config::COLOR_FRAME_DARK);
-
-        DrawTextSmooth("Game Log", (float)Config::PANEL_X + 25, (float)Config::PANEL_Y + 25, 36.0f, Config::COLOR_UI_TEXT);
-
+        draw_right_side("Game Log");
         std::string statusText;
         Color statusColor = Config::COLOR_UI_TEXT;
 
@@ -1544,7 +1581,6 @@ namespace CanvasRenderer {
         g_ctx->btnDraw->Draw();
 
     }
-
     void draw_board_markings(){
         if (g_ctx->boardmarkings){
             for (int i = 0; i < 8; ++i) {
@@ -1718,6 +1754,109 @@ namespace CanvasRenderer {
         draw_promotion_panel();
         draw_game_over();
     }
+    void draw_puzzle_streak_dots() {
+        int streakX = Config::PANEL_X + 40;
+        int streakY = Config::PANEL_Y + 85;
+        int dotRadius = 12;
+        int dotSpacing = 30;
+        int amount_of_dots_width = 10;
+
+        int goldCount = g_ctx->puzzle_streak / amount_of_dots_width; 
+
+        for (int i = 0; i < amount_of_dots_width; i++) {
+            int cx = streakX + (i * dotSpacing);
+            int cy = streakY; 
+            if (i < goldCount) {
+                DrawCircle(cx, cy, dotRadius, GOLD);
+            } else {
+                DrawCircleLines(cx, cy, dotRadius, DARKGRAY); 
+            }
+        }
+
+        for (int i = 0; i < amount_of_dots_width; i++) {
+            int cx = streakX + (i * dotSpacing);
+            int cy = streakY + 30;
+            
+            if (i < g_ctx->puzzle_streak % amount_of_dots_width) {
+                DrawCircle(cx, cy, dotRadius, LIME);
+            } else {
+                DrawCircleLines(cx, cy, dotRadius, DARKGRAY);
+            }
+        }
+    }
+    void DrawPuzzleSideBar(){
+        DrawRectangleRounded(Rectangle{ (float)Config::PANEL_X+25, (float)Config::PANEL_Y+425, (float)Config::PANEL_WIDTH-50, (float)60 }, 0.08f, 4, Color{ 24, 14, 8, 255 });
+        DrawRectangleRoundedLinesCustom(Rectangle{ (float)Config::PANEL_X+25, (float)Config::PANEL_Y+425, (float)Config::PANEL_WIDTH-50, (float)60 }, 0.08f, 4, 1.5f, Config::COLOR_FRAME_DARK);
+        draw_puzzle_streak_dots();
+        g_ctx->btnpuzzlehint->Draw();
+        g_ctx->btnpuzzleretry->Draw();
+        g_ctx->btnpuzzlenext->Draw();
+        if (g_ctx->active_menu==PUZZLES){
+            g_ctx->btnpuzzlehint->Update(g_ctx->mousePosition);
+            g_ctx->btnpuzzleretry->Update(g_ctx->mousePosition);
+            g_ctx->btnpuzzlenext->Update(g_ctx->mousePosition);
+            if (g_ctx->btnpuzzlehint->isPressed&&!g_ctx->puzzleSuccess){
+                std::vector<std::string> solutionMoves = SplitMoveString(g_ctx->cachedpuzzle.solution);
+                if (g_ctx->puzzleMoveIndex < (int)solutionMoves.size()) {
+                    g_ctx->hintActive = true;
+                    g_ctx->currentHintUci = solutionMoves[g_ctx->puzzleMoveIndex];
+                    
+                    int hintFromCol = g_ctx->currentHintUci[0] - 'a';
+                    int hintFromRow = '8' - g_ctx->currentHintUci[1];
+                    
+                    g_ctx->board->selected_square = { hintFromRow, hintFromCol };
+                    g_ctx->board->has_selection = true;
+                    ChessEngine::CacheLegalMoves(*g_ctx->board, hintFromRow, hintFromCol);
+                }
+            }
+            if (g_ctx->btnpuzzleretry->isPressed){
+                g_ctx->board->LoadState(g_ctx->savedPuzzleState);
+                g_ctx->board->move_history.clear(); 
+                g_ctx->board->current_repetition_count = 1;
+                
+                g_ctx->puzzleMoveIndex = 0;
+                g_ctx->hintActive = false;
+                g_ctx->puzzleFailed = false;
+                g_ctx->puzzleSuccess = false;
+                
+                g_ctx->board->turn = g_ctx->savedPuzzleState.turn;
+                g_ctx->active_turn_id = (g_ctx->board->turn == P_WHITE) ? 0 : 1;
+                g_ctx->puzzleOpponentTimer = 0.4f; 
+            }
+            if (g_ctx->btnpuzzlenext->isPressed){
+                if (g_ctx->active_menu == PUZZLES && g_ctx->anim.active && g_ctx->anim.piece != nullptr) {
+                    if (g_ctx->anim.targetRow >= 0 && g_ctx->anim.targetRow < 8 &&
+                        g_ctx->anim.targetCol >= 0 && g_ctx->anim.targetCol < 8) {
+                        
+                        g_ctx->board->grid[g_ctx->anim.targetRow][g_ctx->anim.targetCol] = GridData(g_ctx->anim.piece);
+                    }
+                }
+
+                g_ctx->anim.active = false;
+                g_ctx->anim.piece = nullptr; 
+                g_ctx->anim.targetRow = -1;
+                g_ctx->anim.targetCol = -1;
+
+                load_new_puzzle = true; 
+                g_ctx->hintActive = false;
+            }
+        }
+
+        int panelX = Config::PANEL_X + 25;
+        int panelY = Config::PANEL_Y + 330; 
+        int btnWidth = (Config::PANEL_WIDTH - 70) / 2; 
+        int btnHeight = 40;
+
+        int totalGames = g_ctx->puzzle_win_count + g_ctx->puzzle_fail_count;
+
+        int winRatePercent = 0;
+        if (totalGames > 0) {
+            winRatePercent = std::round(100.0 * g_ctx->puzzle_win_count / totalGames);
+        }
+
+        std::string winratetext = "Solve Rate: " + std::to_string(winRatePercent) + "%";
+        DrawText(winratetext.c_str(), panelX+85, Config::PANEL_Y+425+23, 20, WHITE);
+    }
 }
 
 
@@ -1750,17 +1889,27 @@ namespace TickEngine {
         int targetCursor = MOUSE_CURSOR_DEFAULT;
         int gridX = (int)((g_ctx->mousePosition.x - Config::BOARD_OFFSET_X) / Config::TILE_SIZE);
         int gridY = (int)((g_ctx->mousePosition.y - Config::BOARD_OFFSET_Y) / Config::TILE_SIZE);
+        
         bool isMouseOnBoard = (gridX >= 0 && gridX < 8 && gridY >= 0 && gridY < 8);
-        
         g_ctx->mousePosition = GetMousePosition();
+        if (g_ctx->active_menu==GAME){
+            g_ctx->btnResign->Update(g_ctx->mousePosition);
+            g_ctx->btnDraw->Update(g_ctx->mousePosition);
+            
+            g_ctx->btnFirst->Update(g_ctx->mousePosition);
+            g_ctx->btnPrev->Update(g_ctx->mousePosition);
+            g_ctx->btnNext->Update(g_ctx->mousePosition);
+            g_ctx->btnLast->Update(g_ctx->mousePosition);
+        }
+        if (gridX >= 0 && gridX < 8 && gridY >= 0 && gridY < 8) {
+        GridData clickedTile = g_ctx->board->grid[gridY][gridX];
+        std::pair<int, int> current_from = g_ctx->board->last_move_from;
+        std::pair<int, int> current_to = g_ctx->board->last_move_to;
 
-        g_ctx->btnResign->Update(g_ctx->mousePosition);
-        g_ctx->btnDraw->Update(g_ctx->mousePosition);
-        
-        g_ctx->btnFirst->Update(g_ctx->mousePosition);
-        g_ctx->btnPrev->Update(g_ctx->mousePosition);
-        g_ctx->btnNext->Update(g_ctx->mousePosition);
-        g_ctx->btnLast->Update(g_ctx->mousePosition);
+
+        g_ctx->board->last_move_from = {gridY, gridX};
+        g_ctx->board->last_move_to = {gridY, gridX};
+    }
 
         if (!g_ctx->historyView.useLive && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             int gridX = (int)((g_ctx->mousePosition.x - Config::BOARD_OFFSET_X) / Config::TILE_SIZE);
@@ -1832,7 +1981,6 @@ namespace TickEngine {
                 g_ctx->historyView.useLive = true;
             }
         }
-
         if (g_ctx->board->state == STATE_PLAYING) {
             if (g_ctx->btnResign->isPressed) {
                 g_ctx->board->state = STATE_RESIGNED;
@@ -1900,6 +2048,7 @@ namespace TickEngine {
                             g_ctx->puzzleMoveIndex++;
                             if (g_ctx->puzzleMoveIndex >= (int)solutionMoves.size()) {
                                 g_ctx->puzzleSuccess = true;
+                                g_ctx->puzzle_win_count++;
                             } else {
                                 std::string opponentMoveUci = solutionMoves[g_ctx->puzzleMoveIndex];
                                 int opFromCol = opponentMoveUci[0] - 'a', opFromRow = '8' - opponentMoveUci[1];
@@ -2245,8 +2394,8 @@ void UpdateDrawFrame() { // rendering
     }
     static Menus last_menu = PLAY; 
     BoardState puzzleState;
-
     if (load_new_puzzle) {
+        g_ctx->won_puzzle = false;
         g_ctx->cachedpuzzle = get_random_puzzle();
         g_ctx->savedPuzzleState = ParseFenToState(g_ctx->cachedpuzzle.boardsetup);
         g_ctx->savedPuzzleHistory.clear(); 
@@ -2325,8 +2474,23 @@ void UpdateDrawFrame() { // rendering
 
     TickEngine::UpdateAnimations(dt);
 
-    if (g_ctx->active_menu == PUZZLES) {
+    if (g_ctx->active_menu == PUZZLES && !g_ctx->anim.active && g_ctx->anim.piece != GridData().piece) {
         
+        if (g_ctx->puzzleMoveIndex % 2 != 0) {
+            g_ctx->board->grid[g_ctx->anim.targetRow][g_ctx->anim.targetCol] = GridData(g_ctx->anim.piece);
+            
+            g_ctx->anim.piece = GridData().piece;
+            if (g_ctx->board->turn == P_WHITE) {
+                g_ctx->board->turn = P_BLACK;
+                g_ctx->active_turn_id = 1;
+            } else {
+                g_ctx->board->turn = P_WHITE;
+                g_ctx->active_turn_id = 0;
+            }
+        }
+    }
+
+    if (g_ctx->active_menu == PUZZLES) {
         if (g_ctx->puzzleOpponentTimer > 0.0f) {
             g_ctx->puzzleOpponentTimer -= dt;
             
@@ -2354,40 +2518,31 @@ void UpdateDrawFrame() { // rendering
                 g_ctx->anim.targetRow = opToRow;
                 g_ctx->anim.targetCol = opToCol;
 
-                g_ctx->board->grid[opToRow][opToCol] = g_ctx->board->grid[opFromRow][opFromCol];
                 g_ctx->board->grid[opFromRow][opFromCol] = GridData();
                 
-                g_ctx->board->turn = (g_ctx->board->turn == P_WHITE) ? P_BLACK : P_WHITE;
-                g_ctx->active_turn_id = (g_ctx->board->turn == P_WHITE) ? 0 : 1;
-                
-                g_ctx->puzzleMoveIndex++;  
-                if (g_ctx->savedPuzzleState.turn == P_WHITE) {
-                    g_ctx->board->turn = P_BLACK;
-                    g_ctx->active_turn_id = 1;
-                } else {
-                    g_ctx->board->turn = P_WHITE;
-                    g_ctx->active_turn_id = 0;
-                }
-                g_ctx->puzzleOpponentTimer = -1.0f; 
+                g_ctx->puzzleMoveIndex++; 
+                g_ctx->puzzleOpponentTimer = -1.0f;
             }
         }
-        
+
         if (g_ctx->puzzleFailed && !g_ctx->anim.active) {
+            g_ctx->puzzle_streak=0;
+            g_ctx->puzzle_fail_count++;
             g_ctx->board->LoadState(g_ctx->savedPuzzleState);
             g_ctx->board->move_history.clear(); 
             g_ctx->board->current_repetition_count = 1;
-            g_ctx->puzzleMoveIndex = 0;
+            
+            g_ctx->puzzleMoveIndex = 0; 
             g_ctx->board->turn = g_ctx->savedPuzzleState.turn;
             g_ctx->active_turn_id = (g_ctx->board->turn == P_WHITE) ? 0 : 1;
             
-            g_ctx->puzzleOpponentTimer = 0.4f; // Trigger bot re-play
+            g_ctx->puzzleOpponentTimer = 0.4f;
             g_ctx->puzzleFailed = false;
         }
     }
     if ((g_ctx->active_menu == GAME || g_ctx->active_menu == PUZZLES) && mousePos.x > g_ctx->sidebarWidth) {
         TickEngine::ProcessInput();
     }
-    
     BeginTextureMode(g_ctx->targetScreen);
     ClearBackground(Color{ 18, 12, 10, 255 });
     DrawTexturePro(
@@ -2398,8 +2553,6 @@ void UpdateDrawFrame() { // rendering
     0.0f,
     Color{ 255, 255, 255, 90}
     );
-    
-    
     
     if (g_ctx->historyView.useLive) {
         displayState = g_ctx->board->CaptureState();
@@ -2421,8 +2574,16 @@ void UpdateDrawFrame() { // rendering
             DrawSettingsMenu(mousePos);
             break;
         case PUZZLES:
+            CanvasRenderer::draw_right_side("Puzzle Stats");
+            CanvasRenderer::DrawPuzzleSideBar();
             CanvasRenderer::DrawChessboard(displayState);
+
             if (g_ctx->puzzleSuccess) {
+                if (g_ctx->won_puzzle==false){
+                    g_ctx->puzzle_win_count++;
+                    g_ctx->puzzle_streak++;
+                    g_ctx->won_puzzle = true;
+                }
                 DrawRectangle(0, 0, Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT, Fade(GREEN, 0.3f));
                 DrawTextSmooth("SUCCESS! PUZZLE SOLVED", 300.0f, 400.0f, 40.0f, GREEN);
             } 
@@ -2476,7 +2637,7 @@ int main(int argc, char* argv[]) {
         UpdateDrawFrame();
     }
     //unload sounds but idk how many i will have so if you run this on pc youre cooked
-    CloseAudioDevice();
+    CloseAudioDevice(); 
     CloseWindow();
 #endif
     return 0;

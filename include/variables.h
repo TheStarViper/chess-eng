@@ -48,7 +48,7 @@ namespace Config {
     inline const Color COLOR_HIGHLIGHT= Color{ 123, 97, 255, 120 };   
     inline const Color COLOR_CHECK    = Color{ 230, 90, 90, 220 };    
     inline const Color COLOR_DOT      = Color{ 100, 149, 237, 180 }; 
-    inline const Color COLOR_DOT_RING = Color{ 100, 149, 237, 100 };
+    inline const Color COLOR_DOT_RING = Color{ 202, 66, 23, 100 };
     inline const Color COLOR_LAST_MOVE= Color{ 246, 235, 120, 100 };  
     
     const Color COLOR_WOOD_DARK   = Color{ 43, 24, 16, 255 };   
