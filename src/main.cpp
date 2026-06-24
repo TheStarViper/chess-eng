@@ -376,11 +376,16 @@ struct GameContext {
     }
 };
 
+void playsoundsmart(Sound sound, float volume = 1.0,float pitch = 1.0){
+    SetSoundPitch(sound,pitch);
+    SetSoundVolume(sound,volume);
+    PlaySound(sound);
+}
+
 void Button::Draw() {
         Color currentBg = isHovered ? hoverColor : baseColor;
         if (isHovered&&!soundplayed){
-            SetSoundPitch(g_ctx->hoversound, .8f);
-            PlaySound(g_ctx->hoversound);
+            playsoundsmart(g_ctx->hoversound,.6,.8);
             soundplayed = true;
         }
         if (!isHovered){
@@ -411,6 +416,9 @@ void Button::Draw() {
 
         DrawTextSmooth(label.c_str(), textX, textY, (float)fontSize, textColor);
     }
+
+
+
 
 void DrawTextSmooth(const char* text, float posX, float posY, float fontSize, Color color) {
     if (g_ctx && g_ctx->uiFont.texture.id > 0) {
@@ -1081,8 +1089,7 @@ namespace VectorRenderer {
 
         if (hoveredLeafThisFrame != -1) {
             if (hoveredLeafThisFrame != lastPlayedIds[slotIndex]) {
-                SetSoundPitch(g_ctx->hoversound, 2.0f);
-                PlaySound(g_ctx->hoversound);
+                playsoundsmart(g_ctx->hoversound,1,2);
                 lastPlayedIds[slotIndex] = hoveredLeafThisFrame;
             }
         } else {
