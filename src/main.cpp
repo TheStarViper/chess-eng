@@ -87,7 +87,6 @@ Font LoadSystemUIFont() {
     return GetFontDefault();
 }
 
-
 class Button {
 public:
     Rectangle rect;
@@ -107,33 +106,9 @@ public:
         isPressed = isHovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
     }
 
-    void Draw() {
-        Color currentBg = isHovered ? hoverColor : baseColor;
-        DrawRectangleRounded(rect, 0.15f, 4, currentBg);
-        DrawRectangleRoundedLinesCustom(rect, 0.15f, 4, 1.5f, Config::COLOR_FRAME_DARK);
-
-        int fontSize = 16;
-        Vector2 textSize = MeasureTextSmooth(label.c_str(), (float)fontSize);
-        float textX = rect.x + (rect.width - textSize.x) / 2.0f;
-        float textY = rect.y + (rect.height - textSize.y) / 2.0f;
-
-        if (iconType == 1) { 
-            float flagX = rect.x + 18;
-            float flagY = rect.y + rect.height/2.0f;
-            DrawLineEx(Vector2{flagX, flagY - 10}, Vector2{flagX, flagY + 12}, 2.5f, textColor);
-            DrawTriangle(Vector2{flagX, flagY - 10}, Vector2{flagX, flagY}, Vector2{flagX + 12, flagY - 5}, textColor);
-            textX += 8;
-        } else if (iconType == 2) { 
-            float handX = rect.x + 16;
-            float handY = rect.y + rect.height/2.0f;
-            DrawCircle((int)handX, (int)handY - 2, 3, textColor);
-            DrawCircle((int)handX + 10, (int)handY - 2, 3, textColor);
-            DrawLineEx(Vector2{handX - 4, handY + 4}, Vector2{handX + 14, handY + 4}, 2.0f, textColor);
-            textX += 10;
-        }
-
-        DrawTextSmooth(label.c_str(), textX, textY, (float)fontSize, textColor);
-    }
+    void Draw();
+private:
+    bool soundplayed;
 };
 
 
@@ -268,7 +243,7 @@ struct GameContext {
     float puzzleOpponentTimer = -1.0f;
     int puzzleMoveIndex = 0;
     bool puzzleFailed = false;
-    bool puzzleSuccess = false;
+    smartbool puzzleSuccess;
     bool hasSavedGame = false;
     bool hasSavedPuzzle = false;
     bool won_puzzle;
@@ -400,6 +375,42 @@ struct GameContext {
         btnPromotionTrays.push_back(std::make_unique<Button>(Rectangle{ startX + btnW * 3, startY, btnW, 50 }, "KNIGHT", Config::COLOR_UI_BUTTON, Config::COLOR_UI_BUTTON_HOV, Config::COLOR_UI_TEXT));
     }
 };
+
+void Button::Draw() {
+        Color currentBg = isHovered ? hoverColor : baseColor;
+        if (isHovered&&!soundplayed){
+            SetSoundPitch(g_ctx->hoversound, .8f);
+            PlaySound(g_ctx->hoversound);
+            soundplayed = true;
+        }
+        if (!isHovered){
+            soundplayed = false;
+        }
+        DrawRectangleRounded(rect, 0.15f, 4, currentBg);
+        DrawRectangleRoundedLinesCustom(rect, 0.15f, 4, 1.5f, Config::COLOR_FRAME_DARK);
+
+        int fontSize = 16;
+        Vector2 textSize = MeasureTextSmooth(label.c_str(), (float)fontSize);
+        float textX = rect.x + (rect.width - textSize.x) / 2.0f;
+        float textY = rect.y + (rect.height - textSize.y) / 2.0f;
+
+        if (iconType == 1) { 
+            float flagX = rect.x + 18;
+            float flagY = rect.y + rect.height/2.0f;
+            DrawLineEx(Vector2{flagX, flagY - 10}, Vector2{flagX, flagY + 12}, 2.5f, textColor);
+            DrawTriangle(Vector2{flagX, flagY - 10}, Vector2{flagX, flagY}, Vector2{flagX + 12, flagY - 5}, textColor);
+            textX += 8;
+        } else if (iconType == 2) { 
+            float handX = rect.x + 16;
+            float handY = rect.y + rect.height/2.0f;
+            DrawCircle((int)handX, (int)handY - 2, 3, textColor);
+            DrawCircle((int)handX + 10, (int)handY - 2, 3, textColor);
+            DrawLineEx(Vector2{handX - 4, handY + 4}, Vector2{handX + 14, handY + 4}, 2.0f, textColor);
+            textX += 10;
+        }
+
+        DrawTextSmooth(label.c_str(), textX, textY, (float)fontSize, textColor);
+    }
 
 void DrawTextSmooth(const char* text, float posX, float posY, float fontSize, Color color) {
     if (g_ctx && g_ctx->uiFont.texture.id > 0) {
@@ -1070,6 +1081,7 @@ namespace VectorRenderer {
 
         if (hoveredLeafThisFrame != -1) {
             if (hoveredLeafThisFrame != lastPlayedIds[slotIndex]) {
+                SetSoundPitch(g_ctx->hoversound, 2.0f);
                 PlaySound(g_ctx->hoversound);
                 lastPlayedIds[slotIndex] = hoveredLeafThisFrame;
             }
@@ -1726,7 +1738,7 @@ namespace CanvasRenderer {
             g_ctx->btnOverlayRematch->Draw();
         }
     }
-
+    
     void DrawChessboard(BoardState displayState) {
         if (g_ctx->active_menu==GAME){
             DrawCapturedTrays(displayState);
@@ -2566,19 +2578,22 @@ void UpdateDrawFrame() { // rendering
             CanvasRenderer::DrawPuzzleSideBar();
             CanvasRenderer::DrawChessboard(displayState);
 
+            if (g_ctx->puzzleSuccess.state == g_ctx->puzzleSuccess.NewTrue) {
+                g_ctx->puzzle_win_count++;
+                g_ctx->puzzle_streak++;
+                PlaySound(g_ctx->winsound);
+            }
+
             if (g_ctx->puzzleSuccess) {
-                if (g_ctx->won_puzzle==false){
-                    g_ctx->puzzle_win_count++;
-                    g_ctx->puzzle_streak++;
-                    PlaySound(g_ctx->winsound);
-                    g_ctx->won_puzzle = true;
-                }
-                DrawCircle(g_ctx->puzzle_win_square.x*Config::TILE_SIZE+Config::BOARD_OFFSET_X+Config::TILE_SIZE*.85,g_ctx->puzzle_win_square.y*Config::TILE_SIZE+Config::BOARD_OFFSET_Y+Config::TILE_SIZE*.15,15,GREEN);
-            } 
+                DrawCircle(g_ctx->puzzle_win_square.x * Config::TILE_SIZE + Config::BOARD_OFFSET_X + Config::TILE_SIZE * .85,
+                        g_ctx->puzzle_win_square.y * Config::TILE_SIZE + Config::BOARD_OFFSET_Y + Config::TILE_SIZE * .15, 
+                        15, GREEN);
+            }
             else if (g_ctx->puzzleFailed) {
                 DrawRectangle(0, 0, Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT, Fade(RED, 0.15f));
                 DrawTextSmooth("WRONG MOVE. TRY AGAIN!", 300.0f, 400.0f, 40.0f, RED);
             }
+            g_ctx->puzzleSuccess.update();
             break;
         case OPENINGS:
             DrawRectangle(0, 0, Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT, Fade(BLACK, 0.6f));

@@ -179,6 +179,36 @@ struct HistoryState {
     int viewingIndex;       
 };
 
+struct smartbool {
+    enum State {
+        False,
+        NewTrue,
+        True
+    };
+
+    State state = False;
+
+    void operator=(bool value) {
+        this->set(value);
+    }
+    operator bool() const {
+        return state != False; 
+    }
+    void set(bool value) {
+        if (value) {
+            if (state == False) state = NewTrue;
+        } else {
+            state = False;
+        }
+    }
+    void update() {
+        if (state == NewTrue) {
+            state = True;
+        }
+    }
+};
+
+
 //asset file paths
 std::string puzzlefilepath = "assets/puzzles_new.csv";
 const char * hoversoundfilepath = "assets/sfx/hover.ogg";
