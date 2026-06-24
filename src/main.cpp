@@ -261,6 +261,8 @@ public:
 struct GameContext {
     //Sounds
     Sound hoversound;
+    Sound winsound;
+
     BoardState savedGameState;
     BoardState savedPuzzleState;
     float puzzleOpponentTimer = -1.0f;
@@ -293,6 +295,7 @@ struct GameContext {
     int puzzle_win_count = 0;
     int puzzle_fail_count = 0;
     int puzzle_streak = 0;
+    Vector2 puzzle_win_square;
     bool hintActive = false;
     std::string currentHintUci = "";
     //settings
@@ -954,7 +957,6 @@ namespace VectorRenderer {
         auto UpdateAndDrawLeaf = [&](float x, float y, float size, float angleDegrees) {
             int id = currentLeafId++;
             float finalSize = size;
-
             float enterRadius = size * 1.2f;
             float exitRadius = size * 1.6f;
             float hoverRadius = (g_ctx->lastHoveredLeafId == id) ? exitRadius : enterRadius;
@@ -1069,7 +1071,7 @@ namespace VectorRenderer {
         if (hoveredLeafThisFrame != -1) {
             if (hoveredLeafThisFrame != lastPlayedIds[slotIndex]) {
                 PlaySound(g_ctx->hoversound);
-                lastPlayedIds[slotIndex] = hoveredLeafThisFrame;    
+                lastPlayedIds[slotIndex] = hoveredLeafThisFrame;
             }
         } else {
             lastPlayedIds[slotIndex] = -1;
@@ -1778,7 +1780,7 @@ namespace CanvasRenderer {
             int cy = streakY + 30;
             
             if (i < g_ctx->puzzle_streak % amount_of_dots_width) {
-                DrawCircle(cx, cy, dotRadius, LIME);
+                DrawCircle(cx, cy, dotRadius, Config::COLOR_LEAF_VEIN);
             } else {
                 DrawCircleLines(cx, cy, dotRadius, DARKGRAY);
             }
@@ -2124,7 +2126,7 @@ namespace TickEngine {
                         if (g_ctx->active_menu == PUZZLES && !g_ctx->puzzleSuccess && !g_ctx->puzzleFailed) {
                             std::vector<std::string> solutionMoves = SplitMoveString(g_ctx->cachedpuzzle.solution);
                             std::string playerMoveUci = ConvertToUci(srcR, srcC, gridY, gridX);
-                            
+                            g_ctx->puzzle_win_square = Vector2{(float)gridX, (float)gridY};
                             if (g_ctx->puzzleMoveIndex < (int)solutionMoves.size() && playerMoveUci == solutionMoves[g_ctx->puzzleMoveIndex]) {
                                 g_ctx->puzzleMoveIndex++;
                                 
@@ -2458,20 +2460,6 @@ void UpdateDrawFrame() { // rendering
     displayState = g_ctx->board->CaptureState();
     g_ctx->active_turn_id = (g_ctx->board->turn == P_WHITE) ? 0 : 1;
 
-
-
-    if (audio_loaded && IsKeyPressed(KEY_B)) {
-        
-        #if defined(PLATFORM_WEB)
-        if (!IsAudioDeviceReady()) {
-            InitAudioDevice(); 
-        }
-        #endif
-        
-        PlaySound(g_ctx->hoversound);
-        TraceLog(LOG_INFO, "AUDIO: PlaySound executed for KEY_B");
-    }
-
     TickEngine::UpdateAnimations(dt);
 
     if (g_ctx->active_menu == PUZZLES && !g_ctx->anim.active && g_ctx->anim.piece != GridData().piece) {
@@ -2582,10 +2570,10 @@ void UpdateDrawFrame() { // rendering
                 if (g_ctx->won_puzzle==false){
                     g_ctx->puzzle_win_count++;
                     g_ctx->puzzle_streak++;
+                    PlaySound(g_ctx->winsound);
                     g_ctx->won_puzzle = true;
                 }
-                DrawRectangle(0, 0, Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT, Fade(GREEN, 0.3f));
-                DrawTextSmooth("SUCCESS! PUZZLE SOLVED", 300.0f, 400.0f, 40.0f, GREEN);
+                DrawCircle(g_ctx->puzzle_win_square.x*Config::TILE_SIZE+Config::BOARD_OFFSET_X+Config::TILE_SIZE*.85,g_ctx->puzzle_win_square.y*Config::TILE_SIZE+Config::BOARD_OFFSET_Y+Config::TILE_SIZE*.15,15,GREEN);
             } 
             else if (g_ctx->puzzleFailed) {
                 DrawRectangle(0, 0, Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT, Fade(RED, 0.15f));
@@ -2626,6 +2614,7 @@ int main(int argc, char* argv[]) {
     g_ctx->ResetPromotionButtons();
     if (IsAudioDeviceReady()) {
         g_ctx->hoversound = LoadSound(hoversoundfilepath);
+        g_ctx->winsound = LoadSound(winsoundfilepath);
         audio_loaded= true;
         TraceLog(LOG_INFO, "AUDIO: ZA BLUETOOTH DEWICE HAS BEEN CONNECTED");
     }

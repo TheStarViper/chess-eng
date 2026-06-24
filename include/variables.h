@@ -182,3 +182,4 @@ struct HistoryState {
 //asset file paths
 std::string puzzlefilepath = "assets/puzzles_new.csv";
 const char * hoversoundfilepath = "assets/sfx/hover.ogg";
+const char * winsoundfilepath = "assets/sfx/win.ogg";
