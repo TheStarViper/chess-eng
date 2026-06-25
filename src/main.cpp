@@ -246,7 +246,6 @@ struct GameContext {
     smartbool puzzleSuccess;
     bool hasSavedGame = false;
     bool hasSavedPuzzle = false;
-    bool won_puzzle;
     std::vector<HistorySnapshot> savedGameHistory;
     std::vector<HistorySnapshot> savedPuzzleHistory;
     int lastHoveredLeafId = -1;
@@ -270,6 +269,7 @@ struct GameContext {
     int puzzle_win_count = 0;
     int puzzle_fail_count = 0;
     int puzzle_streak = 0;
+    float streak_anim_timer = 0.0f;
     Vector2 puzzle_win_square;
     bool hintActive = false;
     std::string currentHintUci = "";
@@ -282,7 +282,7 @@ struct GameContext {
     bool boardmarkings = true;
 
     float masterVolume = 0.75f;
-    Menus active_menu;
+    Menus active_menu = PLAY;
     float sidebarWidth = (float)Config::SIDEBAR_MIN_WIDTH; 
     bool sidebarhovered;
     Puzzle cachedpuzzle;
@@ -309,7 +309,6 @@ struct GameContext {
             std::cout << "[ERROR] Failed to load background: " << bgPath << std::endl;
         }
         sidebarhovered = false;
-        Menus active_menu = PLAY;
         board = std::make_unique<ChessBoard>();
         mousePosition = Vector2{ 0, 0 };
         active_turn_id = 0;
@@ -385,7 +384,7 @@ void playsoundsmart(Sound sound, float volume = 1.0,float pitch = 1.0){
 void Button::Draw() {
         Color currentBg = isHovered ? hoverColor : baseColor;
         if (isHovered&&!soundplayed){
-            playsoundsmart(g_ctx->hoversound,.6,.8);
+            playsoundsmart(g_ctx->hoversound,.4,.8);
             soundplayed = true;
         }
         if (!isHovered){
@@ -1642,6 +1641,33 @@ namespace CanvasRenderer {
         }
     }
 
+    void DrawGlowTargetRing(float x, float y, float radius, float thickness, Color baseColor, bool isHovered) {
+        float innerRadius = radius - (thickness / 2.0f);
+        float outerRadius = radius + (thickness / 2.0f);
+        DrawRing({ x, y }, innerRadius, outerRadius, 0, 360, 48, baseColor);
+
+        if (isHovered) {
+            BeginBlendMode(BLEND_ADDITIVE);
+
+            Color glowColor = { 235, 87, 43, 255 };
+            int glowLayers = 12;
+
+            for (int i = 1; i <= glowLayers; i++) {
+                float alpha = 0.08f * (1.0f - ((float)i / (float)glowLayers));
+                Color fadedGlow = Fade(glowColor, alpha);
+
+                float outerGlow = outerRadius + ((float)i * 1.5f);
+                DrawRing({ x, y }, outerRadius, outerGlow, 0, 360, 48, fadedGlow);
+                float innerGlow = innerRadius - ((float)i * 1.5f);
+                if (innerGlow > 0) {
+                    DrawRing({ x, y }, innerGlow, innerRadius, 0, 360, 48, fadedGlow);
+                }
+            }
+
+            EndBlendMode();
+        }
+    }
+
     void draw_legal_moves(){
         if (g_ctx->board->has_selection && g_ctx->historyView.useLive) {
             Vector2 mousePos = GetMousePosition(); 
@@ -1659,27 +1685,34 @@ namespace CanvasRenderer {
                     (float)Config::TILE_SIZE
                 };
 
-                bool isHovered = CheckCollisionPointRec(mousePos, tileRect);
+                auto& tile = g_ctx->board->grid[r][c];
 
-                if (g_ctx->board->grid[r][c].has_piece) {
-                    float baseRadius1 = (float)Config::TILE_SIZE * 0.4f;
-                    float baseRadius2 = (float)Config::TILE_SIZE * 0.38f;
+                tile.isHovered.set(CheckCollisionPointRec(mousePos, tileRect));
+
+                if (tile.isHovered.is_new_true()) {
+                    playsoundsmart(g_ctx->hoversound,.5,1.2);
+                }
+
+                if (tile.has_piece) {
+                    float radius = (float)Config::TILE_SIZE * 0.38f;
+                    float thickness = (float)Config::TILE_SIZE * 0.08f; 
                     
-                    if (isHovered) {
-                        baseRadius1 += 4.0f; 
-                        baseRadius2 += 2.0f;
+                    if (tile.isHovered) { 
+                        radius += 1.5f;       
+                        thickness += 1.0f;    
                     }
+                    
+                    DrawGlowTargetRing(drawX, drawY, radius, thickness, Config::COLOR_DOT_RING, tile.isHovered);
 
-                    DrawCircleLines(drawX, drawY, baseRadius1, Config::COLOR_DOT_RING);
-                    DrawCircleLines(drawX, drawY, baseRadius2, Config::COLOR_DOT_RING);
                 } else {
                     float radius = (float)Config::TILE_SIZE * 0.12f;
-                    if (isHovered) {
+                    if (tile.isHovered) {
                         radius = (float)Config::TILE_SIZE * 0.17f; 
                     }
 
                     DrawCircle(drawX, drawY, radius, Config::COLOR_DOT);
                 }
+                tile.isHovered.update();
             }
         }
     }
@@ -1775,6 +1808,13 @@ namespace CanvasRenderer {
         draw_promotion_panel();
         draw_game_over();
     }
+    
+    float EaseOutBack(float x) {
+        const float c1 = 1.70158f;
+        const float c3 = c1 + 1.0f;
+        return 1.0f + c3 * std::pow(x - 1.0f, 3.0f) + c1 * std::pow(x - 1.0f, 2.0f);
+    }
+
     void draw_puzzle_streak_dots() {
         int streakX = Config::PANEL_X + 40;
         int streakY = Config::PANEL_Y + 85;
@@ -1782,13 +1822,26 @@ namespace CanvasRenderer {
         int dotSpacing = 30;
         int amount_of_dots_width = 10;
 
+        if (g_ctx->streak_anim_timer < 1.0f) {
+            g_ctx->streak_anim_timer += GetFrameTime() / 0.4f; 
+            if (g_ctx->streak_anim_timer > 1.0f) g_ctx->streak_anim_timer = 1.0f;
+        }
+
+        float scaleFactor = EaseOutBack(g_ctx->streak_anim_timer);
+
         int goldCount = g_ctx->puzzle_streak / amount_of_dots_width; 
+        int leafCount = g_ctx->puzzle_streak % amount_of_dots_width;
 
         for (int i = 0; i < amount_of_dots_width; i++) {
             int cx = streakX + (i * dotSpacing);
             int cy = streakY; 
+            
             if (i < goldCount) {
-                DrawCircle(cx, cy, dotRadius, GOLD);
+                if (i == goldCount - 1 && leafCount == 0) {
+                    DrawCircle(cx, cy, (float)dotRadius * scaleFactor, GOLD);
+                } else {
+                    DrawCircle(cx, cy, dotRadius, GOLD);
+                }
             } else {
                 DrawCircleLines(cx, cy, dotRadius, DARKGRAY); 
             }
@@ -1798,13 +1851,18 @@ namespace CanvasRenderer {
             int cx = streakX + (i * dotSpacing);
             int cy = streakY + 30;
             
-            if (i < g_ctx->puzzle_streak % amount_of_dots_width) {
-                DrawCircle(cx, cy, dotRadius, Config::COLOR_LEAF_VEIN);
+            if (i < leafCount) {
+                if (i == leafCount - 1) {
+                    DrawCircle(cx, cy, (float)dotRadius * scaleFactor, Config::COLOR_LEAF_VEIN);
+                } else {
+                    DrawCircle(cx, cy, dotRadius, Config::COLOR_LEAF_VEIN);
+                }
             } else {
                 DrawCircleLines(cx, cy, dotRadius, DARKGRAY);
             }
         }
     }
+
     void DrawPuzzleSideBar(){
         DrawRectangleRounded(Rectangle{ (float)Config::PANEL_X+25, (float)Config::PANEL_Y+425, (float)Config::PANEL_WIDTH-50, (float)60 }, 0.08f, 4, Color{ 24, 14, 8, 255 });
         DrawRectangleRoundedLinesCustom(Rectangle{ (float)Config::PANEL_X+25, (float)Config::PANEL_Y+425, (float)Config::PANEL_WIDTH-50, (float)60 }, 0.08f, 4, 1.5f, Config::COLOR_FRAME_DARK);
@@ -2413,10 +2471,9 @@ void UpdateDrawFrame() { // rendering
         load_puzzles();
         g_puzzlesLoaded = true;
     }
-    static Menus last_menu = PLAY; 
+    static Menus last_menu = PLAY;
     BoardState puzzleState;
     if (load_new_puzzle) {
-        g_ctx->won_puzzle = false;
         g_ctx->cachedpuzzle = get_random_puzzle();
         g_ctx->savedPuzzleState = ParseFenToState(g_ctx->cachedpuzzle.boardsetup);
         g_ctx->savedPuzzleHistory.clear(); 
@@ -2585,9 +2642,10 @@ void UpdateDrawFrame() { // rendering
             CanvasRenderer::DrawPuzzleSideBar();
             CanvasRenderer::DrawChessboard(displayState);
 
-            if (g_ctx->puzzleSuccess.state == g_ctx->puzzleSuccess.NewTrue) {
+            if (g_ctx->puzzleSuccess.is_new_true()) {
                 g_ctx->puzzle_win_count++;
                 g_ctx->puzzle_streak++;
+                g_ctx->streak_anim_timer = 0.0f;
                 PlaySound(g_ctx->winsound);
             }
 

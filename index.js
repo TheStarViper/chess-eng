@@ -71,7 +71,7 @@ var ENVIRONMENT_IS_SHELL = !ENVIRONMENT_IS_WEB && !ENVIRONMENT_IS_NODE && !ENVIR
 
 // --pre-jses are emitted after the Module integration code, so that they can
 // refer to Module (if they choose; they can also define Module)
-// include: C:\Users\andre\AppData\Local\Temp\tmpnsnv4bkr.js
+// include: C:\Users\andre\AppData\Local\Temp\tmpm7vf3vo2.js
 
   if (!Module['expectedDataFileDownloads']) Module['expectedDataFileDownloads'] = 0;
   Module['expectedDataFileDownloads']++;
@@ -209,21 +209,21 @@ Module['FS_createPath']("/assets", "sfx", true, true);
 
   })();
 
-// end include: C:\Users\andre\AppData\Local\Temp\tmpnsnv4bkr.js
-// include: C:\Users\andre\AppData\Local\Temp\tmpzqoazn14.js
+// end include: C:\Users\andre\AppData\Local\Temp\tmpm7vf3vo2.js
+// include: C:\Users\andre\AppData\Local\Temp\tmp1_56bi8l.js
 
     // All the pre-js content up to here must remain later on, we need to run
     // it.
     if ((typeof ENVIRONMENT_IS_WASM_WORKER != 'undefined' && ENVIRONMENT_IS_WASM_WORKER) || (typeof ENVIRONMENT_IS_PTHREAD != 'undefined' && ENVIRONMENT_IS_PTHREAD) || (typeof ENVIRONMENT_IS_AUDIO_WORKLET != 'undefined' && ENVIRONMENT_IS_AUDIO_WORKLET)) Module['preRun'] = [];
     var necessaryPreJSTasks = Module['preRun'].slice();
-  // end include: C:\Users\andre\AppData\Local\Temp\tmpzqoazn14.js
-// include: C:\Users\andre\AppData\Local\Temp\tmpa1um1tsk.js
+  // end include: C:\Users\andre\AppData\Local\Temp\tmp1_56bi8l.js
+// include: C:\Users\andre\AppData\Local\Temp\tmptsm8kg96.js
 
     if (!Module['preRun']) throw 'Module.preRun should exist because file support used it; did a pre-js delete it?';
     necessaryPreJSTasks.forEach((task) => {
       if (Module['preRun'].indexOf(task) < 0) throw 'All preRun tasks that exist before user pre-js code should remain after; did you replace Module or modify Module.preRun?';
     });
-  // end include: C:\Users\andre\AppData\Local\Temp\tmpa1um1tsk.js
+  // end include: C:\Users\andre\AppData\Local\Temp\tmptsm8kg96.js
 
 
 var programArgs = [];
@@ -7728,7 +7728,13 @@ var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
 
   var _glBindTexture = _emscripten_glBindTexture;
 
+  var _glBlendEquation = _emscripten_glBlendEquation;
+
+  var _glBlendEquationSeparate = _emscripten_glBlendEquationSeparate;
+
   var _glBlendFunc = _emscripten_glBlendFunc;
+
+  var _glBlendFuncSeparate = _emscripten_glBlendFuncSeparate;
 
   var _glBufferData = _emscripten_glBufferData;
 
@@ -10614,7 +10620,13 @@ var wasmImports = {
   /** @export */
   glBindTexture: _glBindTexture,
   /** @export */
+  glBlendEquation: _glBlendEquation,
+  /** @export */
+  glBlendEquationSeparate: _glBlendEquationSeparate,
+  /** @export */
   glBlendFunc: _glBlendFunc,
+  /** @export */
+  glBlendFuncSeparate: _glBlendFuncSeparate,
   /** @export */
   glBufferData: _glBufferData,
   /** @export */

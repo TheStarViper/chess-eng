@@ -48,7 +48,7 @@ namespace Config {
     inline const Color COLOR_HIGHLIGHT= Color{ 123, 97, 255, 120 };   
     inline const Color COLOR_CHECK    = Color{ 230, 90, 90, 220 };    
     inline const Color COLOR_DOT      = Color{ 100, 149, 237, 180 }; 
-    inline const Color COLOR_DOT_RING = Color{ 202, 66, 23, 100 };
+    inline const Color COLOR_DOT_RING = Color{ 235, 87, 43, 255 };
     inline const Color COLOR_LAST_MOVE= Color{ 246, 235, 120, 100 };  
     
     const Color COLOR_WOOD_DARK   = Color{ 43, 24, 16, 255 };   
@@ -102,9 +102,37 @@ struct ChessPiece {
     ChessPiece(PieceType t, std::string col) : type(t), color(col), has_moved(false) {}
 };
 
+struct smartbool {
+    enum State {
+        False,
+        NewTrue,
+        True
+    };
+
+    State state = False;
+
+    void operator=(bool value) {this->set(value);}
+    operator bool() const {return state != False; }
+    bool is_new_true() const { return state == NewTrue; }
+    
+    void set(bool value) {
+        if (value) {
+            if (state == False) state = NewTrue;
+        } else {
+            state = False;
+        }
+    }
+    void update() {
+        if (state == NewTrue) {
+            state = True;
+        }
+    }
+};
+
 struct GridData {
     bool has_piece;
     std::shared_ptr<ChessPiece> piece;
+    smartbool isHovered;
 
     GridData() : has_piece(false), piece(nullptr) {}
     GridData(std::shared_ptr<ChessPiece> p) : has_piece(p != nullptr), piece(p) {}
@@ -179,34 +207,7 @@ struct HistoryState {
     int viewingIndex;       
 };
 
-struct smartbool {
-    enum State {
-        False,
-        NewTrue,
-        True
-    };
 
-    State state = False;
-
-    void operator=(bool value) {
-        this->set(value);
-    }
-    operator bool() const {
-        return state != False; 
-    }
-    void set(bool value) {
-        if (value) {
-            if (state == False) state = NewTrue;
-        } else {
-            state = False;
-        }
-    }
-    void update() {
-        if (state == NewTrue) {
-            state = True;
-        }
-    }
-};
 
 
 //asset file paths
