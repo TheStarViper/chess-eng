@@ -1,381 +1,128 @@
 #include "raylib.h"
-#include "rlgl.h"
 #include "main.hpp"
 #include "leaves.hpp"
 #include "easing_functions.hpp"
-#include <iostream>
-#include <vector>
-#include <string>
-#include <memory>
-#include <cmath>
-#include <algorithm>
-#include <sstream>
-#include <map>
-#include <utility>
-#include <cstdlib>
-#include <random>
-#include <sstream>
-#include <fstream>
+#include "vec_renderer.hpp"
+#include "puzzles.hpp"
 
 #if defined(PLATFORM_WEB)
     #include <emscripten/emscripten.h>
 #endif
 
-
-
 #define P_WHITE "WHITE"
 #define P_BLACK "BLACK"
 
+ 
 
-inline void DrawRectangleRoundedLinesCustom(Rectangle rec, float roundness, int segments, float lineThick, Color color) {
-    DrawRectangleRoundedLines(rec, roundness, segments, color);
-}
-
-std::string ResolveAssetPath(const std::string& relativePath) {
-    if (FileExists(relativePath.c_str())) {
-        return relativePath;
-    }
-    std::string prefix = "";
-    for (int i = 0; i < 4; ++i) {
-        prefix += "../";
-        std::string testPath = prefix + relativePath;
-        if (FileExists(testPath.c_str())) {
-            return testPath;
-        }
-    }
-    std::string appDir = GetApplicationDirectory();
-    std::string testPath = appDir + relativePath;
-    if (FileExists(testPath.c_str())) {
-        return testPath;
-    }
-    testPath = appDir + "../" + relativePath;
-    if (FileExists(testPath.c_str())) {
-        return testPath;
-    }
-    return relativePath; 
-}
-
-
-
-
-struct GameContext;
-static std::unique_ptr<GameContext> g_ctx = nullptr;
 
 void DrawTextSmooth(const char* text, float posX, float posY, float fontSize, Color color);
 Vector2 MeasureTextSmooth(const char* text, float fontSize);
 
-Font LoadSystemUIFont() {
-    std::vector<std::string> paths = {
-        "C:\\Windows\\Fonts\\arial.ttf",
-        "C:\\Windows\\Fonts\\segoeui.ttf",
-        "C:\\Windows\\Fonts\\tahoma.ttf",
-        "/System/Library/Fonts/Helvetica.ttc",
-        "/Library/Fonts/Arial.ttf",
-        "/System/Library/Fonts/HelveticaNeue.ttc",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-        "/usr/share/fonts/TTF/DejaVuSans.ttf"
-    };
-    
-    for (const auto& path : paths) {
-        if (FileExists(path.c_str())) {
-            Font font = LoadFontEx(path.c_str(), 64, nullptr, 0);
-            if (font.texture.id > 0) {
-                return font;
-            }
-        }
-    }
-    return GetFontDefault();
+
+
+Button::Button(Rectangle r, std::string lbl, Color base, Color hover, Color txt, int icon)
+    : rect(r), label(lbl), baseColor(base), hoverColor(hover), textColor(txt), isPressed(false), isHovered(false), iconType(icon), soundplayed(false) {}
+
+void Button::Update(Vector2 mousePos) {
+    isHovered = CheckCollisionPointRec(mousePos, rect);
+    isPressed = isHovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
 }
 
-class Button {
-public:
-    Rectangle rect;
-    std::string label;
-    Color baseColor;
-    Color hoverColor;
-    Color textColor;
-    bool isPressed;
-    bool isHovered;
-    int iconType; 
 
-    Button(Rectangle r, std::string lbl, Color base = Color{ 40, 41, 45, 255 }, Color hover = Color{ 60, 62, 68, 255 }, Color txt = WHITE, int icon = 0)
-        : rect(r), label(lbl), baseColor(base), hoverColor(hover), textColor(txt), isPressed(false), isHovered(false), iconType(icon) {}
-
-    void Update(Vector2 mousePos) {
-        isHovered = CheckCollisionPointRec(mousePos, rect);
-        isPressed = isHovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT);
-    }
-
-    void Draw();
-private:
-    bool soundplayed;
-};
-
-
-class ChessBoard {
-public:
-    GridData grid[8][8];
-    std::string turn; 
-    std::vector<HistorySnapshot> move_history;
-    
-    std::pair<int, int> selected_square;
-    bool has_selection;
-    bool is_promoting;
-    std::pair<int, int> promotion_square;
-    std::pair<int, int> promotion_source;
-    
-    bool white_king_side_castle;
-    bool white_queen_side_castle;
-    bool black_king_side_castle;
-    bool black_queen_side_castle;
-    std::pair<int, int> en_passant_square; 
-    int halfmove_clock;
-    int fullmove_number;
-    GameState state;
-
-    std::pair<int, int> last_move_from;
-    std::pair<int, int> last_move_to;
-    bool in_check;
-    std::pair<int, int> check_king_pos;
-    int current_repetition_count;
-
-    ChessBoard() {
+ChessBoard::ChessBoard() {
         Reset();
     }
 
-    void Reset() {
-        turn = P_WHITE;
-        has_selection = false;
-        selected_square = { -1, -1 };
-        is_promoting = false;
-        promotion_square = { -1, -1 };
-        promotion_source = { -1, -1 };
-        
-        white_king_side_castle = true;
-        white_queen_side_castle = true;
-        black_king_side_castle = true;
-        black_queen_side_castle = true;
-        en_passant_square = { -1, -1 };
-        halfmove_clock = 0;
-        fullmove_number = 1;
-        state = STATE_PLAYING;
-        move_history.clear();
-
-        last_move_from = { -1, -1 };
-        last_move_to = { -1, -1 };
-        in_check = false;
-        check_king_pos = { -1, -1 };
-        current_repetition_count = 1;
-
-        for (int r = 0; r < 8; ++r) {
-            for (int c = 0; c < 8; ++c) {
-                grid[r][c] = GridData();
-            }
-        }
-
-        for (int c = 0; c < 8; ++c) {
-            grid[1][c] = GridData(std::make_shared<ChessPiece>(PAWN, P_BLACK));
-            grid[6][c] = GridData(std::make_shared<ChessPiece>(PAWN, P_WHITE));
-        }
-
-        std::vector<PieceType> backline = { ROOK, KNIGHT, BISHOP, QUEEN, KING, BISHOP, KNIGHT, ROOK };
-        for (int c = 0; c < 8; ++c) {
-            grid[0][c] = GridData(std::make_shared<ChessPiece>(backline[c], P_BLACK));
-            grid[7][c] = GridData(std::make_shared<ChessPiece>(backline[c], P_WHITE));
-        }
-    }
-
-    BoardState CaptureState() const {
-        BoardState bs;
-        for (int r = 0; r < 8; ++r) {
-            for (int c = 0; c < 8; ++c) {
-                bs.grid[r][c] = grid[r][c];
-            }
-        }
-        bs.turn = turn;
-        bs.white_king_side_castle = white_king_side_castle;
-        bs.white_queen_side_castle = white_queen_side_castle;
-        bs.black_king_side_castle = black_king_side_castle;
-        bs.black_queen_side_castle = black_queen_side_castle;
-        bs.en_passant_square = en_passant_square;
-        bs.halfmove_clock = halfmove_clock;
-        bs.fullmove_number = fullmove_number;
-        
-        bs.last_move_from = last_move_from;
-        bs.last_move_to = last_move_to;
-        bs.in_check = in_check;
-        bs.check_king_pos = check_king_pos;
-        bs.repetition_count = current_repetition_count;
-
-        return bs;
-    }
-
-    void LoadState(const BoardState& bs) {
-        for (int r = 0; r < 8; ++r) {
-            for (int c = 0; c < 8; ++c) {
-                grid[r][c] = bs.grid[r][c];
-            }
-        }
-        turn = bs.turn;
-        white_king_side_castle = bs.white_king_side_castle;
-        white_queen_side_castle = bs.white_queen_side_castle;
-        black_king_side_castle = bs.black_king_side_castle;
-        black_queen_side_castle = bs.black_queen_side_castle;
-        en_passant_square = bs.en_passant_square;
-        halfmove_clock = bs.halfmove_clock;
-        fullmove_number = bs.fullmove_number;
-
-        last_move_from = bs.last_move_from;
-        last_move_to = bs.last_move_to;
-        in_check = bs.in_check;
-        check_king_pos = bs.check_king_pos;
-        current_repetition_count = bs.repetition_count;
-    }
-};
-
-struct GameContext {
-    //Sounds
-    Sound hoversound;
-    Sound winsound;
-    Sound movesound;
-
-    BoardState savedGameState;
-    BoardState savedPuzzleState;
-    float puzzleOpponentTimer = -1.0f;
-    int puzzleMoveIndex = 0;
-    bool puzzleFailed = false;
-    smartbool puzzleSuccess;
-    bool hasSavedGame = false;
-    bool hasSavedPuzzle = false;
-    std::vector<HistorySnapshot> savedGameHistory;
-    std::vector<HistorySnapshot> savedPuzzleHistory;
-    int lastHoveredLeafId = -1;
-    int lastHoveredBoardPieceTile;
-    int genuineHoveredLeafId = -1;  
-    std::unique_ptr<ChessBoard> board;
-    Vector2 mousePosition;
-    int active_turn_id; 
-    float move_log_scroll_ratio;
-    bool isGameRunning;
-    HistoryState historyView;
-    PieceAnimation anim;
-    Texture2D backgroundTexture;
-
-    std::map<std::string, Texture2D> pieceSprites; 
-    bool useSprites = false;
+void ChessBoard::Reset() {
+    turn = P_WHITE;
+    has_selection = false;
+    selected_square = { -1, -1 };
+    is_promoting = false;
+    promotion_square = { -1, -1 };
+    promotion_source = { -1, -1 };
     
-    Font uiFont;
-    RenderTexture2D targetScreen; 
+    white_king_side_castle = true;
+    white_queen_side_castle = true;
+    black_king_side_castle = true;
+    black_queen_side_castle = true;
+    en_passant_square = { -1, -1 };
+    halfmove_clock = 0;
+    fullmove_number = 1;
+    state = STATE_PLAYING;
+    move_history.clear();
 
-    int puzzle_win_count = 0;
-    int puzzle_fail_count = 0;
-    int puzzle_streak = 0;
-    float streak_anim_timer = 0.0f;
-    Vector2 puzzle_win_square;
-    bool hintActive = false;
-    std::string currentHintUci = "";
-    //settings
-    bool showMoveHighlights = true;
-    bool showBoardCoordinates = true;
-    bool fiftymovecounter = false;
-    bool threefoldcounter = false;
-    bool highcontrast = false;
-    bool boardmarkings = true;
+    last_move_from = { -1, -1 };
+    last_move_to = { -1, -1 };
+    in_check = false;
+    check_king_pos = { -1, -1 };
+    current_repetition_count = 1;
 
-    float masterVolume = 0.75f;
-    Menus active_menu = PLAY;
-    float sidebarWidth = (float)Config::SIDEBAR_MIN_WIDTH; 
-    bool sidebarhovered;
-    Puzzle cachedpuzzle;
-    std::vector<std::pair<int, int>> cached_legal_moves;
-
-    std::unique_ptr<Button> btnResign;
-    std::unique_ptr<Button> btnDraw;
-    std::unique_ptr<Button> btnPrev;
-    std::unique_ptr<Button> btnNext;
-    std::unique_ptr<Button> btnLive;
-    std::unique_ptr<Button> btnFirst;
-    std::unique_ptr<Button> btnLast;
-    std::unique_ptr<Button> btnOverlayRematch;
-
-    std::unique_ptr<Button> btnpuzzlehint;
-    std::unique_ptr<Button> btnpuzzlenext;
-    std::unique_ptr<Button> btnpuzzleretry;
-    std::vector<std::unique_ptr<Button>> btnPromotionTrays;
-
-    GameContext() {
-        std::string bgPath = ResolveAssetPath("assets/images/bg.png");
-        backgroundTexture = LoadTexture(bgPath.c_str());
-        if (backgroundTexture.id == 0) {
-            std::cout << "[ERROR] Failed to load background: " << bgPath << std::endl;
+    for (int r = 0; r < 8; ++r) {
+        for (int c = 0; c < 8; ++c) {
+            grid[r][c] = GridData();
         }
-        sidebarhovered = false;
-        board = std::make_unique<ChessBoard>();
-        mousePosition = Vector2{ 0, 0 };
-        active_turn_id = 0;
-        move_log_scroll_ratio = 0.0f;
-        isGameRunning = true;
-        historyView = HistoryState{ true, 0 };
-        anim = PieceAnimation{ false, nullptr, Vector2{0,0}, Vector2{0,0}, Vector2{0,0}, 0.0f, -1, -1 };
-        uiFont = LoadSystemUIFont();
-
-        auto LoadPieceTex = [&](std::string name) {
-            std::string path = ResolveAssetPath("assets/images/set/" + name + ".png");
-            if (FileExists(path.c_str())) {
-                pieceSprites[name] = LoadTexture(path.c_str());
-            }
-        };
-
-        std::vector<std::string> pieces = { 
-            "WhitePawn", "WhiteKnight", "WhiteBishop", "WhiteRook", "WhiteQueen", "WhiteKing",
-            "BlackPawn", "BlackKnight", "BlackBishop", "BlackRook", "BlackQueen", "BlackKing" 
-        };
-        for (const auto& name : pieces) {
-            LoadPieceTex(name);
-        }
-        if (!pieceSprites.empty()) {
-            useSprites = true;
-        }
-        targetScreen = LoadRenderTexture(Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT);
-        SetTextureFilter(targetScreen.texture, TEXTURE_FILTER_BILINEAR);
-
-        float navY = (float)Config::PANEL_Y + Config::PANEL_HEIGHT - 100;
-        float navW = 80;
-        float navH = 35;
-        float startNavX = (float)Config::PANEL_X + (Config::PANEL_WIDTH - (navW * 4 + 15)) / 2.0f;
-
-        btnFirst   = std::make_unique<Button>(Rectangle{ startNavX, navY, navW, navH }, "|<", Config::COLOR_UI_BUTTON, Config::COLOR_UI_BUTTON_HOV, Config::COLOR_UI_TEXT);
-        btnPrev    = std::make_unique<Button>(Rectangle{ startNavX + navW + 5, navY, navW, navH }, "<", Config::COLOR_UI_BUTTON, Config::COLOR_UI_BUTTON_HOV, Config::COLOR_UI_TEXT);
-        btnNext    = std::make_unique<Button>(Rectangle{ startNavX + (navW + 5) * 2, navY, navW, navH }, ">", Config::COLOR_UI_BUTTON, Config::COLOR_UI_BUTTON_HOV, Config::COLOR_UI_TEXT);
-        btnLast    = std::make_unique<Button>(Rectangle{ startNavX + (navW + 5) * 3, navY, navW, navH }, ">|", Config::COLOR_UI_BUTTON, Config::COLOR_UI_BUTTON_HOV, Config::COLOR_UI_TEXT);
-
-        btnResign  = std::make_unique<Button>(Rectangle{ (float)Config::PANEL_X + 25, (float)Config::PANEL_Y + 550, (Config::PANEL_WIDTH-50)/2-10, 40 }, "Resign", Color{ 120, 35, 35, 255 }, Color{ 150, 45, 45, 255 }, Config::COLOR_UI_TEXT, 1);
-        btnDraw    = std::make_unique<Button>(Rectangle{ (float)Config::PANEL_X + (Config::PANEL_WIDTH-50)/2+25+10, (float)Config::PANEL_Y + 550, (Config::PANEL_WIDTH-50)/2-10, 40 }, "Offer Draw", Color{ 55, 60, 45, 255 }, Color{ 75, 80, 55, 255 }, Config::COLOR_UI_TEXT, 2);
-        
-        btnpuzzlehint = std::make_unique<Button>(Rectangle{ (float)Config::PANEL_X + 25, (float)Config::PANEL_Y + 500, (Config::PANEL_WIDTH-50), 40 }, "Hint", Color{ 55, 60, 45, 255 }, Color{ 75, 80, 55, 255 }, Config::COLOR_UI_TEXT, 2);
-        btnpuzzleretry = std::make_unique<Button>(Rectangle{ (float)Config::PANEL_X + 25, (float)Config::PANEL_Y + 550, (Config::PANEL_WIDTH-50)/2-10, 40 }, "Retry", Color{ 120, 35, 35, 255 }, Color{ 150, 45, 45, 255 }, Config::COLOR_UI_TEXT, 1);
-        btnpuzzlenext = std::make_unique<Button>(Rectangle{ (float)Config::PANEL_X + (Config::PANEL_WIDTH-50)/2+25+10, (float)Config::PANEL_Y + 550, (Config::PANEL_WIDTH-50)/2-10, 40 }, "Next Puzzle", Color{ 55, 60, 45, 255 }, Color{ 75, 80, 55, 255 }, Config::COLOR_UI_TEXT, 2);
-        
-        float overlayCenterX = Config::BOARD_OFFSET_X + (Config::TILE_SIZE * 8) / 2.0f;
-        btnOverlayRematch = std::make_unique<Button>(Rectangle{ overlayCenterX - 125, Config::BOARD_OFFSET_Y + (Config::TILE_SIZE * 8) / 2.0f + 25, 250, 50 }, "REMATCH", Config::COLOR_LEAF_DARK, Config::COLOR_LEAF_LIGHT, Config::COLOR_UI_TEXT);
-
-        ResetPromotionButtons();
     }
 
-
-    void ResetPromotionButtons() {
-        btnPromotionTrays.clear();
-        float btnW = 90;
-        float startX = Config::BOARD_OFFSET_X + 4 * Config::TILE_SIZE - (btnW * 4)/2.0f;
-        float startY = Config::BOARD_OFFSET_Y + 4 * Config::TILE_SIZE - 25;
-
-        btnPromotionTrays.push_back(std::make_unique<Button>(Rectangle{ startX, startY, btnW, 50 }, "QUEEN", Config::COLOR_UI_BUTTON, Config::COLOR_UI_BUTTON_HOV, Config::COLOR_UI_TEXT));
-        btnPromotionTrays.push_back(std::make_unique<Button>(Rectangle{ startX + btnW, startY, btnW, 50 }, "ROOK", Config::COLOR_UI_BUTTON, Config::COLOR_UI_BUTTON_HOV, Config::COLOR_UI_TEXT));
-        btnPromotionTrays.push_back(std::make_unique<Button>(Rectangle{ startX + btnW * 2, startY, btnW, 50 }, "BISHOP", Config::COLOR_UI_BUTTON, Config::COLOR_UI_BUTTON_HOV, Config::COLOR_UI_TEXT));
-        btnPromotionTrays.push_back(std::make_unique<Button>(Rectangle{ startX + btnW * 3, startY, btnW, 50 }, "KNIGHT", Config::COLOR_UI_BUTTON, Config::COLOR_UI_BUTTON_HOV, Config::COLOR_UI_TEXT));
+    for (int c = 0; c < 8; ++c) {
+        grid[1][c] = GridData(std::make_shared<ChessPiece>(PAWN, P_BLACK));
+        grid[6][c] = GridData(std::make_shared<ChessPiece>(PAWN, P_WHITE));
     }
-};
+
+    std::vector<PieceType> backline = { ROOK, KNIGHT, BISHOP, QUEEN, KING, BISHOP, KNIGHT, ROOK };
+    for (int c = 0; c < 8; ++c) {
+        grid[0][c] = GridData(std::make_shared<ChessPiece>(backline[c], P_BLACK));
+        grid[7][c] = GridData(std::make_shared<ChessPiece>(backline[c], P_WHITE));
+    }
+}
+
+BoardState ChessBoard::CaptureState() const {
+    BoardState bs;
+    for (int r = 0; r < 8; ++r) {
+        for (int c = 0; c < 8; ++c) {
+            bs.grid[r][c] = grid[r][c];
+        }
+    }
+    bs.turn = turn;
+    bs.white_king_side_castle = white_king_side_castle;
+    bs.white_queen_side_castle = white_queen_side_castle;
+    bs.black_king_side_castle = black_king_side_castle;
+    bs.black_queen_side_castle = black_queen_side_castle;
+    bs.en_passant_square = en_passant_square;
+    bs.halfmove_clock = halfmove_clock;
+    bs.fullmove_number = fullmove_number;
+    
+    bs.last_move_from = last_move_from;
+    bs.last_move_to = last_move_to;
+    bs.in_check = in_check;
+    bs.check_king_pos = check_king_pos;
+    bs.repetition_count = current_repetition_count;
+
+    return bs;
+}
+
+void ChessBoard::LoadState(const BoardState& bs) {
+    for (int r = 0; r < 8; ++r) {
+        for (int c = 0; c < 8; ++c) {
+            grid[r][c] = bs.grid[r][c];
+        }
+    }
+    turn = bs.turn;
+    white_king_side_castle = bs.white_king_side_castle;
+    white_queen_side_castle = bs.white_queen_side_castle;
+    black_king_side_castle = bs.black_king_side_castle;
+    black_queen_side_castle = bs.black_queen_side_castle;
+    en_passant_square = bs.en_passant_square;
+    halfmove_clock = bs.halfmove_clock;
+    fullmove_number = bs.fullmove_number;
+
+    last_move_from = bs.last_move_from;
+    last_move_to = bs.last_move_to;
+    in_check = bs.in_check;
+    check_king_pos = bs.check_king_pos;
+    current_repetition_count = bs.repetition_count;
+}
+
+
 
 void playsoundsmart(Sound sound, float volume = 1.0,float pitch = 1.0){
     SetSoundPitch(sound,pitch);
@@ -944,290 +691,6 @@ namespace ChessEngine {
 }
 
 
-namespace VectorRenderer {
-
-    void DrawLeaf(float x, float y, float size, float angleDegrees) {
-        rlPushMatrix();
-        rlTranslatef(x, y, 0.0f);
-        rlRotatef(angleDegrees, 0.0f, 0.0f, 1.0f);
-
-        DrawEllipse(0, 0, size * 1.1f, size * 0.55f, Config::COLOR_LEAF_DARK);
-        DrawEllipse(-1, -1, size, size * 0.5f, Config::COLOR_LEAF_LIGHT);
-        DrawLineEx(Vector2{ -size * 0.8f, 0 }, Vector2{ size * 0.8f, 0 }, 1.5f, Config::COLOR_LEAF_VEIN);
-        
-        rlPopMatrix();
-    }
-
-    void DrawTileWoodGrain(float x, float y, float w, float h, bool isDark) {
-        Color grainColor = isDark ? Color{ 96, 55, 28, 60 } : Color{ 185, 149, 105, 75 };
-    
-        float offset1 = w * 0.25f;
-        float offset2 = w * 0.65f;
-        float offset3 = w * 0.80f;
-
-        DrawLineEx(Vector2{ x + offset1, y + 2 }, Vector2{ x + offset1, y + h - 2 }, 1.2f, grainColor);
-        DrawLineEx(Vector2{ x + offset2, y + 4 }, Vector2{ x + offset2, y + h - 4 }, 1.0f, grainColor);
-        DrawLineEx(Vector2{ x + offset3, y + 3 }, Vector2{ x + offset3, y + h - 3 }, 1.1f, grainColor);
-    }
-
-    void DrawOvergrownVines(int boardX, int boardY, float boardSize, int id) {
-        Vector2 mousePos = GetMousePosition();
-        int currentLeafId = 0;
-        int hoveredLeafThisFrame = -1;
-
-        auto UpdateAndDrawLeaf = [&](float x, float y, float size, float angleDegrees) {
-            int id = currentLeafId++;
-            float finalSize = size;
-            float enterRadius = size * 1.2f;
-            float exitRadius = size * 1.6f;
-            float hoverRadius = (g_ctx->lastHoveredLeafId == id) ? exitRadius : enterRadius;
-
-            bool isHovered = CheckCollisionPointCircle(mousePos, Vector2{ x, y }, hoverRadius);
-
-            if (isHovered) {
-                hoveredLeafThisFrame = id;
-                finalSize = size * 1.30f;
-            }
-
-            DrawLeaf(x, y, finalSize, angleDegrees);
-        };
-
-        float boardLeaves[][4] = {
-            // --- Board Top Grouping (Left-to-mid) ---
-            { (float)boardX + 75,  (float)boardY - 6,  14, -15 },
-            { (float)boardX + 95,  (float)boardY - 12, 17, 10 },
-            { (float)boardX + 115, (float)boardY - 5,  13, 35 },
-            { (float)boardX + 135, (float)boardY - 9,  15, -10 },
-            { (float)boardX + 160, (float)boardY - 6,  12, 45 },
-
-            // --- Board Top Grouping (Spread across mid-to-right) ---
-            { (float)boardX + 380, (float)boardY - 10, 15, -25 },
-            { (float)boardX + 405, (float)boardY - 6,  13, 5 },
-            { (float)boardX + 430, (float)boardY - 13, 18, 20 },
-            { (float)boardX + 455, (float)boardY - 5,  14, -15 },
-            { (float)boardX + 480, (float)boardY + 2,  16, 55 },
-
-            // --- Board Bottom Grouping (Spread left-to-mid) ---
-            { (float)boardX + 65,  (float)boardY + boardSize + 6,  14, 160 },
-            { (float)boardX + 90,  (float)boardY + boardSize + 12, 18, 195 },
-            { (float)boardX + 115, (float)boardY + boardSize + 4,  13, 140 },
-            { (float)boardX + 140, (float)boardY + boardSize + 9,  15, 175 },
-
-            // --- Board Bottom Grouping (Spread mid-to-right) ---
-            { (float)boardX + 420, (float)boardY + boardSize + 5,  13, 150 },
-            { (float)boardX + 445, (float)boardY + boardSize + 11, 17, 215 },
-            { (float)boardX + 470, (float)boardY + boardSize + 4,  14, 135 },
-            { (float)boardX + 495, (float)boardY + boardSize + 8,  16, 185 },
-
-            // --- Board Left Side Grouping (Spread vertically down) ---
-            { (float)boardX - 6,   (float)boardY + 210, 14, -75 },
-            { (float)boardX - 10,  (float)boardY + 235, 16, -100 },
-            { (float)boardX - 13,  (float)boardY + 260, 18, -120 },
-            { (float)boardX - 8,   (float)boardY + 285, 13, -60 },
-            { (float)boardX - 5,   (float)boardY + 310, 15, -85 },
-
-            // --- Board Right Side Grouping (Spread vertically down) ---
-            { (float)boardX + boardSize + 6,  (float)boardY + 310, 13, 65 },
-            { (float)boardX + boardSize + 11, (float)boardY + 335, 17, 90 },
-            { (float)boardX + boardSize + 14, (float)boardY + 360, 19, 120 },
-            { (float)boardX + boardSize + 9,  (float)boardY + 385, 14, 55 },
-            { (float)boardX + boardSize + 7,  (float)boardY + 410, 15, 100 }
-        };
-
-        float panelLeaves[][4] = {
-            // --- Move Log Top Border (Spanning left half) ---
-            { (float)Config::PANEL_X + 10,  (float)Config::PANEL_Y + 6, 13, -45 },
-            { (float)Config::PANEL_X + 30,  (float)Config::PANEL_Y + 1, 16, 10 },
-            { (float)Config::PANEL_X + 50,  (float)Config::PANEL_Y + 4, 12, -20 },
-            { (float)Config::PANEL_X + 70,  (float)Config::PANEL_Y + 1, 15, 30 },
-            { (float)Config::PANEL_X + 90,  (float)Config::PANEL_Y + 5, 13, -10 },
-
-            // --- Move Log Top Border (Spanning right half) ---
-            { (float)Config::PANEL_X + Config::PANEL_WIDTH - 100, (float)Config::PANEL_Y + 4, 14, -15 },
-            { (float)Config::PANEL_X + Config::PANEL_WIDTH - 80,  (float)Config::PANEL_Y + 1, 15, 35 },
-            { (float)Config::PANEL_X + Config::PANEL_WIDTH - 60,  (float)Config::PANEL_Y + 6, 12, 10 },
-            { (float)Config::PANEL_X + Config::PANEL_WIDTH - 40,  (float)Config::PANEL_Y + 2, 17, 75 },
-            { (float)Config::PANEL_X + Config::PANEL_WIDTH - 15,  (float)Config::PANEL_Y + 8, 13, 115 },
-
-            // --- Move Log Left Side (Cascading down the edge) ---
-            { (float)Config::PANEL_X + 3,  (float)Config::PANEL_Y + 120, 13, -80 },
-            { (float)Config::PANEL_X + 2,  (float)Config::PANEL_Y + 145, 16, -110 },
-            { (float)Config::PANEL_X + 4,  (float)Config::PANEL_Y + 170, 15, -70 },
-            { (float)Config::PANEL_X + 2,  (float)Config::PANEL_Y + 195, 14, -95 },
-            { (float)Config::PANEL_X + 1,  (float)Config::PANEL_Y + 220, 12, -120 },
-
-            // --- Move Log Right Side (Cascading down the edge) ---
-            { (float)Config::PANEL_X + Config::PANEL_WIDTH + 1, (float)Config::PANEL_Y + 140, 12, 60 },
-            { (float)Config::PANEL_X + Config::PANEL_WIDTH + 1, (float)Config::PANEL_Y + 165, 15, 95 },
-            { (float)Config::PANEL_X + Config::PANEL_WIDTH + 2, (float)Config::PANEL_Y + 190, 17, 115 },
-            { (float)Config::PANEL_X + Config::PANEL_WIDTH + 1, (float)Config::PANEL_Y + 215, 13, 50 },
-            { (float)Config::PANEL_X + Config::PANEL_WIDTH + 2, (float)Config::PANEL_Y + 240, 14, 85 },
-
-            // --- Move Log Bottom Border (Spanning along the base) ---
-            { (float)Config::PANEL_X + 12, (float)Config::PANEL_Y + Config::PANEL_HEIGHT + 3, 14, -135 },
-            { (float)Config::PANEL_X + 37, (float)Config::PANEL_Y + Config::PANEL_HEIGHT + 2, 16, 185 },
-            { (float)Config::PANEL_X + 62, (float)Config::PANEL_Y + Config::PANEL_HEIGHT + 5, 13, 150 },
-            
-            { (float)Config::PANEL_X + Config::PANEL_WIDTH - 75, (float)Config::PANEL_Y + Config::PANEL_HEIGHT + 2, 14, 210 },
-            { (float)Config::PANEL_X + Config::PANEL_WIDTH - 50, (float)Config::PANEL_Y + Config::PANEL_HEIGHT + 3, 15, 145 },
-            { (float)Config::PANEL_X + Config::PANEL_WIDTH - 20, (float)Config::PANEL_Y + Config::PANEL_HEIGHT + 1, 13, 36 }
-        };
-        switch (id){
-            case 1:
-            for (const auto& leaf : boardLeaves) {
-                UpdateAndDrawLeaf((float)leaf[0], (float)leaf[1], (float)leaf[2], (float)leaf[3]);
-            }
-            break;
-        case 2:
-            for (const auto& leaf : panelLeaves) {
-                UpdateAndDrawLeaf((float)leaf[0], (float)leaf[1], (float)leaf[2], (float)leaf[3]);
-            }
-            break;
-        }
-        
-        
-        static int lastPlayedIds[2] = { -1, -1 };
-        int slotIndex = (id == 2) ? 1 : 0;
-
-        if (hoveredLeafThisFrame != -1) {
-            if (hoveredLeafThisFrame != lastPlayedIds[slotIndex]) {
-                playsoundsmart(g_ctx->hoversound,1,2);
-                lastPlayedIds[slotIndex] = hoveredLeafThisFrame;
-            }
-        } else {
-            lastPlayedIds[slotIndex] = -1;
-        }
-
-        g_ctx->lastHoveredLeafId = hoveredLeafThisFrame;
-    }
-
-    void DrawBoardOrnateFrame(int x, int y, int size) {
-        int borderSize = 20;
-        DrawRectangle(x - borderSize, y - borderSize, size + (borderSize * 2), size + (borderSize * 2), Config::COLOR_FRAME_DARK);
-        DrawRectangleLinesEx(Rectangle{ (float)x - 4, (float)y - 4, (float)size + 8, (float)size + 8 }, 3.0f, Config::COLOR_FRAME_MID);
-    }
-
-
-    //fallback function if sprites fail to load
-    void DrawChessPieceVector(PieceType type, std::string color, int x, int y, int size) { 
-        float fX = (float)x;
-        float fY = (float)y;
-        float fS = (float)size;
-
-
-        Color fill = (color == P_WHITE) ? Color{ 255, 255, 255, 255 } : Color{ 55, 55, 60, 255 };
-        Color stroke = (color == P_WHITE) ? Color{ 140, 140, 145, 255 } : Color{ 225, 225, 230, 255 };
-        float thick = 3.0f;
-
-        float cx = fX + fS / 2.0f;
-        float cy = fY + fS / 2.0f;
-
-        switch (type) {
-            case PAWN: {
-                DrawRectangleRounded(Rectangle{ cx - fS*0.22f, cy + fS*0.24f, fS*0.44f, fS*0.08f }, 0.4f, 4, fill);
-                DrawRectangleRoundedLinesCustom(Rectangle{ cx - fS*0.22f, cy + fS*0.24f, fS*0.44f, fS*0.08f }, 0.4f, 4, thick, stroke);
-
-                Vector2 p1 = Vector2{ cx, cy - fS * 0.10f };
-                Vector2 p2 = Vector2{ cx - fS * 0.14f, cy + fS * 0.24f };
-                Vector2 p3 = Vector2{ cx + fS * 0.14f, cy + fS * 0.24f };
-                DrawTriangle(p1, p2, p3, fill);
-                DrawLineEx(p1, p2, thick, stroke);
-                DrawLineEx(p1, p3, thick, stroke);
-
-                DrawCircle((int)cx, (int)(cy - fS * 0.12f), fS * 0.14f, fill);
-                DrawCircleLines((int)cx, (int)(cy - fS * 0.12f), fS * 0.14f, stroke);
-                break;
-            }
-            case KNIGHT: {
-                DrawRectangleRounded(Rectangle{ cx - fS*0.25f, cy + fS*0.24f, fS*0.5f, fS*0.08f }, 0.4f, 4, fill);
-                DrawRectangleRoundedLinesCustom(Rectangle{ cx - fS*0.25f, cy + fS*0.24f, fS*0.5f, fS*0.08f }, 0.4f, 4, thick, stroke);
-
-                Vector2 top = Vector2{ cx - fS*0.18f, cy + fS*0.24f };
-                Vector2 snout = Vector2{ cx - fS*0.28f, cy - fS*0.08f };
-                Vector2 head = Vector2{ cx + fS*0.12f, cy - fS*0.28f };
-                Vector2 back = Vector2{ cx + fS*0.18f, cy + fS*0.24f };
-
-                DrawTriangle(top, snout, head, fill);
-                DrawTriangle(top, head, back, fill);
-
-                DrawLineEx(top, snout, thick, stroke);
-                DrawLineEx(snout, head, thick, stroke);
-                DrawLineEx(head, back, thick, stroke);
-
-                Color eyeColor = (color == P_WHITE) ? Color{ 40, 40, 40, 255 } : WHITE;
-                DrawCircle((int)(cx - fS*0.08f), (int)(cy - fS*0.13f), fS*0.035f, eyeColor);
-                break;
-            }
-            case BISHOP: {
-                DrawRectangleRounded(Rectangle{ cx - fS*0.24f, cy + fS*0.24f, fS*0.48f, fS*0.08f }, 0.4f, 4, fill);
-                DrawRectangleRoundedLinesCustom(Rectangle{ cx - fS*0.24f, cy + fS*0.24f, fS*0.48f, fS*0.08f }, 0.4f, 4, thick, stroke);
-                
-                DrawCircle((int)cx, (int)cy, fS*0.20f, fill);
-                DrawCircleLines((int)cx, (int)cy, fS*0.20f, stroke);
-
-                DrawCircle((int)cx, (int)(cy - fS*0.25f), fS*0.06f, fill);
-                DrawCircleLines((int)cx, (int)(cy - fS*0.25f), fS*0.06f, stroke);
-
-                DrawLineEx(Vector2{ cx - fS*0.08f, cy - fS*0.08f }, Vector2{ cx + fS*0.08f, cy + fS*0.08f }, thick + 0.5f, stroke);
-                break;
-            }
-            case ROOK: {
-                DrawRectangleRounded(Rectangle{ cx - fS*0.24f, cy + fS*0.24f, fS*0.48f, fS*0.08f }, 0.4f, 4, fill);
-                DrawRectangleRoundedLinesCustom(Rectangle{ cx - fS*0.24f, cy + fS*0.24f, fS*0.48f, fS*0.08f }, 0.4f, 4, thick, stroke);
-
-                DrawRectangleRounded(Rectangle{ cx - fS*0.20f, cy - fS*0.16f, fS*0.40f, fS*0.40f }, 0.1f, 4, fill);
-                DrawRectangleRoundedLinesCustom(Rectangle{ cx - fS*0.20f, cy - fS*0.16f, fS*0.40f, fS*0.40f }, 0.1f, 4, thick, stroke);
-
-                float batW = fS * 0.10f;
-                DrawRectangleRec(Rectangle{ cx - fS*0.20f, cy - fS*0.26f, batW, fS*0.10f }, fill);
-                DrawRectangleLinesEx(Rectangle{ cx - fS*0.20f, cy - fS*0.26f, batW, fS*0.10f }, thick, stroke);
-
-                DrawRectangleRec(Rectangle{ cx - batW/2.0f, cy - fS*0.26f, batW, fS*0.10f }, fill);
-                DrawRectangleLinesEx(Rectangle{ cx - batW/2.0f, cy - fS*0.26f, batW, fS*0.10f }, thick, stroke);
-
-                DrawRectangleRec(Rectangle{ cx + fS*0.20f - batW, cy - fS*0.26f, batW, fS*0.10f }, fill);
-                DrawRectangleLinesEx(Rectangle{ cx + fS*0.20f - batW, cy - fS*0.26f, batW, fS*0.10f }, thick, stroke);
-                break;
-            }
-            case QUEEN: {
-                DrawRectangleRounded(Rectangle{ cx - fS*0.28f, cy + fS*0.24f, fS*0.56f, fS*0.08f }, 0.4f, 4, fill);
-                DrawRectangleRoundedLinesCustom(Rectangle{ cx - fS*0.28f, cy + fS*0.24f, fS*0.56f, fS*0.08f }, 0.4f, 4, thick, stroke);
-
-                Vector2 pLeft = Vector2{ cx - fS*0.26f, cy + fS*0.24f };
-                Vector2 pMid = Vector2{ cx, cy - fS*0.22f };
-                Vector2 pRight = Vector2{ cx + fS*0.26f, cy + fS*0.24f };
-
-                DrawTriangle(pLeft, pMid, pRight, fill);
-                DrawLineEx(pLeft, pMid, thick, stroke);
-                DrawLineEx(pMid, pRight, thick, stroke);
-
-                DrawCircle((int)(cx - fS*0.22f), (int)(cy - fS*0.02f), fS*0.05f, fill);
-                DrawCircleLines((int)(cx - fS*0.22f), (int)(cy - fS*0.02f), fS*0.05f, stroke);
-
-                DrawCircle((int)(cx + fS*0.22f), (int)(cy - fS*0.02f), fS*0.05f, fill);
-                DrawCircleLines((int)(cx + fS*0.22f), (int)(cy - fS*0.02f), fS*0.05f, stroke);
-
-                DrawCircle((int)cx, (int)(cy - fS*0.22f), fS*0.07f, fill);
-                DrawCircleLines((int)cx, (int)(cy - fS*0.22f), fS*0.07f, stroke);
-                break;
-            }
-            case KING: {
-                DrawRectangleRounded(Rectangle{ cx - fS*0.28f, cy + fS*0.24f, fS*0.56f, fS*0.08f }, 0.4f, 4, fill);
-                DrawRectangleRoundedLinesCustom(Rectangle{ cx - fS*0.28f, cy + fS*0.24f, fS*0.56f, fS*0.08f }, 0.4f, 4, thick, stroke);
-
-                DrawRectangleRounded(Rectangle{ cx - fS*0.18f, cy - fS*0.14f, fS*0.36f, fS*0.38f }, 0.15f, 4, fill);
-                DrawRectangleRoundedLinesCustom(Rectangle{ cx - fS*0.18f, cy - fS*0.14f, fS*0.36f, fS*0.38f }, 0.15f, 4, thick, stroke);
-
-                float crossThick = 4.0f;
-                DrawLineEx(Vector2{ cx, cy - fS*0.18f }, Vector2{ cx, cy - fS*0.36f }, crossThick, stroke);
-                DrawLineEx(Vector2{ cx - fS*0.09f, cy - fS*0.27f }, Vector2{ cx + fS*0.09f, cy - fS*0.27f }, crossThick, stroke);
-                break;
-            }
-            case NONE: break;
-        }
-    }
-}
-
 
 void DrawChessPiece(PieceType type, std::string color, int x, int y, int size) {
     if (g_ctx && g_ctx->useSprites) {
@@ -1252,92 +715,6 @@ void DrawChessPiece(PieceType type, std::string color, int x, int y, int size) {
     }
 
     VectorRenderer::DrawChessPieceVector(type, color, x, y, size); //fallback to vector bad looking if sprites fail to load
-}
-
-BoardState ParseFenToState(const std::string& fen) {
-    BoardState newState;
-    std::stringstream ss(fen);
-    std::string pieces, turn, castling, en_passant;
-    int halfmove = 0, fullmove = 1;
-
-    ss >> pieces >> turn >> castling >> en_passant;
-    if (ss >> halfmove) ss >> fullmove;
-
-    int row = 0;
-    int col = 0; 
-    
-    for (char c : pieces) {
-        if (c == '/') {
-            row++;
-            col = 0;
-        } else if (std::isdigit(c)) {
-            int empty_spaces = c - '0';
-            for (int i = 0; i < empty_spaces; ++i) {
-                newState.grid[row][col] = GridData(); 
-                col++;
-            }
-        } else {
-            bool isWhite = std::isupper(c);
-            char typeChar = std::toupper(c);
-            
-            PieceType type = PieceType::PAWN; 
-            if (typeChar == 'P') type = PieceType::PAWN;
-            else if (typeChar == 'N') type = PieceType::KNIGHT;
-            else if (typeChar == 'B') type = PieceType::BISHOP;
-            else if (typeChar == 'R') type = PieceType::ROOK;
-            else if (typeChar == 'Q') type = PieceType::QUEEN;
-            else if (typeChar == 'K') type = PieceType::KING;
-
-            std::string colorStr = isWhite ? P_WHITE : P_BLACK;
-            auto new_piece = std::make_shared<ChessPiece>(type, colorStr);
-
-            newState.grid[row][col] = GridData(new_piece);
-
-            col++;
-        }
-    }
-    newState.turn = (turn == "w") ? P_WHITE : P_BLACK;
-    newState.white_king_side_castle = (castling.find('K') != std::string::npos);
-    newState.white_queen_side_castle = (castling.find('Q') != std::string::npos);
-    newState.black_king_side_castle = (castling.find('k') != std::string::npos);
-    newState.black_queen_side_castle = (castling.find('q') != std::string::npos);
-
-    if (en_passant == "-") {
-        newState.en_passant_square = {-1, -1};
-    } else {
-        int ep_col = en_passant[0] - 'a';
-        int ep_row = 8 - (en_passant[1] - '0');
-        newState.en_passant_square = {ep_row, ep_col};
-    }
-
-    newState.halfmove_clock = halfmove;
-    newState.fullmove_number = fullmove;
-
-    return newState;
-}
-
-std::vector<std::string> SplitMoveString(const std::string& movesStr) {
-    std::vector<std::string> moves;
-    std::stringstream ss(movesStr);
-    std::string move;
-    while (ss >> move) {
-        moves.push_back(move);
-    }
-    return moves;
-}
-
-std::string ConvertToUci(int fromRow, int fromCol, int toRow, int toCol) { //universal chess interface
-    char fromFile = 'a' + fromCol;
-    char fromRank = '8' - fromRow;
-    char toFile = 'a' + toCol;
-    char toRank = '8' - toRow;
-    
-    std::string uci = "";
-    uci += fromFile;
-    uci += fromRank;
-    uci += toFile;
-    uci += toRank;
-    return uci;
 }
 
 namespace CanvasRenderer {
@@ -1893,7 +1270,7 @@ namespace CanvasRenderer {
                     ChessEngine::CacheLegalMoves(*g_ctx->board, hintFromRow, hintFromCol);
                 }
             }
-            if (g_ctx->btnpuzzleretry->isPressed){
+            if (g_ctx->btnpuzzleretry->isPressed&&!g_ctx->puzzleSuccess){
                 g_ctx->board->LoadState(g_ctx->savedPuzzleState);
                 g_ctx->board->move_history.clear(); 
                 g_ctx->board->current_repetition_count = 1;
@@ -2337,281 +1714,26 @@ void DrawSettingsMenu(Vector2 mousePos) {
     }
 }
 
-
-std::vector<unsigned char> g_fileDataBuffer;
-
-void load_puzzles() {
-    int dataSize = 0;
-    unsigned char *fileData = LoadFileData(puzzlefilepath.c_str(), &dataSize);
-
-    if (fileData == nullptr || dataSize == 0) {
-        TraceLog(LOG_ERROR, "CSV_LOADER: Could not open or find %s", puzzlefilepath.c_str());
-        return;
-    }
-
-#if defined(PLATFORM_WEB)
-    unsigned int seed = static_cast<unsigned int>(emscripten_get_now());
-    srand(seed);
-#else
-    srand(GetRandomValue(0, 100000));
-#endif
-
-    size_t fileSize = static_cast<size_t>(dataSize);
-    if (fileSize < 500) {
-        TraceLog(LOG_ERROR, "CSV_LOADER: File too small to parse.");
-        UnloadFileData(fileData);
-        return;
-    }
-
-    g_fileDataBuffer.assign(fileData, fileData + fileSize);
-    UnloadFileData(fileData);
-    
-    TraceLog(LOG_INFO, "CSV_LOADER: Successfully loaded puzzle file into memory.");
-}
-
-Puzzle get_random_puzzle() {
-    Puzzle selectedpuzzle{};
-
-    if (g_fileDataBuffer.empty()) {
-        TraceLog(LOG_ERROR, "CSV_LOADER: Cannot get puzzle. Buffer is empty. Did you call load_puzzles()?");
-        return selectedpuzzle;
-    }
-
-    size_t fileSize = g_fileDataBuffer.size();
-
-    if (fileSize <= 250) {
-        TraceLog(LOG_ERROR, "CSV_LOADER: File buffer is too small to safely pick a random offset.");
-        return selectedpuzzle;
-    }
-
-    static std::random_device rd;
-    static std::mt19937 gen(rd()); 
-
-    std::uniform_int_distribution<size_t> distr(0, fileSize - 250);
-    size_t randomOffset = distr(gen);
-
-    size_t startPos = randomOffset;
-    while (startPos < fileSize && g_fileDataBuffer[startPos] != '\n') {
-        startPos++;
-    }
-    startPos++;
-
-    if (startPos >= fileSize - 10) {
-        startPos = 0;
-        while (startPos < fileSize && g_fileDataBuffer[startPos] != '\n') {
-            startPos++;
-        }
-        startPos++;
-    }
-
-    size_t endPos = startPos;
-    while (endPos < fileSize && g_fileDataBuffer[endPos] != '\n') {
-        endPos++;
-    }
-
-    std::string line(reinterpret_cast<char*>(&g_fileDataBuffer[startPos]), endPos - startPos);
-
-    line.erase(std::remove(line.begin(), line.end(), '\r'), line.end());
-    if (line.empty()) {
-        TraceLog(LOG_ERROR, "CSV_LOADER: Landed on empty row string slice.");
-        return selectedpuzzle;
-    }
-
-    std::vector<std::string> row;
-    size_t commaPrev = 0;
-
-    for (int i = 0; i < 4; i++) {
-        size_t commaPos = line.find(',', commaPrev);
-        if (commaPos == std::string::npos) break;
-
-        std::string segment = line.substr(commaPrev, commaPos - commaPrev);
-        segment.erase(0, segment.find_first_not_of(" \t"));
-        size_t last = segment.find_last_not_of(" \t");
-        if (last != std::string::npos) segment.erase(last + 1);
-
-        row.push_back(segment);
-        commaPrev = commaPos + 1;
-    }
-
-    if (commaPrev < line.length()) {
-        std::string ratingSegment = line.substr(commaPrev);
-        ratingSegment.erase(0, ratingSegment.find_first_not_of(" \t"));
-        size_t last = ratingSegment.find_last_not_of(" \t");
-        if (last != std::string::npos) ratingSegment.erase(last + 1);
-        row.push_back(ratingSegment);
-    }
-
-    if (row.size() == 5) {
-        selectedpuzzle.puzzleid = row[0];
-        selectedpuzzle.gameid = row[1];
-        selectedpuzzle.boardsetup = row[2];
-        selectedpuzzle.solution = row[3];
-        
-        char* endptr;
-        selectedpuzzle.rating = static_cast<int>(std::strtol(row[4].c_str(), &endptr, 10));
-
-        TraceLog(LOG_INFO, "--- Randomly Selected Row ---");
-        TraceLog(LOG_INFO, "Puzzle ID: %s", selectedpuzzle.puzzleid.c_str());
-        TraceLog(LOG_INFO, "Game ID:   %s", selectedpuzzle.gameid.c_str());
-        TraceLog(LOG_INFO, "Setup:     %s", selectedpuzzle.boardsetup.c_str());
-        TraceLog(LOG_INFO, "Solution:  %s", selectedpuzzle.solution.c_str());
-        TraceLog(LOG_INFO, "Rating:    %d", selectedpuzzle.rating);
-    } else {
-        TraceLog(LOG_ERROR, "CSV_LOADER: Extracted line slice was invalid.");
-    }
-
-    return selectedpuzzle;
-}
-
-
 void UpdateDrawFrame() { // rendering
     float dt = GetFrameTime();
+    BoardState displayState;
     Vector2 rawMousePos = GetMousePosition();
     Vector2 mousePos = {
         rawMousePos.x * ((float)Config::WINDOW_WIDTH / (float)GetScreenWidth()),
         rawMousePos.y * ((float)Config::WINDOW_HEIGHT / (float)GetScreenHeight())
     };
-
+    
+    
     if (!g_puzzlesLoaded) {
         load_puzzles();
         g_puzzlesLoaded = true;
     }
     static Menus last_menu = PLAY;
-    BoardState puzzleState;
-    if (load_new_puzzle) {
-        g_ctx->cachedpuzzle = get_random_puzzle();
-        g_ctx->savedPuzzleState = ParseFenToState(g_ctx->cachedpuzzle.boardsetup);
-        g_ctx->savedPuzzleHistory.clear(); 
-        g_ctx->hasSavedPuzzle = true;
-        
-        g_ctx->puzzleMoveIndex = 0;
-        g_ctx->puzzleFailed = false;
-        g_ctx->puzzleSuccess = false;
-        g_ctx->puzzleOpponentTimer = 0.5f;
-        if (g_ctx->active_menu == PUZZLES) {
-            g_ctx->board->LoadState(g_ctx->savedPuzzleState);
-            g_ctx->board->move_history.clear();
-        }
-        
-        g_ctx->historyView.useLive = true;
-        g_ctx->historyView.viewingIndex = -1;
-        load_new_puzzle = false;
-    } 
-
-    if (g_ctx->active_menu != last_menu) {
-        if (last_menu == PUZZLES) {
-            g_ctx->savedPuzzleState = g_ctx->board->CaptureState();
-            g_ctx->savedPuzzleHistory = g_ctx->board->move_history;
-            g_ctx->hasSavedPuzzle = true;
-        } else if (last_menu == GAME) {
-            g_ctx->savedGameState = g_ctx->board->CaptureState();
-            g_ctx->savedGameHistory = g_ctx->board->move_history;
-            g_ctx->hasSavedGame = true;
-        }
-
-        if (g_ctx->active_menu == PUZZLES) {
-            if (!g_ctx->hasSavedPuzzle) {
-                std::string defaultFen = g_ctx->cachedpuzzle.boardsetup.empty() ? 
-                    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" : g_ctx->cachedpuzzle.boardsetup;
-                g_ctx->savedPuzzleState = ParseFenToState(defaultFen);
-                g_ctx->savedPuzzleHistory.clear();
-                g_ctx->hasSavedPuzzle = true;
-            }
-            g_ctx->board->LoadState(g_ctx->savedPuzzleState);
-            g_ctx->board->move_history = g_ctx->savedPuzzleHistory;
-        } 
-        else if (g_ctx->active_menu == GAME) {
-            if (!g_ctx->hasSavedGame) {
-                g_ctx->board->Reset(); 
-                g_ctx->savedGameState = g_ctx->board->CaptureState();
-                g_ctx->savedGameHistory.clear();
-                g_ctx->hasSavedGame = true;
-            } else {
-                g_ctx->board->LoadState(g_ctx->savedGameState);
-                g_ctx->board->move_history = g_ctx->savedGameHistory;
-            }
-        }
-
-        g_ctx->active_turn_id = (g_ctx->board->turn == P_WHITE) ? 0 : 1;
-        last_menu = g_ctx->active_menu;
-        g_ctx->historyView.useLive = true;
-        g_ctx->historyView.viewingIndex = -1;
-    }
-    BoardState displayState;
-    displayState = g_ctx->board->CaptureState();
-    g_ctx->active_turn_id = (g_ctx->board->turn == P_WHITE) ? 0 : 1;
-
-    TickEngine::UpdateAnimations(dt);
-
-    if (g_ctx->active_menu == PUZZLES && !g_ctx->anim.active && g_ctx->anim.piece != GridData().piece) {
-        
-        if (g_ctx->puzzleMoveIndex % 2 != 0) {
-            g_ctx->board->grid[g_ctx->anim.targetRow][g_ctx->anim.targetCol] = GridData(g_ctx->anim.piece);
-            
-            g_ctx->anim.piece = GridData().piece;
-            if (g_ctx->board->turn == P_WHITE) {
-                g_ctx->board->turn = P_BLACK;
-                g_ctx->active_turn_id = 1;
-            } else {
-                g_ctx->board->turn = P_WHITE;
-                g_ctx->active_turn_id = 0;
-            }
-        }
-    }
-
-    if (g_ctx->active_menu == PUZZLES) {
-        if (g_ctx->puzzleOpponentTimer > 0.0f) {
-            g_ctx->puzzleOpponentTimer -= dt;
-            
-            if (g_ctx->puzzleOpponentTimer <= 0.0f) {
-                std::vector<std::string> solutionMoves = SplitMoveString(g_ctx->cachedpuzzle.solution);
-                std::string opponentMoveUci = solutionMoves[g_ctx->puzzleMoveIndex];
-                
-                int opFromCol = opponentMoveUci[0] - 'a', opFromRow = '8' - opponentMoveUci[1];
-                int opToCol   = opponentMoveUci[2] - 'a', opToRow   = '8' - opponentMoveUci[3];
-                
-                auto p = g_ctx->board->grid[opFromRow][opFromCol].piece;
-                
-                g_ctx->anim.active = true;
-                g_ctx->anim.piece = p;
-                g_ctx->anim.startPos = { 
-                    (float)Config::BOARD_OFFSET_X + opFromCol * Config::TILE_SIZE, 
-                    (float)Config::BOARD_OFFSET_Y + opFromRow * Config::TILE_SIZE 
-                };
-                g_ctx->anim.currentPos = g_ctx->anim.startPos;
-                g_ctx->anim.endPos = { 
-                    (float)Config::BOARD_OFFSET_X + opToCol * Config::TILE_SIZE, 
-                    (float)Config::BOARD_OFFSET_Y + opToRow * Config::TILE_SIZE 
-                };
-                g_ctx->anim.elapsedTime = 0.0f;
-                g_ctx->anim.targetRow = opToRow;
-                g_ctx->anim.targetCol = opToCol;
-
-                g_ctx->board->grid[opFromRow][opFromCol] = GridData();
-                
-                g_ctx->puzzleMoveIndex++; 
-                g_ctx->puzzleOpponentTimer = -1.0f;
-            }
-        }
-
-        if (g_ctx->puzzleFailed && !g_ctx->anim.active) {
-            g_ctx->puzzle_streak=0;
-            g_ctx->puzzle_fail_count++;
-            g_ctx->board->LoadState(g_ctx->savedPuzzleState);
-            g_ctx->board->move_history.clear(); 
-            g_ctx->board->current_repetition_count = 1;
-            
-            g_ctx->puzzleMoveIndex = 0; 
-            g_ctx->board->turn = g_ctx->savedPuzzleState.turn;
-            g_ctx->active_turn_id = (g_ctx->board->turn == P_WHITE) ? 0 : 1;
-            
-            g_ctx->puzzleOpponentTimer = 0.4f;
-            g_ctx->puzzleFailed = false;
-        }
-    }
+    do_the_puzzle_stuff(displayState,dt,last_menu);
     if ((g_ctx->active_menu == GAME || g_ctx->active_menu == PUZZLES) && mousePos.x > g_ctx->sidebarWidth) {
         TickEngine::ProcessInput();
     }
+    TickEngine::UpdateAnimations(dt);
     BeginTextureMode(g_ctx->targetScreen);
     ClearBackground(Color{ 18, 12, 10, 255 });
     DrawTexturePro(
@@ -2623,12 +1745,13 @@ void UpdateDrawFrame() { // rendering
     Color{ 255, 255, 255, 90}
     );
     
-    if (g_ctx->historyView.useLive) {
-        displayState = g_ctx->board->CaptureState();
-    } else {
+    if (!g_ctx->historyView.useLive) {
         int idx = g_ctx->historyView.viewingIndex;
         if (idx >= 0 && idx < (int)g_ctx->board->move_history.size()) {
             displayState = g_ctx->board->move_history[idx].board_state;
+        }
+    } else {
+        if (g_ctx->active_menu == PUZZLES) {
         } else {
             displayState = g_ctx->board->CaptureState();
         }

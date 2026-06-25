@@ -3,7 +3,7 @@ SRC = $(wildcard src/*.cpp) $(wildcard src/graphics/*.cpp)
 INC = -Isrc -Iinclude -Iinclude/graphics -I"C:/raylib/raylib/src"
 
 
-EMFLAGS = -o index.html -L"C:/raylib/raylib/src" -lraylib -DPLATFORM_WEB -sUSE_GLFW=3 -sASYNCIFY -sALLOW_MEMORY_GROWTH=1 -sEXPORTED_RUNTIME_METHODS="['HEAPF32']" --preload-file assets --shell-file "C:/raylib/raylib/src/shell.html"
+EMFLAGS = -o index.html -L"C:/raylib/raylib/src" -lraylib -flto -DPLATFORM_WEB -sUSE_GLFW=3 -sASYNCIFY -sALLOW_MEMORY_GROWTH=1 -sEXPORTED_RUNTIME_METHODS="['HEAPF32']" --preload-file assets --shell-file "C:/raylib/raylib/src/shell.html"
 echo_color = powershell -Command "Write-Host $(1) -ForegroundColor $(2)"
 
 all: build inject run

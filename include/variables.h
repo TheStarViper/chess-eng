@@ -2,13 +2,20 @@
 #include <memory>
 #include "raylib.h"
 #include <iostream>
+#include <utility>
+#include <string>
+#include <map>
+
 #define P_WHITE "WHITE"
 #define P_BLACK "BLACK"
 
+class ChessBoard;
+class Button;
+
 //security checks
-bool g_puzzlesLoaded = false;
-bool audio_loaded = false;
-bool load_new_puzzle = true;
+inline bool g_puzzlesLoaded = false;
+inline bool audio_loaded = false;
+inline bool load_new_puzzle = true;
 
 namespace Config {
     constexpr int WINDOW_WIDTH = 1280;
@@ -64,6 +71,8 @@ namespace Config {
     inline const int SIDEBAR_MAX_WIDTH = 160;
     inline const int SIDEBAR_MIN_WIDTH = 60;
 }
+
+
 
 enum PieceType {
     NONE = 0,
@@ -212,9 +221,84 @@ struct HistoryState {
 
 
 
+struct GameContext {
+    //Sounds
+    Sound hoversound;
+    Sound winsound;
+    Sound movesound;
+
+    BoardState savedGameState;
+    BoardState savedPuzzleState;
+    float puzzleOpponentTimer = -1.0f;
+    int puzzleMoveIndex = 0;
+    bool puzzleFailed = false;
+    smartbool puzzleSuccess;
+    bool hasSavedGame = false;
+    bool hasSavedPuzzle = false;
+    std::vector<HistorySnapshot> savedGameHistory;
+    std::vector<HistorySnapshot> savedPuzzleHistory;
+    int lastHoveredLeafId = -1;
+    int lastHoveredBoardPieceTile;
+    int genuineHoveredLeafId = -1;  
+    std::unique_ptr<ChessBoard> board;
+    Vector2 mousePosition;
+    int active_turn_id; 
+    float move_log_scroll_ratio;
+    bool isGameRunning;
+    HistoryState historyView;
+    PieceAnimation anim;
+    Texture2D backgroundTexture;
+
+    std::map<std::string, Texture2D> pieceSprites; 
+    bool useSprites = false;
+    
+    Font uiFont;
+    RenderTexture2D targetScreen; 
+
+    int puzzle_win_count = 0;
+    int puzzle_fail_count = 0;
+    int puzzle_streak = 0;
+    float streak_anim_timer = 0.0f;
+    Vector2 puzzle_win_square;
+    bool hintActive = false;
+    std::string currentHintUci = "";
+    //settings
+    bool showMoveHighlights = true;
+    bool showBoardCoordinates = true;
+    bool fiftymovecounter = false;
+    bool threefoldcounter = false;
+    bool highcontrast = false;
+    bool boardmarkings = true;
+    
+    float masterVolume = 0.75f;
+    Menus active_menu = PLAY;
+    float sidebarWidth = (float)Config::SIDEBAR_MIN_WIDTH; 
+    bool sidebarhovered;
+    Puzzle cachedpuzzle;
+    std::vector<std::pair<int, int>> cached_legal_moves;
+
+    std::unique_ptr<Button> btnResign;
+    std::unique_ptr<Button> btnDraw;
+    std::unique_ptr<Button> btnPrev;
+    std::unique_ptr<Button> btnNext;
+    std::unique_ptr<Button> btnLive;
+    std::unique_ptr<Button> btnFirst;
+    std::unique_ptr<Button> btnLast;
+    std::unique_ptr<Button> btnOverlayRematch;
+
+    std::unique_ptr<Button> btnpuzzlehint;
+    std::unique_ptr<Button> btnpuzzlenext;
+    std::unique_ptr<Button> btnpuzzleretry;
+    std::vector<std::unique_ptr<Button>> btnPromotionTrays;
+
+    GameContext();
+    void ResetPromotionButtons();
+};
+
+extern std::unique_ptr<GameContext> g_ctx;
 
 //asset file paths
-std::string puzzlefilepath = "assets/puzzles_new.csv";
-const char * hoversoundfilepath = "assets/sfx/hover.ogg";
-const char * winsoundfilepath = "assets/sfx/win.ogg";
-const char * movesoundfilepath = "assets/sfx/move.ogg";
+inline std::string puzzlefilepath = "assets/puzzles_mate_only.csv";
+inline const char * hoversoundfilepath = "assets/sfx/hover.ogg";
+inline const char * winsoundfilepath = "assets/sfx/win.ogg";
+inline const char * movesoundfilepath = "assets/sfx/move.ogg";
