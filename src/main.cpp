@@ -2,6 +2,7 @@
 #include "rlgl.h"
 #include "main.hpp"
 #include "leaves.hpp"
+#include "easing_functions.hpp"
 #include <iostream>
 #include <vector>
 #include <string>
@@ -237,6 +238,7 @@ struct GameContext {
     //Sounds
     Sound hoversound;
     Sound winsound;
+    Sound movesound;
 
     BoardState savedGameState;
     BoardState savedPuzzleState;
@@ -832,7 +834,8 @@ namespace ChessEngine {
         return ss.str();
     }
 
-    void ExecuteMove(ChessBoard& b, int r1, int c1, int r2, int c2, PieceType promotionChoice = NONE) {
+    void MakeMove(ChessBoard& b, int r1, int c1, int r2, int c2, PieceType promotionChoice = NONE) {
+        playsoundsmart(g_ctx->movesound,.6);
         auto p = b.grid[r1][c1].piece;
         if (!p) return;
 
@@ -1689,28 +1692,34 @@ namespace CanvasRenderer {
 
                 tile.isHovered.set(CheckCollisionPointRec(mousePos, tileRect));
 
+                float animSpeed = 12.0f;
+                if (tile.isHovered) {
+                    tile.hoverProgress += GetFrameTime() * animSpeed;
+                    if (tile.hoverProgress > 1.0f) tile.hoverProgress = 1.0f;
+                } else {
+                    tile.hoverProgress -= GetFrameTime() * animSpeed;
+                    if (tile.hoverProgress < 0.0f) tile.hoverProgress = 0.0f;
+                }
+
+                float easedT = Easings::EaseInOutCubic(tile.hoverProgress);
+                
                 if (tile.isHovered.is_new_true()) {
                     playsoundsmart(g_ctx->hoversound,.5,1.2);
                 }
 
                 if (tile.has_piece) {
                     float radius = (float)Config::TILE_SIZE * 0.38f;
+                    float bigradius = (float)Config::TILE_SIZE * 0.38f+1.5f;
                     float thickness = (float)Config::TILE_SIZE * 0.08f; 
                     
-                    if (tile.isHovered) { 
-                        radius += 1.5f;       
-                        thickness += 1.0f;    
-                    }
-                    
-                    DrawGlowTargetRing(drawX, drawY, radius, thickness, Config::COLOR_DOT_RING, tile.isHovered);
-
+                    float radiuss = radius + (bigradius - radius) * easedT;
+                    DrawGlowTargetRing(drawX, drawY, radiuss, thickness, Config::COLOR_DOT_RING, tile.isHovered);
                 } else {
-                    float radius = (float)Config::TILE_SIZE * 0.12f;
-                    if (tile.isHovered) {
-                        radius = (float)Config::TILE_SIZE * 0.17f; 
-                    }
-
-                    DrawCircle(drawX, drawY, radius, Config::COLOR_DOT);
+                    float minRadius = (float)Config::TILE_SIZE * 0.12f;
+                    float maxRadius = (float)Config::TILE_SIZE * 0.17f;
+                    
+                    float currentRadius = minRadius + (maxRadius - minRadius) * easedT;
+                    DrawCircle(drawX, drawY, currentRadius, Config::COLOR_DOT);
                 }
                 tile.isHovered.update();
             }
@@ -1808,12 +1817,8 @@ namespace CanvasRenderer {
         draw_promotion_panel();
         draw_game_over();
     }
+
     
-    float EaseOutBack(float x) {
-        const float c1 = 1.70158f;
-        const float c3 = c1 + 1.0f;
-        return 1.0f + c3 * std::pow(x - 1.0f, 3.0f) + c1 * std::pow(x - 1.0f, 2.0f);
-    }
 
     void draw_puzzle_streak_dots() {
         int streakX = Config::PANEL_X + 40;
@@ -1826,8 +1831,8 @@ namespace CanvasRenderer {
             g_ctx->streak_anim_timer += GetFrameTime() / 0.4f; 
             if (g_ctx->streak_anim_timer > 1.0f) g_ctx->streak_anim_timer = 1.0f;
         }
-
-        float scaleFactor = EaseOutBack(g_ctx->streak_anim_timer);
+        
+        float scaleFactor = Easings::EaseOutBack(g_ctx->streak_anim_timer);
 
         int goldCount = g_ctx->puzzle_streak / amount_of_dots_width; 
         int leafCount = g_ctx->puzzle_streak % amount_of_dots_width;
@@ -1838,9 +1843,9 @@ namespace CanvasRenderer {
             
             if (i < goldCount) {
                 if (i == goldCount - 1 && leafCount == 0) {
-                    DrawCircle(cx, cy, (float)dotRadius * scaleFactor, GOLD);
+                    DrawCircle(cx, cy, (float)dotRadius * scaleFactor, Config::COLOR_STREAK_GOLD);
                 } else {
-                    DrawCircle(cx, cy, dotRadius, GOLD);
+                    DrawCircle(cx, cy, dotRadius, Config::COLOR_STREAK_GOLD);
                 }
             } else {
                 DrawCircleLines(cx, cy, dotRadius, DARKGRAY); 
@@ -1950,7 +1955,7 @@ namespace TickEngine {
         if (progress >= 1.0f) {
             g_ctx->anim.active = false;
             
-            ChessEngine::ExecuteMove(
+            ChessEngine::MakeMove(
                 *g_ctx->board, 
                 (int)((g_ctx->anim.startPos.y - Config::BOARD_OFFSET_Y) / Config::TILE_SIZE),
                 (int)((g_ctx->anim.startPos.x - Config::BOARD_OFFSET_X) / Config::TILE_SIZE),
@@ -2105,7 +2110,7 @@ namespace TickEngine {
                     if (i == 3) choice = KNIGHT;
 
                     g_ctx->board->is_promoting = false;
-                    ChessEngine::ExecuteMove(
+                    ChessEngine::MakeMove(
                         *g_ctx->board, 
                         g_ctx->board->promotion_source.first, 
                         g_ctx->board->promotion_source.second, 
@@ -2695,6 +2700,7 @@ int main(int argc, char* argv[]) {
     if (IsAudioDeviceReady()) {
         g_ctx->hoversound = LoadSound(hoversoundfilepath);
         g_ctx->winsound = LoadSound(winsoundfilepath);
+        g_ctx->movesound = LoadSound(movesoundfilepath);
         audio_loaded= true;
         TraceLog(LOG_INFO, "AUDIO: ZA BLUETOOTH DEWICE HAS BEEN CONNECTED");
     }

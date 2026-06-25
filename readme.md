@@ -40,4 +40,5 @@ Chess engines are not a new thing so there is a ton of documentation online on h
 - [background](https://trashboat93.itch.io/jungle-background-parallax)
 - [puzzles (stripped down from 6m to 100k)](https://huggingface.co/datasets/Lichess/chess-puzzles)
 - [openings (stripped down from 3704 to 200)](https://huggingface.co/datasets/Lichess/chess-openings)
+- [easing functions](https://easings.net/)
 **AI DISCLAIMER: I used AI to make some of the graphics cuz I'm bad at that**

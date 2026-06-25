@@ -51,6 +51,8 @@ namespace Config {
     inline const Color COLOR_DOT_RING = Color{ 235, 87, 43, 255 };
     inline const Color COLOR_LAST_MOVE= Color{ 246, 235, 120, 100 };  
     
+    inline const Color COLOR_STREAK_GOLD= Color {219, 166, 34,255};
+
     const Color COLOR_WOOD_DARK   = Color{ 43, 24, 16, 255 };   
     const Color COLOR_WOOD_LIGHT  = Color{ 115, 74, 50, 255 };  
     const Color COLOR_WOOD_GRAIN  = Color{ 74, 44, 28, 255 };   
@@ -133,6 +135,7 @@ struct GridData {
     bool has_piece;
     std::shared_ptr<ChessPiece> piece;
     smartbool isHovered;
+    float hoverProgress = 0.0f;
 
     GridData() : has_piece(false), piece(nullptr) {}
     GridData(std::shared_ptr<ChessPiece> p) : has_piece(p != nullptr), piece(p) {}
@@ -214,3 +217,4 @@ struct HistoryState {
 std::string puzzlefilepath = "assets/puzzles_new.csv";
 const char * hoversoundfilepath = "assets/sfx/hover.ogg";
 const char * winsoundfilepath = "assets/sfx/win.ogg";
+const char * movesoundfilepath = "assets/sfx/move.ogg";
