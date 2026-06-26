@@ -15,7 +15,7 @@
 #include <fstream>
 #include <unordered_map>
 
-void playsoundsmart(Sound sound, float volume, float pitch);
+void playsoundsmart(Sound sound, float volume = 1.0,float pitch = 1.0);
 class ChessBoard {
 public:
     GridData grid[8][8];
