@@ -4,7 +4,8 @@
 #include "easing_functions.hpp"
 #include "vec_renderer.hpp"
 #include "puzzles.hpp"
-#include "gamelogic.hpp"
+#include "variant-switcher.hpp"
+#include "vanillalogic.hpp"
 
 #if defined(PLATFORM_WEB)
     #include <emscripten/emscripten.h>
@@ -836,7 +837,7 @@ namespace CanvasRenderer {
                     
                     g_ctx->board->selected_square = { hintFromRow, hintFromCol };
                     g_ctx->board->has_selection = true;
-                    ChessEngine::CacheLegalMoves(*g_ctx->board, hintFromRow, hintFromCol);
+                    VariantSwitcher::Active()->CacheLegalMoves(*g_ctx->board, hintFromRow, hintFromCol);
                 }
             }
             if (g_ctx->btnpuzzleretry->isPressed&&!g_ctx->puzzleSuccess){
@@ -901,12 +902,13 @@ namespace TickEngine {
         if (progress >= 1.0f) {
             g_ctx->anim.active = false;
             
-            ChessEngine::MakeMove(
+            VariantSwitcher::Active()->MakeMove(
                 *g_ctx->board, 
                 (int)((g_ctx->anim.startPos.y - Config::BOARD_OFFSET_Y) / Config::TILE_SIZE),
                 (int)((g_ctx->anim.startPos.x - Config::BOARD_OFFSET_X) / Config::TILE_SIZE),
                 g_ctx->anim.targetRow, 
-                g_ctx->anim.targetCol
+                g_ctx->anim.targetCol,
+                NONE // Make sure to add the default promotion argument if missing!
             );
         } else {
             float t = 1.0f - std::pow(1.0f - progress, 3.0f);
@@ -945,11 +947,14 @@ namespace TickEngine {
             int gridX = (int)((g_ctx->mousePosition.x - Config::BOARD_OFFSET_X) / Config::TILE_SIZE);
             int gridY = (int)((g_ctx->mousePosition.y - Config::BOARD_OFFSET_Y) / Config::TILE_SIZE);
 
-            if (ChessEngine::IsValidCoord(gridY, gridX)) {
-                g_ctx->historyView.useLive = true;
-                g_ctx->board->has_selection = false;
-                g_ctx->cached_legal_moves.clear();
-                return; 
+            if (VanillaLogic::IsValidCoord(gridY, gridX)) {
+                VariantSwitcher::Active()->MakeMove(
+                    *g_ctx->board, 
+                    g_ctx->board->promotion_source.first, 
+                    g_ctx->board->promotion_source.second, 
+                    g_ctx->board->promotion_square.first, 
+                    g_ctx->board->promotion_square.second
+                );
             }
         }
 
@@ -1056,7 +1061,7 @@ namespace TickEngine {
                     if (i == 3) choice = KNIGHT;
 
                     g_ctx->board->is_promoting = false;
-                    ChessEngine::MakeMove(
+                    VanillaLogic::MakeMove(
                         *g_ctx->board, 
                         g_ctx->board->promotion_source.first, 
                         g_ctx->board->promotion_source.second, 
@@ -1104,13 +1109,13 @@ namespace TickEngine {
             int gridX = (int)((g_ctx->mousePosition.x - Config::BOARD_OFFSET_X) / Config::TILE_SIZE);
             int gridY = (int)((g_ctx->mousePosition.y - Config::BOARD_OFFSET_Y) / Config::TILE_SIZE);
 
-            if (ChessEngine::IsValidCoord(gridY, gridX)) {
+            if (VanillaLogic::IsValidCoord(gridY, gridX)) {
                 if (!g_ctx->board->has_selection) {
                     const auto& piece = g_ctx->board->grid[gridY][gridX].piece;
                     if (piece && piece->color == g_ctx->board->turn) {
                         g_ctx->board->selected_square = { gridY, gridX };
                         g_ctx->board->has_selection = true;
-                        ChessEngine::CacheLegalMoves(*g_ctx->board, gridY, gridX);
+                        VariantSwitcher::Active()->CacheLegalMoves(*g_ctx->board, gridY, gridX);
                     }
                 } else { 
                     int srcR = g_ctx->board->selected_square.first;
@@ -1123,7 +1128,7 @@ namespace TickEngine {
                         return; 
                     }
 
-                    if (ChessEngine::IsLegalMove(*g_ctx->board, srcR, srcC, gridY, gridX)) {
+                    if (VariantSwitcher::Active()->IsLegalMove(*g_ctx->board, srcR, srcC, gridY, gridX)) {
                         auto p = g_ctx->board->grid[srcR][srcC].piece;
                         
                         bool isPawnPush = (p && p->type == PAWN);
@@ -1173,7 +1178,8 @@ namespace TickEngine {
                             g_ctx->board->selected_square = { gridY, gridX };
                             g_ctx->board->has_selection = true;
                             
-                            ChessEngine::CacheLegalMoves(*g_ctx->board, gridY, gridX);
+                            VanillaLogic::CacheLegalMoves(*g_ctx->board, gridY, gridX);
+                            
                         } else {
                             g_ctx->cached_legal_moves.clear();
                         }
@@ -1387,6 +1393,7 @@ int main(int argc, char* argv[]) {
     SetConfigFlags(FLAG_MSAA_4X_HINT | FLAG_VSYNC_HINT);
     InitWindow(Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT, "chess");
     InitAudioDevice();
+    VariantSwitcher::SetVariant("giveaway");
     g_ctx = std::make_unique<GameContext>();
     g_ctx->ResetPromotionButtons();
     if (IsAudioDeviceReady()) {

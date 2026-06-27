@@ -1,8 +1,10 @@
-#include "gamelogic.hpp"
-#include "variables.h"
+#include "vanillalogic.hpp"
+#include <cmath>
 #include "main.hpp"
+#include "variant-switcher.hpp"
 
-namespace ChessEngine {
+namespace VanillaLogic {
+
     inline bool IsValidCoord(int r, int c) {
         return r >= 0 && r < 8 && c >= 0 && c < 8;
     }
@@ -184,7 +186,7 @@ namespace ChessEngine {
 
         for (int row = 0; row < 8; ++row) {
             for (int col = 0; col < 8; ++col) {
-                if (IsLegalMove(b, r, c, row, col)) {
+                if (VariantSwitcher::Active()->IsLegalMove(b, r, c, row, col)) {
                     g_ctx->cached_legal_moves.push_back({row, col});
                 }
             }
@@ -263,7 +265,6 @@ namespace ChessEngine {
                 return true;
             }
         }
-
         return false;
     }
 
@@ -319,7 +320,6 @@ namespace ChessEngine {
                 ss << "+";
             }
         }
-
         return ss.str();
     }
 
