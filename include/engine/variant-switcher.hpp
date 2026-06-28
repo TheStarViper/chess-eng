@@ -2,6 +2,7 @@
 #include "variant-linker.hpp"
 #include "vanilla.hpp"
 #include "giveaway.hpp"
+#include "duck.hpp"
 #include <memory>
 #include <string>
 
@@ -13,12 +14,12 @@ private:
 public:
     static void SetVariant(const std::string& name) {
         m_currentVariantName = name;
-        
-        if (name == "giveaway") {
+        if (name == "duck") {
+            m_activeVariant = std::make_unique<DuckChessVariant>();
+        } else if (name == "giveaway") {
             m_activeVariant = std::make_unique<GiveawayChessVariant>();
         } else {
             m_activeVariant = std::make_unique<StandardChessVariant>();
-            m_currentVariantName = "standard";
         }
     }
 

@@ -227,6 +227,11 @@ struct GameContext {
     Sound winsound;
     Sound movesound;
 
+    //duckchess
+    std::pair<int, int> duck_pos = {-1, -1};
+    bool duck_phase = false;
+
+    
     BoardState savedGameState;
     BoardState savedPuzzleState;
     float puzzleOpponentTimer = -1.0f;

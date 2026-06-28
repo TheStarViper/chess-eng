@@ -482,6 +482,9 @@ namespace CanvasRenderer {
 
         if (g_ctx->board->state == STATE_PLAYING) {
             statusText = (g_ctx->board->turn == P_WHITE) ? "WHITE TO PLAY" : "BLACK TO PLAY";
+            if (g_ctx->duck_phase){
+                statusText = (g_ctx->board->turn == P_WHITE) ? "WHITE'S DUCK" : "BLACK'S DUCK";
+            }
             statusColor = (g_ctx->board->turn == P_WHITE) ? Config::COLOR_UI_TEXT : Config::COLOR_UI_TEXT_DIM;
         } else {
             statusColor = Config::COLOR_CHECK;
@@ -618,8 +621,58 @@ namespace CanvasRenderer {
         }
     }
 
+    void draw_duck_placement_dots() {
+    if (!g_ctx->duck_phase) return;
+
+    Vector2 mousePos = GetMousePosition();
+
+    for (int r = 0; r < 8; ++r) {
+        for (int c = 0; c < 8; ++c) {
+            
+            if (g_ctx->board->grid[r][c].has_piece) continue;
+            if (std::make_pair(r, c) == g_ctx->duck_pos) continue;
+
+            int drawX = Config::BOARD_OFFSET_X + c * Config::TILE_SIZE + Config::TILE_SIZE / 2;
+            int drawY = Config::BOARD_OFFSET_Y + r * Config::TILE_SIZE + Config::TILE_SIZE / 2;
+
+            Rectangle tileRect = {
+                (float)(Config::BOARD_OFFSET_X + c * Config::TILE_SIZE),
+                (float)(Config::BOARD_OFFSET_Y + r * Config::TILE_SIZE),
+                (float)Config::TILE_SIZE,
+                (float)Config::TILE_SIZE
+            };
+
+            auto& tile = g_ctx->board->grid[r][c];
+
+            tile.isHovered.set(CheckCollisionPointRec(mousePos, tileRect));
+
+            float animSpeed = 12.0f;
+            if (tile.isHovered) {
+                tile.hoverProgress += GetFrameTime() * animSpeed;
+                if (tile.hoverProgress > 1.0f) tile.hoverProgress = 1.0f;
+            } else {
+                tile.hoverProgress -= GetFrameTime() * animSpeed;
+                if (tile.hoverProgress < 0.0f) tile.hoverProgress = 0.0f;
+            }
+
+            float easedT = Easings::EaseInOutCubic(tile.hoverProgress);
+            
+            if (tile.isHovered.is_new_true()) {
+                playsoundsmart(g_ctx->hoversound, .5, 1.2);
+            }
+
+            float minRadius = (float)Config::TILE_SIZE * 0.12f;
+            float maxRadius = (float)Config::TILE_SIZE * 0.17f;
+            float currentRadius = minRadius + (maxRadius - minRadius) * easedT;
+            
+            DrawCircle(drawX, drawY, currentRadius, Config::COLOR_DOT);
+            tile.isHovered.update();
+        }
+    }
+}
+
     void draw_legal_moves(){
-        if (g_ctx->board->has_selection && g_ctx->historyView.useLive) {
+        if ((g_ctx->board->has_selection || g_ctx->duck_phase) && g_ctx->historyView.useLive) {
             Vector2 mousePos = GetMousePosition(); 
 
             for (const auto& move : g_ctx->cached_legal_moves) {
@@ -653,8 +706,7 @@ namespace CanvasRenderer {
                 if (tile.isHovered.is_new_true()) {
                     playsoundsmart(g_ctx->hoversound,.5,1.2);
                 }
-
-                if (tile.has_piece) {
+                else if (tile.has_piece) {
                     float radius = (float)Config::TILE_SIZE * 0.38f;
                     float bigradius = (float)Config::TILE_SIZE * 0.38f+1.5f;
                     float thickness = (float)Config::TILE_SIZE * 0.08f; 
@@ -716,14 +768,32 @@ namespace CanvasRenderer {
         }
     }
 
-    void draw_game_over(){
-        if (g_ctx->board->state != STATE_PLAYING && g_ctx->historyView.useLive) {
+    void draw_game_over() {
+        GameResult status = VariantSwitcher::Active()->CheckGameOver(*g_ctx->board);
+        
+        bool isGameOver = (g_ctx->board->state != STATE_PLAYING) || (status != IN_PROGRESS);
+
+        if (isGameOver && g_ctx->historyView.useLive) {
             DrawRectangle(Config::BOARD_OFFSET_X, Config::BOARD_OFFSET_Y, Config::TILE_SIZE * 8, Config::TILE_SIZE * 8, Color{ 20, 10, 5, 160 });
             
             std::string endTitle;
-            if (g_ctx->board->state == STATE_CHECKMATE) endTitle = "CHECKMATE";
-            else if (g_ctx->board->state == STATE_RESIGNED) endTitle = "RESIGNATION";
-            else endTitle = "DRAW";
+            
+            if (status == WHITE_WIN) {
+                endTitle = "WHITE WINS!";
+            } 
+            else if (status == BLACK_WIN) {
+                endTitle = "BLACK WINS!";
+            } 
+            else if (status == DRAW) {
+                endTitle = "DRAW";
+            } 
+            else {
+                if (g_ctx->board->state == STATE_RESIGNED) {
+                    endTitle = "RESIGNATION";
+                } else {
+                    endTitle = "GAME OVER";
+                }
+            }
 
             float centerX = (float)Config::BOARD_OFFSET_X + (Config::TILE_SIZE * 8) / 2.0f;
             float centerY = (float)Config::BOARD_OFFSET_Y + (Config::TILE_SIZE * 8) / 2.0f - 40.0f;
@@ -739,15 +809,13 @@ namespace CanvasRenderer {
         if (g_ctx->active_menu==GAME){
             DrawCapturedTrays(displayState);
         }
-
-        
-
         std::pair<int, int> checkKingSquare = displayState.check_king_pos;
         int boardSize = Config::TILE_SIZE * 8;
         VectorRenderer::DrawBoardOrnateFrame(Config::BOARD_OFFSET_X, Config::BOARD_OFFSET_Y, boardSize);
         draw_board_tiles(displayState,checkKingSquare);
         VectorRenderer::DrawOvergrownVines(Config::BOARD_OFFSET_X, Config::BOARD_OFFSET_Y, boardSize,1);
         draw_legal_moves();
+        draw_duck_placement_dots();
         draw_static_pieces(displayState);
         
 
@@ -908,7 +976,7 @@ namespace TickEngine {
                 (int)((g_ctx->anim.startPos.x - Config::BOARD_OFFSET_X) / Config::TILE_SIZE),
                 g_ctx->anim.targetRow, 
                 g_ctx->anim.targetCol,
-                NONE // Make sure to add the default promotion argument if missing!
+                NONE
             );
         } else {
             float t = 1.0f - std::pow(1.0f - progress, 3.0f);
@@ -946,7 +1014,6 @@ namespace TickEngine {
         if (!g_ctx->historyView.useLive && IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             int gridX = (int)((g_ctx->mousePosition.x - Config::BOARD_OFFSET_X) / Config::TILE_SIZE);
             int gridY = (int)((g_ctx->mousePosition.y - Config::BOARD_OFFSET_Y) / Config::TILE_SIZE);
-
             if (VanillaLogic::IsValidCoord(gridY, gridX)) {
                 VariantSwitcher::Active()->MakeMove(
                     *g_ctx->board, 
@@ -1109,6 +1176,23 @@ namespace TickEngine {
             int gridX = (int)((g_ctx->mousePosition.x - Config::BOARD_OFFSET_X) / Config::TILE_SIZE);
             int gridY = (int)((g_ctx->mousePosition.y - Config::BOARD_OFFSET_Y) / Config::TILE_SIZE);
 
+            if (VariantSwitcher::GetCurrentName() == "duck" && g_ctx->duck_phase) {
+                if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+                    Vector2 mousePos = GetMousePosition();
+                    int gridX = (int)((mousePos.x - Config::BOARD_OFFSET_X) / Config::TILE_SIZE);
+                    int gridY = (int)((mousePos.y - Config::BOARD_OFFSET_Y) / Config::TILE_SIZE);
+
+                    if (VanillaLogic::IsValidCoord(gridY, gridX) && !g_ctx->board->grid[gridY][gridX].has_piece) {
+                        if (std::make_pair(gridY, gridX) != g_ctx->duck_pos) {
+                            g_ctx->duck_pos = {gridY, gridX};
+                            g_ctx->duck_phase = false;
+                            g_ctx->board->turn = (g_ctx->board->turn == P_WHITE) ? P_BLACK : P_WHITE;
+                            g_ctx->cached_legal_moves.clear();
+                        }
+                    }
+                }
+                return; 
+            }
             if (VanillaLogic::IsValidCoord(gridY, gridX)) {
                 if (!g_ctx->board->has_selection) {
                     const auto& piece = g_ctx->board->grid[gridY][gridX].piece;
@@ -1298,7 +1382,6 @@ void UpdateDrawFrame() { // rendering
         rawMousePos.y * ((float)Config::WINDOW_HEIGHT / (float)GetScreenHeight())
     };
     
-    
     if (!g_puzzlesLoaded) {
         load_puzzles();
         g_puzzlesLoaded = true;
@@ -1341,6 +1424,7 @@ void UpdateDrawFrame() { // rendering
             DrawSettingsMenu(mousePos);
             break;
         case PUZZLES:
+            VariantSwitcher::SetVariant("vanilla oooga booga raaaa");
             CanvasRenderer::draw_right_side("Puzzle Stats");
             CanvasRenderer::DrawPuzzleSideBar();
             CanvasRenderer::DrawChessboard(displayState);
@@ -1368,8 +1452,21 @@ void UpdateDrawFrame() { // rendering
             DrawTextSmooth("TO BE ADDED", 250.0f, 200.0f, 32.0f, RAYWHITE);
             break;
         case GAME:
+            VariantSwitcher::SetVariant("duck");
+            
             CanvasRenderer::DrawGameMetrics();
             CanvasRenderer::DrawChessboard(displayState);
+            if (VariantSwitcher::GetCurrentName() == "duck" && g_ctx->duck_pos.first != -1) {
+                float drawX = Config::BOARD_OFFSET_X + (g_ctx->duck_pos.second * Config::TILE_SIZE);
+                float drawY = Config::BOARD_OFFSET_Y + (g_ctx->duck_pos.first * Config::TILE_SIZE);
+                
+                float radius = Config::TILE_SIZE * 0.35f;
+                float centerX = drawX + Config::TILE_SIZE / 2.0f;
+                float centerY = drawY + Config::TILE_SIZE / 2.0f;
+                DrawCircle((int)centerX, (int)centerY, radius, YELLOW);
+                DrawCircleLines((int)centerX, (int)centerY, radius, ORANGE);
+            }
+            VariantSwitcher::Active()->DrawExtra(*g_ctx->board);
             break;
         default:
             break;
@@ -1393,7 +1490,6 @@ int main(int argc, char* argv[]) {
     SetConfigFlags(FLAG_MSAA_4X_HINT | FLAG_VSYNC_HINT);
     InitWindow(Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT, "chess");
     InitAudioDevice();
-    VariantSwitcher::SetVariant("giveaway");
     g_ctx = std::make_unique<GameContext>();
     g_ctx->ResetPromotionButtons();
     if (IsAudioDeviceReady()) {

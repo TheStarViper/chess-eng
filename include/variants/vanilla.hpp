@@ -49,4 +49,10 @@ public:
         }
         return score;
     }
+    GameResult CheckGameOver(const ChessBoard& b) override {
+        // if (VanillaLogic::IsCheckmate(b)) return (b.turn == P_WHITE) ? BLACK_WIN : WHITE_WIN;
+        // if (VanillaLogic::IsStalemate(b) || CheckInsufficientMaterial(b)) return DRAW;
+        
+        return IN_PROGRESS; 
+    }
 };

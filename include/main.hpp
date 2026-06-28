@@ -19,7 +19,7 @@ void playsoundsmart(Sound sound, float volume = 1.0,float pitch = 1.0);
 class ChessBoard {
 public:
     GridData grid[8][8];
-    std::string turn; 
+    std::string turn;
     std::vector<HistorySnapshot> move_history;
     
     std::pair<int, int> selected_square;

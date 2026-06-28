@@ -3,7 +3,7 @@
 #include <vector>
 #include <utility>
 #include "variables.h"
-
+enum GameResult { IN_PROGRESS, WHITE_WIN, BLACK_WIN, DRAW };
 class ChessVariantInterface {
 public:
     virtual ~ChessVariantInterface();
@@ -14,4 +14,6 @@ public:
     virtual void CacheLegalMoves(const ChessBoard& b, int r, int c) = 0;
     virtual bool CheckInsufficientMaterial(const ChessBoard& b) = 0;
     virtual int EvaluateBoard(const ChessBoard& b) = 0;
+    virtual GameResult CheckGameOver(const ChessBoard& b) = 0;
+    virtual void DrawExtra(const ChessBoard& b) {}
 };

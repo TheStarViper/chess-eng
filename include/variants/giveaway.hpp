@@ -101,4 +101,40 @@ public:
         }
         return score;
     }
+    
+    GameResult CheckGameOver(const ChessBoard& b) override {
+        int whitePieces = 0;
+        int blackPieces = 0;
+        bool hasAnyLegalMove = false;
+
+        for (int r = 0; r < 8; ++r) {
+            for (int c = 0; c < 8; ++c) {
+                if (b.grid[r][c].has_piece) {
+                    if (b.grid[r][c].piece->color == P_WHITE) whitePieces++;
+                    else blackPieces++;
+
+                    if (b.grid[r][c].piece->color == b.turn && !hasAnyLegalMove) {
+                        for (int targetR = 0; targetR < 8; ++targetR) {
+                            for (int targetC = 0; targetC < 8; ++targetC) {
+                                if (IsLegalMove(b, r, c, targetR, targetC)) {
+                                    hasAnyLegalMove = true;
+                                    break;
+                                }
+                            }
+                            if (hasAnyLegalMove) break;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (whitePieces == 0) return WHITE_WIN;
+        if (blackPieces == 0) return BLACK_WIN;
+
+        if (!hasAnyLegalMove) {
+            return (b.turn == P_WHITE) ? WHITE_WIN : BLACK_WIN;
+        }
+
+        return IN_PROGRESS;
+    }
 };
