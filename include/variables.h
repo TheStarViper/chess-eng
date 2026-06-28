@@ -72,7 +72,9 @@ namespace Config {
     inline const int SIDEBAR_MIN_WIDTH = 60;
 }
 
-
+namespace Gamestates{
+    
+}
 
 enum PieceType {
     NONE = 0,
@@ -216,7 +218,8 @@ struct PieceAnimation {
 
 struct HistoryState {
     bool useLive;            
-    int viewingIndex;       
+    int viewingIndex;
+    std::pair<int, int> duck_pos = {-1, -1};   
 };
 
 
@@ -228,9 +231,8 @@ struct GameContext {
     Sound movesound;
 
     //duckchess
-    std::pair<int, int> duck_pos = {-1, -1};
     bool duck_phase = false;
-
+    std::pair<int, int> duck_pos = {-1, -1};
     
     BoardState savedGameState;
     BoardState savedPuzzleState;

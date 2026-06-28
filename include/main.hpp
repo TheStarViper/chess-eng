@@ -15,7 +15,9 @@
 #include <fstream>
 #include <unordered_map>
 
+Vector2 MeasureTextSmooth(const char* text, float fontSize);
 void playsoundsmart(Sound sound, float volume = 1.0,float pitch = 1.0);
+void DrawTextSmooth(const char* text, float posX, float posY, float fontSize, Color color);
 class ChessBoard {
 public:
     GridData grid[8][8];

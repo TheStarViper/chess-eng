@@ -56,7 +56,7 @@ public:
 
     void DrawExtra(const ChessBoard& b) override {
         if (g_ctx->duck_pos.first != -1) {
-            static Texture2D duckTexture = LoadTexture("assets/images/chesscomset/BlackBishop.png");
+            static Texture2D duckTexture = LoadTexture("assets/images/set/duck-ai-generated.png");
             float drawX = Config::BOARD_OFFSET_X + (g_ctx->duck_pos.second * Config::TILE_SIZE);
             float drawY = Config::BOARD_OFFSET_Y + (g_ctx->duck_pos.first * Config::TILE_SIZE);
 
