@@ -123,12 +123,13 @@ Puzzle get_random_puzzle() {
         char* endptr;
         selectedpuzzle.rating = static_cast<int>(std::strtol(row[4].c_str(), &endptr, 10));
 
-        TraceLog(LOG_INFO, "--- Randomly Selected Row ---");
-        TraceLog(LOG_INFO, "Puzzle ID: %s", selectedpuzzle.puzzleid.c_str());
-        TraceLog(LOG_INFO, "Game ID:   %s", selectedpuzzle.gameid.c_str());
-        TraceLog(LOG_INFO, "Setup:     %s", selectedpuzzle.boardsetup.c_str());
-        TraceLog(LOG_INFO, "Solution:  %s", selectedpuzzle.solution.c_str());
-        TraceLog(LOG_INFO, "Rating:    %d", selectedpuzzle.rating);
+        // TraceLog(LOG_INFO, "--- Randomly Selected Row ---");
+        // TraceLog(LOG_INFO, "Puzzle ID: %s", selectedpuzzle.puzzleid.c_str());
+        // TraceLog(LOG_INFO, "Game ID:   %s", selectedpuzzle.gameid.c_str());
+        // TraceLog(LOG_INFO, "Setup:     %s", selectedpuzzle.boardsetup.c_str());
+        // TraceLog(LOG_INFO, "Solution:  %s", selectedpuzzle.solution.c_str());
+        // TraceLog(LOG_INFO, "Rating:    %d", selectedpuzzle.rating);
+        TraceLog(LOG_INFO, "PUZZLE LOADED SUCCESSFULLY", selectedpuzzle.rating);
     } else {
         TraceLog(LOG_ERROR, "CSV_LOADER: Extracted line slice was invalid.");
     }

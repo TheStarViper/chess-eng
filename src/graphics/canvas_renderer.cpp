@@ -279,12 +279,12 @@ namespace CanvasRenderer {
             Vector2 vSize = MeasureTextSmooth(viewStr.c_str(), 14.0f);
             DrawTextSmooth(viewStr.c_str(), (float)Config::PANEL_X + 25 + (Config::PANEL_WIDTH - 50 - vSize.x)/2, warning_info_y+4, 14.0f, Config::COLOR_FRAME_DARK);
         } else {
-            if (g_ctx->fiftymovecounter){
+            if (Config::fiftymovecounter){
             char stats[128];
             snprintf(stats, sizeof(stats), "50 Move Rule: %d / 50", (int)std::round(g_ctx->board->halfmove_clock/2.1)); //2.1 to avoid rounding up .5
             DrawTextSmooth(stats, (float)Config::PANEL_X + 30, warning_info_y, 14.0f, Config::COLOR_UI_TEXT_DIM);
             }
-            if (g_ctx->threefoldcounter){
+            if (Config::threefoldcounter){
             if (repCount == 2) {
                 DrawTextSmooth("[!] 3-Fold Warning (2x Same)", (float)Config::PANEL_X + Config::PANEL_WIDTH-200, warning_info_y, 14.0f, Config::COLOR_GEM_GLINT);
             }}
@@ -300,7 +300,7 @@ namespace CanvasRenderer {
 
     }
     void draw_board_markings(){
-        if (g_ctx->boardmarkings){
+        if (Config::boardmarkings){
             for (int i = 0; i < 8; ++i) {
                 char fileStr[2] = { (char)('a' + i), '\0' };
                 char rankStr[2] = { (char)('8' - i), '\0' };
@@ -403,7 +403,7 @@ namespace CanvasRenderer {
             float easedT = Easings::EaseInOutCubic(tile.hoverProgress);
             
             if (tile.isHovered.is_new_true()) {
-                playsoundsmart(g_ctx->hoversound, .5, 1.2);
+                playsoundsmart(Resources::hoversound, .5, 1.2);
             }
 
             float minRadius = (float)Config::TILE_SIZE * 0.12f;
@@ -449,7 +449,7 @@ namespace CanvasRenderer {
                 float easedT = Easings::EaseInOutCubic(tile.hoverProgress);
                 
                 if (tile.isHovered.is_new_true()) {
-                    playsoundsmart(g_ctx->hoversound,.5,1.2);
+                    playsoundsmart(Resources::hoversound,.5,1.2);
                 }
                 else if (tile.has_piece) {
                     float radius = (float)Config::TILE_SIZE * 0.38f;

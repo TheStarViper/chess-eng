@@ -181,7 +181,7 @@ namespace VectorRenderer {
 
         if (hoveredLeafThisFrame != -1) {
             if (hoveredLeafThisFrame != lastPlayedIds[slotIndex]) {
-                playsoundsmart(g_ctx->hoversound,1,2);
+                playsoundsmart(Resources::hoversound,1,2);
                 lastPlayedIds[slotIndex] = hoveredLeafThisFrame;
             }
         } else {

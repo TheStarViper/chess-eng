@@ -8,6 +8,7 @@
 #include "vanillalogic.hpp"
 #include "settings.hpp"
 #include "canvas_renderer.hpp"
+#include "play.hpp"
 
 #if defined(PLATFORM_WEB)
     #include <emscripten/emscripten.h>
@@ -128,7 +129,7 @@ void ChessBoard::LoadState(const BoardState& bs) {
 void Button::Draw() {
         Color currentBg = isHovered ? hoverColor : baseColor;
         if (isHovered&&!soundplayed){
-            playsoundsmart(g_ctx->hoversound,.4,.8);
+            playsoundsmart(Resources::hoversound,.4,.8);
             soundplayed = true;
         }
         if (!isHovered){
@@ -622,8 +623,8 @@ void UpdateDrawFrame() { // rendering
     }
     switch (g_ctx->active_menu) {
         case PLAY:
-            DrawRectangle(0, 0, Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT, Fade(BLACK, 0.6f));
-            DrawTextSmooth("TO BE ADDED", 250.0f, 200.0f, 32.0f, RAYWHITE);
+            DrawRectangle(0, 0, Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT, Fade(BLACK, 0.2f));
+            draw_play_screen();
             break;
         case SETTINGS:
             DrawRectangle(0, 0, Config::WINDOW_WIDTH, Config::WINDOW_HEIGHT, Fade(BLACK, 0.2f));
@@ -639,7 +640,7 @@ void UpdateDrawFrame() { // rendering
                 g_ctx->puzzle_win_count++;
                 g_ctx->puzzle_streak++;
                 g_ctx->streak_anim_timer = 0.0f;
-                PlaySound(g_ctx->winsound);
+                PlaySound(Resources::winsound);
             }
 
             if (g_ctx->puzzleSuccess) {
@@ -699,9 +700,9 @@ int main(int argc, char* argv[]) {
     g_ctx = std::make_unique<GameContext>();
     g_ctx->ResetPromotionButtons();
     if (IsAudioDeviceReady()) {
-        g_ctx->hoversound = LoadSound(hoversoundfilepath);
-        g_ctx->winsound = LoadSound(winsoundfilepath);
-        g_ctx->movesound = LoadSound(movesoundfilepath);
+        Resources::hoversound = LoadSound(hoversoundfilepath);
+        Resources::winsound = LoadSound(winsoundfilepath);
+        Resources::movesound = LoadSound(movesoundfilepath);
         audio_loaded= true;
         TraceLog(LOG_INFO, "AUDIO: ZA BLUETOOTH DEWICE HAS BEEN CONNECTED");
     }

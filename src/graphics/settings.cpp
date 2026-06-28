@@ -71,18 +71,18 @@ void DrawSettingsMenu(Vector2 mousePos) {
     DrawTextSmooth(TextFormat("%d%%", (int)(g_ctx->masterVolume * 100)), controlX + sliderWidth + 25, startY, 18.0f, Color{ 180, 160, 110, 255 });
 
     int row2Y = startY + 50;
-    DrawSettingsCheckbox("High Contrast (unimplemented)", &g_ctx->highcontrast, labelX, row2Y, mousePos);
-    DrawSettingsCheckbox("Board Markings", &g_ctx->boardmarkings, labelXright, row2Y, mousePos);
+    DrawSettingsCheckbox("High Contrast (unimplemented)", &Config::highcontrast, labelX, row2Y, mousePos);
+    DrawSettingsCheckbox("Board Markings", &Config::boardmarkings, labelXright, row2Y, mousePos);
     std::vector<Color> availableColors = { MAROON, LIME, DARKBLUE, ORANGE, PURPLE };
     int boxSize = 35;
     int boxSpacing = 15;
 
     int row3Y = row2Y + 50;
-    DrawSettingsCheckbox("50 Move Counter", &g_ctx->fiftymovecounter, labelX, row3Y, mousePos);
-    DrawSettingsCheckbox("Three Fold Counter", &g_ctx->threefoldcounter, labelXright, row3Y, mousePos);
+    DrawSettingsCheckbox("50 Move Counter", &Config::fiftymovecounter, labelX, row3Y, mousePos);
+    DrawSettingsCheckbox("Three Fold Counter", &Config::threefoldcounter, labelXright, row3Y, mousePos);
     int row4Y = row3Y + 50;
-    DrawSettingsCheckbox("placeholder", &g_ctx->highcontrast, labelXright, row4Y, mousePos);
-    DrawSettingsCheckbox("placeholder", &g_ctx->highcontrast, labelXright, row4Y, mousePos);
+    DrawSettingsCheckbox("placeholder", &Config::highcontrast, labelXright, row4Y, mousePos);
+    DrawSettingsCheckbox("placeholder", &Config::highcontrast, labelXright, row4Y, mousePos);
 
     int btnY = paneY + paneHeight - 75;
     Rectangle backBtn = { (float)(paneX + (paneWidth / 2) - 100), (float)btnY, 200.0f, 45.0f };

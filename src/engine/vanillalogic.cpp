@@ -324,7 +324,7 @@ namespace VanillaLogic {
     }
 
     void MakeMove(ChessBoard& b, int r1, int c1, int r2, int c2, PieceType promotionChoice) {
-        playsoundsmart(g_ctx->movesound,.6,1);
+        playsoundsmart(Resources::movesound,.6,1);
         auto p = b.grid[r1][c1].piece;
         if (!p) return;
 

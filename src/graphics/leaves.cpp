@@ -8,4 +8,6 @@ float get_leaves_array(int panelx,int panely,int panelw,int panelh){
     //step 4: get random locations/spacing
     //step 5: get random rotation
     //step 6: profit?
+
+    //add parameter for left/right favoratism or all around or corners
 }

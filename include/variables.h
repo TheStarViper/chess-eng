@@ -70,12 +70,25 @@ namespace Config {
 
     inline const int SIDEBAR_MAX_WIDTH = 160;
     inline const int SIDEBAR_MIN_WIDTH = 60;
+
+    //settings
+    inline bool showMoveHighlights = true;
+    inline bool showBoardCoordinates = true;
+    inline bool fiftymovecounter = false;
+    inline bool threefoldcounter = false;
+    inline bool highcontrast = false;
+    inline bool boardmarkings = true;
 }
 
 namespace Gamestates{
-    
+
 }
 
+namespace Resources{
+    inline Sound hoversound;
+    inline Sound winsound;
+    inline Sound movesound;
+}
 enum PieceType {
     NONE = 0,
     PAWN,
@@ -225,10 +238,6 @@ struct HistoryState {
 
 
 struct GameContext {
-    //Sounds
-    Sound hoversound;
-    Sound winsound;
-    Sound movesound;
 
     //duckchess
     bool duck_phase = false;
@@ -269,13 +278,7 @@ struct GameContext {
     Vector2 puzzle_win_square;
     bool hintActive = false;
     std::string currentHintUci = "";
-    //settings
-    bool showMoveHighlights = true;
-    bool showBoardCoordinates = true;
-    bool fiftymovecounter = false;
-    bool threefoldcounter = false;
-    bool highcontrast = false;
-    bool boardmarkings = true;
+
     
     float masterVolume = 0.75f;
     Menus active_menu = PLAY;
